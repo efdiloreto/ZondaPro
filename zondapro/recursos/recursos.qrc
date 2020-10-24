@@ -1,0 +1,60 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="iconos">
+        <file alias="restablecer-vista.png">iconos/toolbar-graficos/restablecer-vista.png</file>
+        <file alias="vista-frente.png">iconos/toolbar-graficos/vista-frente.png</file>
+        <file alias="vista-contrafrente.png">iconos/toolbar-graficos/vista-contrafrente.png</file>
+        <file alias="vista-derecha.png">iconos/toolbar-graficos/vista-derecha.png</file>
+        <file alias="vista-izquierda.png">iconos/toolbar-graficos/vista-izquierda.png</file>
+        <file alias="vista-superior.png">iconos/toolbar-graficos/vista-superior.png</file>
+        <file alias="acercar.png">iconos/toolbar-graficos/acercar.png</file>
+        <file alias="alejar.png">iconos/toolbar-graficos/alejar.png</file>
+        <file alias="perspectiva-conica.png">iconos/toolbar-graficos/perspectiva-conica.png</file>
+        <file alias="regla.png">iconos/toolbar-graficos/regla.png</file>
+        <file alias="screenshot.png">iconos/toolbar-graficos/screenshot.png</file>
+        <file alias="aumentar-flecha.png">iconos/toolbar-graficos/aumentar-flecha.png</file>
+        <file alias="disminuir-flecha.png">iconos/toolbar-graficos/disminuir-flecha.png</file>
+        <file alias="aumentar-texto.png">iconos/toolbar-graficos/aumentar-texto.png</file>
+        <file alias="disminuir-texto.png">iconos/toolbar-graficos/disminuir-texto.png</file>
+        <file alias="configuracion.png">iconos/generales/configuracion.png</file>
+        <file alias="carpeta.png">iconos/generales/carpeta.png</file>
+        <file alias="ayuda.png">iconos/generales/ayuda.png</file>
+        <file alias="informacion.png">iconos/generales/informacion.png</file>
+        <file alias="cerrar-sesion.png">iconos/generales/cerrar-sesion.png</file>
+        <file alias="actualizar.png">iconos/generales/actualizar.png</file>
+        <file alias="edificio.png">iconos/modulos/edificio.png</file>
+        <file alias="cartel.png">iconos/modulos/cartel.png</file>
+        <file alias="cubierta-aislada.png">iconos/modulos/cubierta-aislada.png</file>
+        <file alias="viento.png">iconos/modulos/viento.png</file>
+        <file alias="topografia.png">iconos/modulos/topografia.png</file>
+        <file alias="componentes.png">iconos/modulos/componentes.png</file>
+        <file alias="zonda.ico">iconos/zonda.ico</file>
+    </qresource>
+    <qresource prefix="imagenes">
+        <file alias="mapa-viento.png">imagenes/mapa-viento.png</file>
+        <file alias="escarpa.jpg">imagenes/escarpa.jpg</file>
+        <file alias="loma.jpg">imagenes/loma.jpg</file>
+        <file alias="logo.png">imagenes/logo.png</file>
+        <file alias="logo-secundario.png">imagenes/logo-secundario.png</file>
+        <file alias="logo-login.png">imagenes/logo-login.png</file>
+    </qresource>
+    <qresource prefix="plantillas">
+        <file alias="base.md">plantillas/base.md</file>
+        <file alias="edificio.md">plantillas/edificio.md</file>
+        <file alias="cubierta-aislada.md">plantillas/cubierta-aislada.md</file>
+        <file alias="cartel.md">plantillas/cartel.md</file>
+        <file alias="macros.md">plantillas/macros.md</file>
+    </qresource>
+    <qresource prefix="css">
+        <file alias="github-pandoc.css">css/github-pandoc.css</file>
+    </qresource>
+    <qresource prefix="textos">
+        <file alias="contrato-licencia.txt">textos/contrato-licencia.txt</file>
+    </qresource>
+    <qresource prefix="fuentes">
+        <file alias="Oswald-VariableFont_wght.ttf">fuentes/Oswald-VariableFont_wght.ttf</file>
+    </qresource>
+    <qresource prefix="qss">
+        <file alias="zonda.qss">qss/zonda.qss</file>
+    </qresource>
+</RCC>
