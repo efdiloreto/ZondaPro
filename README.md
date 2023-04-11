@@ -4,10 +4,18 @@ Software para calcular las cargas de viento segun CIRSOC 102.
 
 ## [Video](https://www.youtube.com/watch?v=uPwBUbLcfzs)
 
-![](https://i.imgur.com/AgJbqkX.png)
+![](https://imgur.com/G8FrQtV.png)
 
-![](https://imgur.com/XRUw8Hp.png)
+![](https://imgur.com/3b8boY7.png)
 
-![](https://i.imgur.com/TvKY9fo.png)
+![](https://imgur.com/Qtj8711.png)
 
-![](https://i.imgur.com/veT4jYZ.png)
+![](https://imgur.com/FyVd003.png)
+
+![](https://imgur.com/xPQkbcy.png)
+
+![](https://imgur.com/fu0GRhN.png)
+
+![](https://imgur.com/afLZE12.png)
+
+![](https://imgur.com/cjhgL1L.png)
