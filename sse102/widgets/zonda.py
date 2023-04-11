@@ -66,9 +66,6 @@ class WidgetAcercaDe(QtWidgets.QWidget):
 class WidgetBienvenida(WidgetSinBorde):
     def __init__(self):
         """
-
-        Args:
-            datos_licencia: Los datos de la licencia del usuario
         """
 
         super().__init__()
@@ -90,12 +87,6 @@ class WidgetBienvenida(WidgetSinBorde):
         accion_informacion = QtWidgets.QAction(QtGui.QIcon(":/iconos/informacion.png"), "Acerca de", self)
         accion_informacion.triggered.connect(self._acerca_de)
         self._toolbar.addAction(accion_informacion)
-
-        accion_cerrar_sesion = QtWidgets.QAction(
-            QtGui.QIcon(":/iconos/cerrar-sesion.png"), "Cerrar Sesión y Salir", self
-        )
-        accion_cerrar_sesion.triggered.connect(self._cerrar_sesion_salir)
-        self._toolbar.addAction(accion_cerrar_sesion)
 
         boton_edificio = WidgetBotonModulo("Edificio", ":/iconos/edificio.png", self._modulo_edificio)
 
@@ -147,15 +138,10 @@ class WidgetBienvenida(WidgetSinBorde):
         self.setLayout(layout_principal)
         self.setWindowFlag(QtCore.Qt.Window)
         self.show()
-        # self._request_nueva_version()
+        self._request_nueva_version()
 
     def _acerca_de(self):
         WidgetAcercaDe(self)
-
-    def _cerrar_sesion_salir(self):
-        settings = QtCore.QSettings()
-        settings.setValue("creds", "")
-        self._salir()
 
     def _dialogo_configuracion(self):
         DialogoConfiguracion(self)

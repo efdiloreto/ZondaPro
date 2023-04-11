@@ -7,7 +7,6 @@ import gc
 from PyQt5 import QtWidgets, QtCore
 
 from sse102 import __acercade__
-from sse102 import sistema
 from sse102.cirsoc import Edificio, CubiertaAislada, Cartel
 from sse102.excepciones import ErrorLineamientos, ErrorEstructura
 from sse102.widgets.custom import WidgetPanelEntrada
@@ -25,9 +24,6 @@ class WidgetModuloEdificio(QtWidgets.QWidget):
 
     def __init__(self, pantalla_bienvenida):
         super().__init__()
-
-        if sistema.PSS != ("w", "e", (("4", None),)):
-            QtWidgets.qApp.quit()
 
         self._widget_resultados = None
 

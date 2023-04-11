@@ -1,4 +1,5 @@
 import sys
+import time
 
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QFontDatabase, QIcon
@@ -24,7 +25,7 @@ def main():
 
     widget = WidgetBienvenida()
 
-
+    app.exec_()
 
 if __name__ == "__main__":
     main()
