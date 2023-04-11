@@ -20,7 +20,7 @@ from sse102.widgets.modulos import WidgetModuloEdificio, WidgetModuloCubiertaAis
 
 
 class WidgetAcercaDe(QtWidgets.QWidget):
-    def __init__(self, parent, info_licencia: Dict[str, Union[Dict[str, str], str]]):
+    def __init__(self, parent):
         super().__init__(parent)
 
         widget_logo = WidgetLogo()
@@ -42,46 +42,6 @@ class WidgetAcercaDe(QtWidgets.QWidget):
         layout_logo.addWidget(label_version, 0, 1, QtCore.Qt.AlignBottom)
         layout_logo.setColumnStretch(2, 1)
 
-        usuario = info_licencia.pop("user")
-        dispositivo = info_licencia.pop("dispositivo")
-        licencia = info_licencia.pop("licencia")
-
-        formato_fecha_salida = "%d-%m-%Y"
-
-        fecha_inicio_licencia = datetime.strptime(licencia["licencia_start"], "%Y-%m-%d %H:%M:%S")
-        fecha_expiracion_licencia = datetime.strptime(licencia["licencia_expire"], "%Y-%m-%d")
-
-        layout_info_licencia = QtWidgets.QGridLayout()
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Usuario:"), 0, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(
-            QtWidgets.QLabel(f"{usuario['user_firstname']} {usuario['user_lastname']}"), 0, 1
-        )
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Tipo de licencia:"), 1, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(licencia["licencia_type"]), 1, 1)
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Fecha de inicio:"), 2, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(fecha_inicio_licencia.strftime(formato_fecha_salida)), 2, 1)
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Fecha de expiración:"), 3, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(fecha_expiracion_licencia.strftime(formato_fecha_salida)), 3, 1)
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Dispositivos permitidos:"), 4, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(licencia["dispositivos_registrado"]), 4, 1)
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("Dispositivos registrados:"), 5, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(licencia["licencia_cant_dispositivos"]), 5, 1)
-
-        layout_info_licencia.addWidget(QtWidgets.QLabel("ID dispositivo:"), 6, 0, QtCore.Qt.AlignRight)
-        layout_info_licencia.addWidget(QtWidgets.QLabel(dispositivo["dispositivo_id"]), 6, 1)
-
-        layout_info_licencia.setRowMinimumHeight(1, 5)
-        layout_info_licencia.setColumnStretch(2, 1)
-
-        group_box_licencia = QtWidgets.QGroupBox("Información de Licencia:")
-        group_box_licencia.setLayout(layout_info_licencia)
-
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_logo)
         layout_principal.addSpacing(15)
@@ -89,7 +49,6 @@ class WidgetAcercaDe(QtWidgets.QWidget):
         layout_principal.addSpacing(15)
         layout_principal.addWidget(label_descripcion)
         layout_principal.addSpacing(15)
-        layout_principal.addWidget(group_box_licencia)
         layout_principal.addWidget(widget_links_info)
 
         self.setLayout(layout_principal)
@@ -105,7 +64,7 @@ class WidgetAcercaDe(QtWidgets.QWidget):
 
 
 class WidgetBienvenida(WidgetSinBorde):
-    def __init__(self, datos_licencia: Dict):
+    def __init__(self):
         """
 
         Args:
@@ -113,8 +72,6 @@ class WidgetBienvenida(WidgetSinBorde):
         """
 
         super().__init__()
-
-        self.datos_licencia = datos_licencia
 
         widget_logo = WidgetLogo()
 
@@ -190,10 +147,10 @@ class WidgetBienvenida(WidgetSinBorde):
         self.setLayout(layout_principal)
         self.setWindowFlag(QtCore.Qt.Window)
         self.show()
-        self._request_nueva_version()
+        # self._request_nueva_version()
 
     def _acerca_de(self):
-        WidgetAcercaDe(self, self.datos_licencia)
+        WidgetAcercaDe(self)
 
     def _cerrar_sesion_salir(self):
         settings = QtCore.QSettings()

@@ -48,7 +48,7 @@ def coords_pared_rectangular(
     elevacion: float = 0.0,
     sobre_eje_z: bool = False,
     invertir_sentido: bool = False,
-) -> List[Punto, ...]:
+):
     """
 
     Args:

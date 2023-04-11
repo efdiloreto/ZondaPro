@@ -4,23 +4,7 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QFontDatabase, QIcon
 
 from sse102 import __acercade__, recursos, sistema
-from sse102.widgets.dialogos import DialogoAutenticacion
 from sse102.widgets.zonda import WidgetBienvenida
-
-
-# def my_exception_hook(exctype, value, traceback):
-#     # Print the error and traceback
-#     print(exctype, value, traceback)
-#     # Call the normal Exception hook after
-#     sys._excepthook(exctype, value, traceback)
-#     sys.exit(1)
-#
-#
-# # Back up the reference to the exceptionhook
-# sys._excepthook = sys.excepthook
-#
-# # Set the exception hook to our wrapping function
-# sys.excepthook = my_exception_hook
 
 
 def main():
@@ -38,18 +22,8 @@ def main():
     if qss.open(QtCore.QFile.ReadOnly):
         app.setStyleSheet(qss.readAll().data().decode("utf-8"))
 
-    dialogo_autenticacion = DialogoAutenticacion()
-    dialogo_autenticacion.destroyed.connect(lambda: print("destruido"))
+    widget = WidgetBienvenida()
 
-    if dialogo_autenticacion.exec_():
-        sistema.PSS = dialogo_autenticacion.codigo_validacion
-        datos_licencia = dialogo_autenticacion.datos_licencia
-        dialogo_autenticacion.destroy()  # En windows 8.1 el dialogo sigue visible por alguna razón. Acá nos aseguramos de destruirlo.
-        widget = WidgetBienvenida(datos_licencia)
-    else:
-        pass
-
-    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
