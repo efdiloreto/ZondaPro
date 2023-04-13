@@ -2,7 +2,7 @@ from functools import cached_property
 
 import numpy as np
 
-from sse102.cirsoc import geometria
+from zonda.cirsoc import geometria
 
 
 class Cartel:
@@ -11,7 +11,13 @@ class Cartel:
     Determina los coeficientes de de fuerza para un cartel.
     """
 
-    def __init__(self, altura_inferior: float, altura_neta: float, ancho: float, es_parapeto: bool = False) -> None:
+    def __init__(
+        self,
+        altura_inferior: float,
+        altura_neta: float,
+        ancho: float,
+        es_parapeto: bool = False,
+    ) -> None:
         """
 
         Args:
@@ -77,7 +83,9 @@ class Cartel:
             cartel: La geometria de un cartel.
             es_parapeto: Si es True, se considera que el cartel actua como parapeto de edificio.
         """
-        return cls(cartel.altura_inferior, cartel.altura_neta, cartel.ancho, es_parapeto)
+        return cls(
+            cartel.altura_inferior, cartel.altura_neta, cartel.ancho, es_parapeto
+        )
 
     def __call__(self) -> float:
         return self.cf

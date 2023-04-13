@@ -6,8 +6,8 @@ from typing import Dict, TYPE_CHECKING, Optional, Union, Hashable, Sequence, Nam
 
 import numpy as np
 
-from sse102.cirsoc.presiones.base import PresionesBase
-from sse102.enums import (
+from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.enums import (
     Cerramiento,
     DireccionVientoMetodoDireccionalSprfv,
     TipoCubierta,
@@ -18,14 +18,14 @@ from sse102.enums import (
 )
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import geometria
-    from sse102.cirsoc.cp import edificio as clases_cp_edificio
-    from sse102.cirsoc.factores import Rafaga
-    from sse102.enums import (
+    from zonda.cirsoc import geometria
+    from zonda.cirsoc.cp import edificio as clases_cp_edificio
+    from zonda.cirsoc.factores import Rafaga
+    from zonda.enums import (
         CategoriaEstructura,
         CategoriaExposicion,
     )
-    from sse102.tipos import (
+    from zonda.tipos import (
         ValoresPresionesCubiertaEdificioSprfvMetodoDireccional,
         ValoresPresionesAleroEdificioSprfvMetodoDireccional,
         ValoresPresionesParedesEdificioSprfvMetodoDireccional,
@@ -157,7 +157,12 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
                 if (
                     self.volumen_interno is not None and self.aberturas_totales
                 ):  # Las aberturas totales no pueden ser "cero"
-                    reduccion = 0.5 * (1 + 1 / (1 + self.volumen_interno / 6954 / self.aberturas_totales) ** 0.5)
+                    reduccion = 0.5 * (
+                        1
+                        + 1
+                        / (1 + self.volumen_interno / 6954 / self.aberturas_totales)
+                        ** 0.5
+                    )
                     return min(reduccion, 1.0)
         return 1.0
 
@@ -168,7 +173,11 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
         Returns:
             El coeficiente de presión interna.
         """
-        cerramiento_gcpi = {Cerramiento.CERRADO: 0.18, Cerramiento.PARCIALMENTE_CERRADO: 0.55, Cerramiento.ABIERTO: 0.0}
+        cerramiento_gcpi = {
+            Cerramiento.CERRADO: 0.18,
+            Cerramiento.PARCIALMENTE_CERRADO: 0.55,
+            Cerramiento.ABIERTO: 0.0,
+        }
         return cerramiento_gcpi[self.cerramiento] * self.factor_reduccion_gcpi
 
     @cached_property
@@ -186,7 +195,12 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
             )
         return valores
 
-    def _calcular_presiones(self, cp: [Dict[Hashable, float], Sequence[float]], factor_rafaga: float, func: partial):
+    def _calcular_presiones(
+        self,
+        cp: [Dict[Hashable, float], Sequence[float]],
+        factor_rafaga: float,
+        func: partial,
+    ):
         """
 
         Args:
@@ -286,7 +300,9 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             cp,
             categoria_exp,
         )
-        self._presion_media_parcial = partial(self._presiones, presion_velocidad=self.presion_velocidad_media)
+        self._presion_media_parcial = partial(
+            self._presiones, presion_velocidad=self.presion_velocidad_media
+        )
 
     @cached_property
     def valores(self) -> ValoresPresionesAleroEdificioSprfvMetodoDireccional:
@@ -305,7 +321,10 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
 
     @staticmethod
     def _presiones(
-        presion_velocidad: float, cp: float, factor_rafaga: float, considerar_presion_minima: bool = False
+        presion_velocidad: float,
+        cp: float,
+        factor_rafaga: float,
+        considerar_presion_minima: bool = False,
     ) -> float:
         """
         Args:
@@ -393,7 +412,9 @@ class ParedesSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         self._bool_indices_alero = alturas <= altura_alero
 
     @property
-    def coeficientes_exposicion_alero(self) -> np.ndarray:  # TODO - Averiguar si se puede hacer -> np.ndarray[float]
+    def coeficientes_exposicion_alero(
+        self,
+    ) -> np.ndarray:  # TODO - Averiguar si se puede hacer -> np.ndarray[float]
         """Obtiene el coeficiente de exposición correspondiente a la altura de alero.
 
         Returns:
@@ -642,7 +663,9 @@ class ParedesComponentes(ParedesSprfvMetodoDireccional, MixinCr):
     def _altura_limite(self):
         return self._calcular_altura_limite(1)
 
-    def _presiones_cr_caso_b(self) -> Union[None, ValoresPresionesParedesEdificioComponentesB]:
+    def _presiones_cr_caso_b(
+        self,
+    ) -> Union[None, ValoresPresionesParedesEdificioComponentesB]:
         """Calcula las presiones sobre los componentes de pared cuando hay que
         utilizar la Figura 8 del Reglamento CIRSOC 102-05.
 
@@ -668,7 +691,10 @@ class ParedesComponentes(ParedesSprfvMetodoDireccional, MixinCr):
     @cached_property
     def valores(
         self,
-    ) -> Union[ValoresPresionesParedesEdificioComponentesB, ValoresPresionesParedesEdificioComponentesA,]:
+    ) -> Union[
+        ValoresPresionesParedesEdificioComponentesB,
+        ValoresPresionesParedesEdificioComponentesA,
+    ]:
         """Calcula los valores de presión dependiendo la referencia del Reglamento.
 
         Returns:
@@ -755,7 +781,10 @@ class Cubierta:
 
     @cached_property
     def valores(self) -> ValoresPresionesCubiertaEdificioMetodoDireccional:
-        return {SistemaResistente.SPRFV: self.sprfv(), SistemaResistente.COMPONENTES: self.componentes()}
+        return {
+            SistemaResistente.SPRFV: self.sprfv(),
+            SistemaResistente.COMPONENTES: self.componentes(),
+        }
 
     def __call__(self) -> ValoresPresionesCubiertaEdificioMetodoDireccional:
         return self.valores
@@ -794,17 +823,34 @@ class Alero:
         """
         if metodo_sprfv == MetodoSprfv.DIRECCIONAL:
             self.sprfv = AleroSprfvMetodoDireccional(
-                alturas, altura_media, categoria, velocidad, rafaga, factor_topografico, cp.sprfv, categoria_exp
+                alturas,
+                altura_media,
+                categoria,
+                velocidad,
+                rafaga,
+                factor_topografico,
+                cp.sprfv,
+                categoria_exp,
             )
         else:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
         self.componentes = AleroComponentes(
-            alturas, altura_media, categoria, velocidad, rafaga, factor_topografico, cp.componentes, categoria_exp
+            alturas,
+            altura_media,
+            categoria,
+            velocidad,
+            rafaga,
+            factor_topografico,
+            cp.componentes,
+            categoria_exp,
         )
 
     @cached_property
     def valores(self) -> ValoresPresionesAleroEdificioMetodoDireccional:
-        return {SistemaResistente.SPRFV: self.sprfv(), SistemaResistente.COMPONENTES: self.componentes()}
+        return {
+            SistemaResistente.SPRFV: self.sprfv(),
+            SistemaResistente.COMPONENTES: self.componentes(),
+        }
 
     def __call__(self) -> ValoresPresionesAleroEdificioMetodoDireccional:
         return self.valores
@@ -891,7 +937,10 @@ class Paredes:
 
     @cached_property
     def valores(self) -> ValoresPresionesParedesEdificioMetodoDireccional:
-        return {SistemaResistente.SPRFV: self.sprfv(), SistemaResistente.COMPONENTES: self.componentes()}
+        return {
+            SistemaResistente.SPRFV: self.sprfv(),
+            SistemaResistente.COMPONENTES: self.componentes(),
+        }
 
     def __call__(self) -> ValoresPresionesParedesEdificioMetodoDireccional:
         return self.valores
@@ -989,7 +1038,10 @@ class Edificio:
 
     @cached_property
     def valores(self) -> ValoresPresionesEdificioMetodoDireccional:
-        valores = {ZonaEdificio.PAREDES: self.paredes(), ZonaEdificio.CUBIERTA: self.cubierta()}
+        valores = {
+            ZonaEdificio.PAREDES: self.paredes(),
+            ZonaEdificio.CUBIERTA: self.cubierta(),
+        }
         alero = getattr(self, "alero", None)
         if alero is not None:
             valores[ZonaEdificio.ALERO] = alero()

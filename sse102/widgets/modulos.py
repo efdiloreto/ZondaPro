@@ -6,12 +6,16 @@ import gc
 
 from PyQt5 import QtWidgets, QtCore
 
-from sse102 import __acercade__
-from sse102.cirsoc import Edificio, CubiertaAislada, Cartel
-from sse102.excepciones import ErrorLineamientos, ErrorEstructura
-from sse102.widgets.custom import WidgetPanelEntrada
-from sse102.widgets.entrada import WidgetEstructuraEdificio, WidgetEstructuraCubiertaAislada, WidgetEstructuraCartel
-from sse102.widgets.resultados import (
+from zonda import __acercade__
+from zonda.cirsoc import Edificio, CubiertaAislada, Cartel
+from zonda.excepciones import ErrorLineamientos, ErrorEstructura
+from zonda.widgets.custom import WidgetPanelEntrada
+from zonda.widgets.entrada import (
+    WidgetEstructuraEdificio,
+    WidgetEstructuraCubiertaAislada,
+    WidgetEstructuraCartel,
+)
+from zonda.widgets.resultados import (
     WidgetResultadosEdificio,
     WidgetResultadosCubiertaAislada,
     WidgetResultadosCartel,
@@ -19,7 +23,6 @@ from sse102.widgets.resultados import (
 
 
 class WidgetModuloEdificio(QtWidgets.QWidget):
-
     titulo = "Edificio"
 
     def __init__(self, pantalla_bienvenida):
@@ -35,7 +38,9 @@ class WidgetModuloEdificio(QtWidgets.QWidget):
         widget_modulo_estructura = QtWidgets.QWidget()
 
         self._widget_panel_entrada = self._generar_widget_panel_entrada()
-        self._widget_panel_entrada.boton_calcular.clicked.connect(self._generar_resultados)
+        self._widget_panel_entrada.boton_calcular.clicked.connect(
+            self._generar_resultados
+        )
 
         layout_estructura = QtWidgets.QVBoxLayout()
         layout_estructura.setContentsMargins(0, 0, 0, 0)
@@ -121,7 +126,6 @@ class WidgetModuloEdificio(QtWidgets.QWidget):
 
 
 class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
-
     titulo = "Cubierta Aislada"
 
     @staticmethod
@@ -147,7 +151,6 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
 
 
 class WidgetModuloCartel(WidgetModuloCubiertaAislada):
-
     titulo = "Cartel"
 
     @staticmethod

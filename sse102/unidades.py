@@ -1,4 +1,4 @@
-from sse102.enums import Unidad
+from zonda.enums import Unidad
 
 
 def convertir_unidad(valor: float, unidad: Unidad) -> float:

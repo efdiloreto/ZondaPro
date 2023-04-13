@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sse102.enums import Estructura, PosicionCamara
-from sse102.graficos.directores import edificio, aisladas, cartel
+from zonda.enums import Estructura, PosicionCamara
+from zonda.graficos.directores import edificio, aisladas, cartel
 
 if TYPE_CHECKING:
     from vtkmodules import all as vtk
@@ -48,7 +48,9 @@ class Geometria:
                 "posicion": self.camara.GetPosition(),
                 "vector_altura": self.camara.GetViewUp(),
             }
-        posicion_camara = kwargs.pop("posicion_camara", None) or PosicionCamara.PERSPECTIVA
+        posicion_camara = (
+            kwargs.pop("posicion_camara", None) or PosicionCamara.PERSPECTIVA
+        )
         self.director = self._clase_director(self.renderer, *args, **kwargs)
         self.director.inicializar_actores()
         if self._parametros_camara is not None:

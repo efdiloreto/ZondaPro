@@ -9,7 +9,7 @@ from typing import Dict, Tuple, TYPE_CHECKING, Union
 
 from vtkmodules import all as vtk
 
-from sse102.enums import (
+from zonda.enums import (
     ParedEdificioSprfv,
     TipoCubierta,
     PosicionCubiertaAleroSprfv,
@@ -18,25 +18,25 @@ from sse102.enums import (
     ZonaComponenteParedEdificio,
     ZonaComponenteCubiertaEdificio,
 )
-from sse102.excepciones import ErrorLineamientos
-from sse102.graficos.actores import (
+from zonda.excepciones import ErrorLineamientos
+from zonda.graficos.actores import (
     actores_poligonos,
     crear_poly_data,
     clip_poly_data,
     ActorPresion,
 )
-from sse102.graficos.directores.utils_geometria import (
+from zonda.graficos.directores.utils_geometria import (
     coords_zona_cubierta,
     coords_pared_rectangular,
     coords_zona_cubierta_desde_proyeccion,
     proyeccion_punto_horizontal_sobre_cubierta,
     punto_sobre_vector,
 )
-from sse102.graficos.directores.utils_iter import aplicar_func_recursivamente
+from zonda.graficos.directores.utils_iter import aplicar_func_recursivamente
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import Edificio
-    from sse102.tipos import Punto2D
+    from zonda.cirsoc import Edificio
+    from zonda.tipos import Punto2D
 
 
 class Geometria:
@@ -166,7 +166,10 @@ class Geometria:
                 dist_eucl=False,
                 invertir_sentido=True,
             )
-        return {PosicionCubiertaAleroSprfv.BARLOVENTO: alero_der, PosicionCubiertaAleroSprfv.SOTAVENTO: alero_izq}
+        return {
+            PosicionCubiertaAleroSprfv.BARLOVENTO: alero_der,
+            PosicionCubiertaAleroSprfv.SOTAVENTO: alero_izq,
+        }
 
     @actores_poligonos(mostrar=True)
     def base(self):
@@ -192,7 +195,9 @@ class Geometria:
         """
         filtro = vtk.vtkTriangleFilter()
         mapper = vtk.vtkPolyDataMapper()
-        filtro.SetInputData(self.actores_paredes[ParedEdificioSprfv.BARLOVENTO].poly_data)
+        filtro.SetInputData(
+            self.actores_paredes[ParedEdificioSprfv.BARLOVENTO].poly_data
+        )
         mapper.SetInputData(filtro.GetOutput())
         propiedades = vtk.vtkMassProperties()
         propiedades.SetInputConnection(filtro.GetOutputPort())
@@ -208,7 +213,9 @@ class Geometria:
         if self.alero_:
             self.alero(0, self.longitud)
 
-    def setear_posicion_camara(self, camara: vtk.vtkCamera, posicion: PosicionCamara) -> None:
+    def setear_posicion_camara(
+        self, camara: vtk.vtkCamera, posicion: PosicionCamara
+    ) -> None:
         """Setea la posición de la camara.
 
         Args:
@@ -217,7 +224,11 @@ class Geometria:
         """
         camara.SetFocalPoint(self.ancho / 2, 0, self.longitud / 2)
         posiciones = {
-            PosicionCamara.SUPERIOR: (self.ancho / 2, self.altura_alero, self.longitud / 2),
+            PosicionCamara.SUPERIOR: (
+                self.ancho / 2,
+                self.altura_alero,
+                self.longitud / 2,
+            ),
             PosicionCamara.PERSPECTIVA: (self.ancho, self.altura_alero, 0),
             PosicionCamara.IZQUIERDA: (0, 0, self.longitud / 2),
             PosicionCamara.DERECHA: (self.ancho, 0, self.longitud / 2),
@@ -318,7 +329,10 @@ class Geometria:
             dist_eucl=True,
             invertir_sentido=True,
         )
-        return {PosicionCubiertaAleroSprfv.BARLOVENTO: faldon_der, PosicionCubiertaAleroSprfv.SOTAVENTO: faldon_izq}
+        return {
+            PosicionCubiertaAleroSprfv.BARLOVENTO: faldon_der,
+            PosicionCubiertaAleroSprfv.SOTAVENTO: faldon_izq,
+        }
 
     def _cubierta_un_agua(self, z_inicio: float, z_fin: float):
         """Determina las coordenadas para una cubierta a un agua.
@@ -331,7 +345,11 @@ class Geometria:
             Las coordenadas para cada zona de la cubierta.
         """
         return coords_zona_cubierta(
-            (0, self.altura_alero), (self.ancho, self.altura_cumbrera), z_inicio, z_fin, dist_eucl=True
+            (0, self.altura_alero),
+            (self.ancho, self.altura_cumbrera),
+            z_inicio,
+            z_fin,
+            dist_eucl=True,
         )
 
     def _cubierta_plana(self, z_inicio: float, z_fin: float):
@@ -361,7 +379,12 @@ class PresionesSprfvMetodoDireccional(Geometria):
     factores.
     """
 
-    def __init__(self, renderer: vtk.vtkRenderer, tabla_colores: vtk.vtkLookupTable, edificio: Edificio) -> None:
+    def __init__(
+        self,
+        renderer: vtk.vtkRenderer,
+        tabla_colores: vtk.vtkLookupTable,
+        edificio: Edificio,
+    ) -> None:
         """
 
         Args:
@@ -389,10 +412,13 @@ class PresionesSprfvMetodoDireccional(Geometria):
 
         self.tabla_colores = tabla_colores  # Es usada por el decorador.
         self._zonas_cubierta = edificio.cp.cubierta.sprfv.zonas
-        self._zonas_cubierta_normal = self._zonas_cubierta[DireccionVientoMetodoDireccionalSprfv.NORMAL]
+        self._zonas_cubierta_normal = self._zonas_cubierta[
+            DireccionVientoMetodoDireccionalSprfv.NORMAL
+        ]
         if self._zonas_cubierta_normal is not None:
             self._zonas_cubierta_invertida_normal = tuple(
-                (self.ancho - inicio, self.ancho - fin) for inicio, fin in self._zonas_cubierta_normal
+                (self.ancho - inicio, self.ancho - fin)
+                for inicio, fin in self._zonas_cubierta_normal
             )
 
         self.direccion = DireccionVientoMetodoDireccionalSprfv.PARALELO
@@ -404,7 +430,11 @@ class PresionesSprfvMetodoDireccional(Geometria):
 
         self.inicializar_actores()
 
-    def obtener_paredes(self) -> Dict[ParedEdificioSprfv : Union[ActorPresion, Tuple[ActorPresion, ActorPresion]]]:
+    def obtener_paredes(
+        self,
+    ) -> Dict[
+        ParedEdificioSprfv : Union[ActorPresion, Tuple[ActorPresion, ActorPresion]]
+    ]:
         """Selecciona los actores de paredes en base al tipo de cubierta y la posición de la misma respecto al viento.
 
         Returns:
@@ -416,7 +446,10 @@ class PresionesSprfvMetodoDireccional(Geometria):
             posicion_cubierta_un_agua == PosicionCubiertaAleroSprfv.BARLOVENTO
             and self.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
         ):
-            paredes[ParedEdificioSprfv.BARLOVENTO], paredes[ParedEdificioSprfv.SOTAVENTO] = (
+            (
+                paredes[ParedEdificioSprfv.BARLOVENTO],
+                paredes[ParedEdificioSprfv.SOTAVENTO],
+            ) = (
                 paredes[ParedEdificioSprfv.SOTAVENTO],
                 paredes[ParedEdificioSprfv.BARLOVENTO],
             )
@@ -434,7 +467,10 @@ class PresionesSprfvMetodoDireccional(Geometria):
         Returns:
             Los actores seleccionados.
         """
-        if self.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL and self.normal_como_paralelo:
+        if (
+            self.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
+            and self.normal_como_paralelo
+        ):
             posicion_cubierta = getattr(self, "posicion_cubierta_un_agua", None)
             if posicion_cubierta is not None:
                 return self.actores_cubierta[self.direccion][posicion_cubierta]
@@ -442,7 +478,10 @@ class PresionesSprfvMetodoDireccional(Geometria):
 
     def obtener_alero(
         self,
-    ) -> Union[Dict[PosicionCubiertaAleroSprfv, Union[Tuple[ActorPresion, ...], ActorPresion]], ActorPresion]:
+    ) -> Union[
+        Dict[PosicionCubiertaAleroSprfv, Union[Tuple[ActorPresion, ...], ActorPresion]],
+        ActorPresion,
+    ]:
         """Selecciona los actores de alero en base a la posición del viento respecto a la cubierta.
 
         Returns:
@@ -468,8 +507,12 @@ class PresionesSprfvMetodoDireccional(Geometria):
                 paredes_paralelo[ParedEdificioSprfv.BARLOVENTO],
                 paredes_paralelo[ParedEdificioSprfv.SOTAVENTO],
             ),
-            ParedEdificioSprfv.SOTAVENTO: paredes_paralelo[ParedEdificioSprfv.LATERAL][0],
-            ParedEdificioSprfv.BARLOVENTO: paredes_paralelo[ParedEdificioSprfv.LATERAL][1],
+            ParedEdificioSprfv.SOTAVENTO: paredes_paralelo[ParedEdificioSprfv.LATERAL][
+                0
+            ],
+            ParedEdificioSprfv.BARLOVENTO: paredes_paralelo[ParedEdificioSprfv.LATERAL][
+                1
+            ],
         }
 
         return {
@@ -506,7 +549,9 @@ class PresionesSprfvMetodoDireccional(Geometria):
         alero_paralelo = {PosicionCubiertaAleroSprfv.SOTAVENTO: []}
         if not bool_cubierta_un_agua:
             alero_paralelo[PosicionCubiertaAleroSprfv.BARLOVENTO] = []
-        for inicio, fin in self._zonas_cubierta[DireccionVientoMetodoDireccionalSprfv.PARALELO]:
+        for inicio, fin in self._zonas_cubierta[
+            DireccionVientoMetodoDireccionalSprfv.PARALELO
+        ]:
             alero = alero_func(self, -inicio, -fin)
             try:
                 for posicion, coords in alero.items():
@@ -538,16 +583,25 @@ class PresionesSprfvMetodoDireccional(Geometria):
         coords = []
         cubierta_func = super().cubierta.__wrapped__
         if self.tipo_cubierta == TipoCubierta.DOS_AGUAS:
-            dos_aguas_coords = {PosicionCubiertaAleroSprfv.BARLOVENTO: [], PosicionCubiertaAleroSprfv.SOTAVENTO: []}
-            for inicio, fin in self._zonas_cubierta[DireccionVientoMetodoDireccionalSprfv.PARALELO]:
+            dos_aguas_coords = {
+                PosicionCubiertaAleroSprfv.BARLOVENTO: [],
+                PosicionCubiertaAleroSprfv.SOTAVENTO: [],
+            }
+            for inicio, fin in self._zonas_cubierta[
+                DireccionVientoMetodoDireccionalSprfv.PARALELO
+            ]:
                 for zona in cubierta_func(self, -inicio, -fin).values():
                     coords.append(zona)
             for barlovento, sotavento in zip(coords[::2], coords[1::2]):
-                dos_aguas_coords[PosicionCubiertaAleroSprfv.BARLOVENTO].append(barlovento)
+                dos_aguas_coords[PosicionCubiertaAleroSprfv.BARLOVENTO].append(
+                    barlovento
+                )
                 dos_aguas_coords[PosicionCubiertaAleroSprfv.SOTAVENTO].append(sotavento)
             return dos_aguas_coords
         else:
-            for inicio, fin in self._zonas_cubierta[DireccionVientoMetodoDireccionalSprfv.PARALELO]:
+            for inicio, fin in self._zonas_cubierta[
+                DireccionVientoMetodoDireccionalSprfv.PARALELO
+            ]:
                 coords.append(cubierta_func(self, -inicio, -fin))
             return coords
 
@@ -623,10 +677,14 @@ class PresionesSprfvMetodoDireccional(Geometria):
         """
         mitad_ancho = self.ancho / 2
         zonas_faldon_der = (
-            (inicio, fin) for (inicio, fin) in self._zonas_cubierta_invertida_normal if fin >= mitad_ancho
+            (inicio, fin)
+            for (inicio, fin) in self._zonas_cubierta_invertida_normal
+            if fin >= mitad_ancho
         )
         zonas_faldon_izq = (
-            (inicio, fin) for (inicio, fin) in self._zonas_cubierta_invertida_normal if inicio <= mitad_ancho
+            (inicio, fin)
+            for (inicio, fin) in self._zonas_cubierta_invertida_normal
+            if inicio <= mitad_ancho
         )
         coords_faldon_der = tuple(
             coords_zona_cubierta_desde_proyeccion(
@@ -699,7 +757,10 @@ class PresionesComponentes(Geometria):
     def alero(self):
         coords = self._cubierta_figura_5b()
         dict_poly_datas = aplicar_func_recursivamente(coords, crear_poly_data)
-        normal_origen = {"faldon izq": ((-1, 0, 0), (0, 0, 0)), "faldon der": ((1, 0, 0), (self.ancho, 0, 0))}
+        normal_origen = {
+            "faldon izq": ((-1, 0, 0), (0, 0, 0)),
+            "faldon der": ((1, 0, 0), (self.ancho, 0, 0)),
+        }
         self.actores_alero = defaultdict(list)
         for faldon, zonas in dict_poly_datas.items():
             normal, origen = normal_origen[faldon]
@@ -725,11 +786,18 @@ class PresionesComponentes(Geometria):
             self.actores_cubierta = aplicar_func_recursivamente(
                 dict_poly_datas,
                 lambda x: ActorPresion(
-                    self.renderer, poly_data=x, tabla_colores=self.tabla_colores, presion=True, mostrar=True
+                    self.renderer,
+                    poly_data=x,
+                    tabla_colores=self.tabla_colores,
+                    presion=True,
+                    mostrar=True,
                 ),
             )
         else:
-            normal_origen = {"faldon izq": ((1, 0, 0), (0, 0, 0)), "faldon der": ((-1, 0, 0), (self.ancho, 0, 0))}
+            normal_origen = {
+                "faldon izq": ((1, 0, 0), (0, 0, 0)),
+                "faldon der": ((-1, 0, 0), (self.ancho, 0, 0)),
+            }
             self.actores_cubierta = defaultdict(list)
             if "Figura 7A" in self._referencia_cubierta:
                 normal, origen = normal_origen["faldon izq"]
@@ -766,7 +834,9 @@ class PresionesComponentes(Geometria):
     @actores_poligonos(crear_atributo=True, presion=True, mostrar=True)
     def paredes(self):
         dict_paredes = super().paredes.__wrapped__(self)
-        dict_paredes["lateral_izq"], dict_paredes["lateral_der"] = dict_paredes.pop(ParedEdificioSprfv.LATERAL)
+        dict_paredes["lateral_izq"], dict_paredes["lateral_der"] = dict_paredes.pop(
+            ParedEdificioSprfv.LATERAL
+        )
         coords = defaultdict(list)
         for pared in dict_paredes.values():
             for zona, coords_pared in pared.items():
@@ -813,16 +883,24 @@ class PresionesComponentes(Geometria):
             origen, fin = (0, self.altura_alero), (self.ancho / 2, self.altura_cumbrera)
             punto_interseccion_distancia_a_con_cubierta_inicial = (
                 punto_interseccion_distancia_a_con_cubierta_final
-            ) = proyeccion_punto_horizontal_sobre_cubierta(self._distancia_a, origen, fin)[1]
+            ) = proyeccion_punto_horizontal_sobre_cubierta(
+                self._distancia_a, origen, fin
+            )[
+                1
+            ]
         else:
             altura_final = self.altura_cumbrera
             origen, fin = (0, self.altura_alero), (self.ancho, self.altura_cumbrera)
-            punto_interseccion_distancia_a_con_cubierta_inicial = proyeccion_punto_horizontal_sobre_cubierta(
-                self._distancia_a, origen, fin
-            )[1]
-            punto_interseccion_distancia_a_con_cubierta_final = proyeccion_punto_horizontal_sobre_cubierta(
-                self.ancho - self._distancia_a, origen, fin
-            )[1]
+            punto_interseccion_distancia_a_con_cubierta_inicial = (
+                proyeccion_punto_horizontal_sobre_cubierta(
+                    self._distancia_a, origen, fin
+                )[1]
+            )
+            punto_interseccion_distancia_a_con_cubierta_final = (
+                proyeccion_punto_horizontal_sobre_cubierta(
+                    self.ancho - self._distancia_a, origen, fin
+                )[1]
+            )
         zonas_5 = (
             coords_pared_rectangular(
                 self._distancia_a,
@@ -853,7 +931,10 @@ class PresionesComponentes(Geometria):
         )
         if self.tipo_cubierta == TipoCubierta.DOS_AGUAS:
             zona_4.insert(2, (self.ancho / 2, self.altura_cumbrera, z0))
-        return {ZonaComponenteParedEdificio.CUATRO: zona_4, ZonaComponenteParedEdificio.CINCO: zonas_5}
+        return {
+            ZonaComponenteParedEdificio.CUATRO: zona_4,
+            ZonaComponenteParedEdificio.CINCO: zonas_5,
+        }
 
     def _pared_lateral(self, x0, altura, invertir_sentido=False):
         """Determina las coordenadas de una pared lateral.
@@ -899,7 +980,10 @@ class PresionesComponentes(Geometria):
                 invertir_sentido=invertir_sentido,
             ),
         )
-        return {ZonaComponenteParedEdificio.CUATRO: zona_4, ZonaComponenteParedEdificio.CINCO: zonas_5}
+        return {
+            ZonaComponenteParedEdificio.CUATRO: zona_4,
+            ZonaComponenteParedEdificio.CINCO: zonas_5,
+        }
 
     def _seleccionar_cubierta(self):
         if self._referencia_cubierta is None:
@@ -923,8 +1007,13 @@ class PresionesComponentes(Geometria):
             punto_mitad = (mitad_ancho, (self.altura_cumbrera + self.altura_alero) / 2)
 
         if self.alero_:
-            punto_alero_inicio = tuple(punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad))
-            punto_alero_fin = (self.ancho + abs(punto_alero_inicio[0]), punto_alero_inicio[1])
+            punto_alero_inicio = tuple(
+                punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad)
+            )
+            punto_alero_fin = (
+                self.ancho + abs(punto_alero_inicio[0]),
+                punto_alero_inicio[1],
+            )
         else:
             punto_alero_inicio = (0, self.altura_alero)
             punto_alero_fin = (self.ancho, self.altura_alero)
@@ -943,8 +1032,16 @@ class PresionesComponentes(Geometria):
         a_inicial = inicio + self._distancia_a
         a_final = fin - self._distancia_a
 
-        if self._referencia_cubierta == "Figura 5B" or self.tipo_cubierta == TipoCubierta.UN_AGUA:
-            zonas_x = ((inicio, a_inicial), (a_inicial, mitad_ancho), (mitad_ancho, a_final), (a_final, fin))
+        if (
+            self._referencia_cubierta == "Figura 5B"
+            or self.tipo_cubierta == TipoCubierta.UN_AGUA
+        ):
+            zonas_x = (
+                (inicio, a_inicial),
+                (a_inicial, mitad_ancho),
+                (mitad_ancho, a_final),
+                (a_final, fin),
+            )
             zonas_3_izq = zonas_x[:1]
             zonas_3_der = zonas_x[-1:]
             zonas_2_centro_izq = zonas_3_izq
@@ -978,11 +1075,15 @@ class PresionesComponentes(Geometria):
         for z_inicio, z_fin in zonas_z[:1] + zonas_z[-1:]:
             for zona_x in zonas_3_izq:
                 coords_zonas_3_faldon_izq.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_alero_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_3_der:
                 coords_zonas_3_faldon_der.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_alero_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
                 )
         coords_zonas_2_faldon_izq = []
         coords_zonas_2_faldon_der = []
@@ -995,11 +1096,15 @@ class PresionesComponentes(Geometria):
                 zonas_x_der = zonas_2_extremo_der
             for zona in zonas_x_izq:
                 coords_zonas_2_faldon_izq.append(
-                    coords_zona_cubierta_desde_proyeccion(zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona in zonas_x_der:
                 coords_zonas_2_faldon_der.append(
-                    coords_zona_cubierta_desde_proyeccion(zona, punto_mitad, punto_alero_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
                 )
         coords_zona_1_faldon_izq = coords_zona_cubierta_desde_proyeccion(
             zonas_x[indice_zona_1_izq], punto_alero_inicio, punto_mitad, *zonas_z[1]
@@ -1037,7 +1142,10 @@ class PresionesComponentes(Geometria):
                 z_inicio,
                 z_fin,
             )
-            for z_inicio, z_fin in ((0, -dos_distancia_a), (self.longitud + dos_distancia_a, self.longitud))
+            for z_inicio, z_fin in (
+                (0, -dos_distancia_a),
+                (self.longitud + dos_distancia_a, self.longitud),
+            )
         )
         coords_zona_3_prima = (
             coords_zona_cubierta_desde_proyeccion(
@@ -1047,7 +1155,10 @@ class PresionesComponentes(Geometria):
                 z_inicio,
                 z_fin,
             )
-            for z_inicio, z_fin in ((0, -cuatro_distancia_a), (self.longitud + cuatro_distancia_a, self.longitud))
+            for z_inicio, z_fin in (
+                (0, -cuatro_distancia_a),
+                (self.longitud + cuatro_distancia_a, self.longitud),
+            )
         )
         coords_zona_2_prima = tuple(
             coords_zona_cubierta_desde_proyeccion(
@@ -1057,7 +1168,10 @@ class PresionesComponentes(Geometria):
                 z_inicio,
                 z_fin,
             )
-            for z_inicio, z_fin in ((0, -dos_distancia_a), (self.longitud + dos_distancia_a, self.longitud))
+            for z_inicio, z_fin in (
+                (0, -dos_distancia_a),
+                (self.longitud + dos_distancia_a, self.longitud),
+            )
         )
 
         coords_zona_2_prima += (
@@ -1109,7 +1223,10 @@ class PresionesComponentes(Geometria):
                 z_inicio,
                 z_fin,
             )
-            for z_inicio, z_fin in ((0, -cuatro_distancia_a), (self.longitud + cuatro_distancia_a, self.longitud))
+            for z_inicio, z_fin in (
+                (0, -cuatro_distancia_a),
+                (self.longitud + cuatro_distancia_a, self.longitud),
+            )
         )
 
         coords_zona_2 = [
@@ -1120,7 +1237,10 @@ class PresionesComponentes(Geometria):
                 z_inicio,
                 z_fin,
             )
-            for z_inicio, z_fin in ((0, -self._distancia_a), (self.longitud + self._distancia_a, self.longitud))
+            for z_inicio, z_fin in (
+                (0, -self._distancia_a),
+                (self.longitud + self._distancia_a, self.longitud),
+            )
         ]
 
         coords_zona_2.append(
@@ -1167,8 +1287,13 @@ class PresionesComponentes(Geometria):
             punto_mitad = (mitad_ancho, (self.altura_cumbrera + self.altura_alero) / 2)
 
         if self.alero_:
-            punto_alero_inicio = tuple(punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad))
-            punto_alero_fin = (self.ancho + abs(punto_alero_inicio[0]), punto_alero_inicio[1])
+            punto_alero_inicio = tuple(
+                punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad)
+            )
+            punto_alero_fin = (
+                self.ancho + abs(punto_alero_inicio[0]),
+                punto_alero_inicio[1],
+            )
         else:
             punto_alero_inicio = (0, self.altura_alero)
             punto_alero_fin = (self.ancho, self.altura_alero)
@@ -1227,16 +1352,22 @@ class PresionesComponentes(Geometria):
                 zonas_x_der = zonas_3_centro_der
             for zona_x in zonas_x_izq:
                 coords_zonas_3_faldon_izq.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_alero_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_x_der:
                 coords_zonas_3_faldon_der.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_alero_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
                 )
 
         coords_zonas_2_faldon_izq = []
         coords_zonas_2_faldon_der = []
-        for i, (z_inicio, z_fin) in enumerate(zonas_z[:1] + zonas_z[2:3] + zonas_z[-1:]):
+        for i, (z_inicio, z_fin) in enumerate(
+            zonas_z[:1] + zonas_z[2:3] + zonas_z[-1:]
+        ):
             if i == 1:
                 zonas_x_izq = zonas_2_centro_izq
                 zonas_x_der = zonas_2_centro_der
@@ -1245,17 +1376,29 @@ class PresionesComponentes(Geometria):
                 zonas_x_der = zonas_2_extremo_der
             for zona in zonas_x_izq:
                 coords_zonas_2_faldon_izq.append(
-                    coords_zona_cubierta_desde_proyeccion(zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona in zonas_x_der:
                 coords_zonas_2_faldon_der.append(
-                    coords_zona_cubierta_desde_proyeccion(zona, punto_mitad, punto_alero_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
                 )
         coords_zona_1_faldon_izq = coords_zona_cubierta_desde_proyeccion(
-            zona_1_izq, punto_alero_inicio, punto_mitad, -self._distancia_a, self.longitud + self._distancia_a
+            zona_1_izq,
+            punto_alero_inicio,
+            punto_mitad,
+            -self._distancia_a,
+            self.longitud + self._distancia_a,
         )
         coords_zona_1_faldon_der = coords_zona_cubierta_desde_proyeccion(
-            zona_1_der, punto_mitad, punto_alero_fin, -self._distancia_a, self.longitud + self._distancia_a
+            zona_1_der,
+            punto_mitad,
+            punto_alero_fin,
+            -self._distancia_a,
+            self.longitud + self._distancia_a,
         )
 
         coords_faldon_izq = {
@@ -1280,7 +1423,11 @@ class PresionesComponentes(Geometria):
         """
         if self.alero_:
             punto_alero_inicio = tuple(
-                punto_sobre_vector(-self.alero_, (0, self.altura_alero), (self.ancho, self.altura_cumbrera))
+                punto_sobre_vector(
+                    -self.alero_,
+                    (0, self.altura_alero),
+                    (self.ancho, self.altura_cumbrera),
+                )
             )
         else:
             punto_alero_inicio = (0, self.altura_alero)

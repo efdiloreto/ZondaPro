@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from sse102.enums import CategoriaEstructura, CategoriaExposicion
+from zonda.enums import CategoriaEstructura, CategoriaExposicion
 
 if TYPE_CHECKING:
-    from sse102.cirsoc.factores import Rafaga
-    from sse102.tipos import EscalarOArray
+    from zonda.cirsoc.factores import Rafaga
+    from zonda.tipos import EscalarOArray
 
 
 class PresionesBase:
@@ -94,7 +94,7 @@ class PresionesBase:
             * self.coeficientes_exposicion
             * self.factor_topografico
             * self.factor_importancia
-            * self.velocidad ** 2
+            * self.velocidad**2
         )
 
     @cached_property

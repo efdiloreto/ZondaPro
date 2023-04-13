@@ -24,7 +24,11 @@ def array_alturas(
     """
 
     if alturas_personalizadas is not None:
-        alturas = [altura for altura in alturas_personalizadas if altura_inferior <= altura <= altura_superior]
+        alturas = [
+            altura
+            for altura in alturas_personalizadas
+            if altura_inferior <= altura <= altura_superior
+        ]
     else:
         alturas = list(range(math.ceil(altura_inferior), math.ceil(altura_superior), 1))
     # Se añaden valores representativos en el array si no se encuentran.

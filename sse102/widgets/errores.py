@@ -5,7 +5,13 @@ from PyQt5 import QtWidgets
 
 
 class AvisoError(QtWidgets.QMessageBox):
-    def __init__(self, parent, texto: str, titulo_ventana: str, ruta_archivo_error: Optional[str] = None):
+    def __init__(
+        self,
+        parent,
+        texto: str,
+        titulo_ventana: str,
+        ruta_archivo_error: Optional[str] = None,
+    ):
         super().__init__(parent, text=texto)
         self.setWindowTitle(titulo_ventana)
 

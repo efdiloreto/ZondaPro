@@ -2,9 +2,14 @@ from typing import Optional
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 
-from sse102 import __acercade__
-from sse102.enums import CategoriaExposicion, TipoTerrenoTopografia, DireccionTopografia, Flexibilidad
-from sse102.widgets import dialogos
+from zonda import __acercade__
+from zonda.enums import (
+    CategoriaExposicion,
+    TipoTerrenoTopografia,
+    DireccionTopografia,
+    Flexibilidad,
+)
+from zonda.widgets import dialogos
 
 
 class EfectoPulsacion(QtWidgets.QGraphicsOpacityEffect):
@@ -146,7 +151,10 @@ class WidgetPanelEntrada(WidgetPanel):
         layout_principal.addWidget(boton_dialogo_topografia)
 
         if componentes:
-            self.componentes = {"componentes_paredes": None, "componentes_cubierta": None}
+            self.componentes = {
+                "componentes_paredes": None,
+                "componentes_cubierta": None,
+            }
             boton_dialogo_componentes = WidgetBotonPanel("C&&R")
             boton_dialogo_componentes.clicked.connect(self._dialogo_componentes)
             boton_dialogo_componentes.setIcon(QtGui.QIcon(":/iconos/componentes.png"))
@@ -264,20 +272,30 @@ class WidgetLinksInfo(QtWidgets.QWidget):
         layout_principal.setSpacing(25)
 
         if pagina_web:
-            layout_principal.addWidget(WidgetLabelLinkInfo("Página Web", __acercade__.__web__))
+            layout_principal.addWidget(
+                WidgetLabelLinkInfo("Página Web", __acercade__.__web__)
+            )
 
         if contacto:
-            layout_principal.addWidget(WidgetLabelLinkInfo("Contacto", __acercade__.__contacto__))
+            layout_principal.addWidget(
+                WidgetLabelLinkInfo("Contacto", __acercade__.__contacto__)
+            )
 
         if eula:
-            layout_principal.addWidget(WidgetLabelLinkInfo("Contrato de licencia", __acercade__.__eula__))
+            layout_principal.addWidget(
+                WidgetLabelLinkInfo("Contrato de licencia", __acercade__.__eula__)
+            )
 
         if licencias_terceros:
             layout_principal.addWidget(
-                WidgetLabelLinkInfo("Licencias de terceros", __acercade__.__licencias_terceros__)
+                WidgetLabelLinkInfo(
+                    "Licencias de terceros", __acercade__.__licencias_terceros__
+                )
             )
 
         if ayuda:
-            layout_principal.addWidget(WidgetLabelLinkInfo("Ayuda", __acercade__.__ayuda__))
+            layout_principal.addWidget(
+                WidgetLabelLinkInfo("Ayuda", __acercade__.__ayuda__)
+            )
 
         self.setLayout(layout_principal)

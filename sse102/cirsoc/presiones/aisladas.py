@@ -4,17 +4,17 @@ from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from sse102.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.presiones.base import PresionesBase
 
 if TYPE_CHECKING:
-    from sse102.enums import (
+    from zonda.enums import (
         CategoriaEstructura,
         CategoriaExposicion,
     )
-    from sse102.cirsoc.factores import Rafaga
-    from sse102.cirsoc import cp
-    from sse102.cirsoc import geometria
-    from sse102.tipos import ValoresPresionesCubiertaAislada
+    from zonda.cirsoc.factores import Rafaga
+    from zonda.cirsoc import cp
+    from zonda.cirsoc import geometria
+    from zonda.tipos import ValoresPresionesCubiertaAislada
 
 
 class CubiertaAislada(PresionesBase):

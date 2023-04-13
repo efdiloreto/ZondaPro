@@ -3,9 +3,9 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Optional, Sequence, TYPE_CHECKING, Tuple, NamedTuple
 
-from sse102.cirsoc.geometria.cubiertas import Cubierta
-from sse102.cirsoc.geometria.utils_alturas import array_alturas
-from sse102.enums import TipoCubierta
+from zonda.cirsoc.geometria.cubiertas import Cubierta
+from zonda.cirsoc.geometria.utils_alturas import array_alturas
+from zonda.enums import TipoCubierta
 
 if TYPE_CHECKING:
     import numpy as np
@@ -59,9 +59,17 @@ class Edificio:
         self.altura_alero = altura_alero
         self.tipo_cubierta = tipo_cubierta
         self.cubierta: Cubierta = Cubierta(
-            ancho, longitud, altura_alero, altura_cumbrera, tipo_cubierta, parapeto, alero
+            ancho,
+            longitud,
+            altura_alero,
+            altura_cumbrera,
+            tipo_cubierta,
+            parapeto,
+            alero,
         )
-        self.altura_cumbrera = self.cubierta.altura_cumbrera  # Ya es procesada en la inicialización de la clase
+        self.altura_cumbrera = (
+            self.cubierta.altura_cumbrera
+        )  # Ya es procesada en la inicialización de la clase
         self.parapeto = parapeto
         self.alero = alero
         self.alturas_personalizadas = alturas_personalizadas
@@ -129,7 +137,8 @@ class Edificio:
             Las aberturas procesadas.
         """
         aberturas = tuple(
-            min(abertura, area) if abertura >= 0 else 0.0 for abertura, area in zip(self._aberturas, self.areas)
+            min(abertura, area) if abertura >= 0 else 0.0
+            for abertura, area in zip(self._aberturas, self.areas)
         )
         return AreasEdificio(*aberturas)
 
@@ -220,7 +229,10 @@ class Edificio:
         Returns:
             Chequeo de condición 1 para cada pared.
         """
-        return tuple(abertura >= 0.8 * area for abertura, area in zip(self.aberturas[:-1], self.areas[:-1]))
+        return tuple(
+            abertura >= 0.8 * area
+            for abertura, area in zip(self.aberturas[:-1], self.areas[:-1])
+        )
 
     @cached_property
     def cerramiento_condicion_2(self) -> Tuple[bool, ...]:
@@ -230,7 +242,10 @@ class Edificio:
         Returns:
             Chequeo de condición 2 para cada pared.
         """
-        return tuple(abertura > 1.1 * area for abertura, area in zip(self.aberturas[:-1], self.a0i))
+        return tuple(
+            abertura > 1.1 * area
+            for abertura, area in zip(self.aberturas[:-1], self.a0i)
+        )
 
     @cached_property
     def cerramiento_condicion_3(self) -> Tuple[bool, ...]:
@@ -240,7 +255,10 @@ class Edificio:
         Returns:
             Chequeo de condición 3 para cada pared.
         """
-        return tuple(abertura > area for abertura, area in zip(self.aberturas[:-1], self.min_areas))
+        return tuple(
+            abertura > area
+            for abertura, area in zip(self.aberturas[:-1], self.min_areas)
+        )
 
     @cached_property
     def cerramiento_condicion_4(self) -> Tuple[bool, ...]:
@@ -249,4 +267,6 @@ class Edificio:
         Returns:
             Chequeo de condición 4 para cada pared.
         """
-        return tuple(abertura / area <= 0.2 for abertura, area in zip(self.a0i, self.agi))
+        return tuple(
+            abertura / area <= 0.2 for abertura, area in zip(self.a0i, self.agi)
+        )

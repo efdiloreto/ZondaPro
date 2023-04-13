@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from typing import Optional, Sequence, TYPE_CHECKING, Dict, Tuple
 
-from sse102.cirsoc import cp
-from sse102.cirsoc import geometria
-from sse102.cirsoc import presiones
-from sse102.cirsoc.factores import Topografia, Rafaga
-from sse102.enums import Flexibilidad, TipoTerrenoTopografia, DireccionTopografia, MetodoSprfv, TipoCubierta
+from zonda.cirsoc import cp
+from zonda.cirsoc import geometria
+from zonda.cirsoc import presiones
+from zonda.cirsoc.factores import Topografia, Rafaga
+from zonda.enums import (
+    Flexibilidad,
+    TipoTerrenoTopografia,
+    DireccionTopografia,
+    MetodoSprfv,
+    TipoCubierta,
+)
 
 if TYPE_CHECKING:
-    from sse102.enums import (
+    from zonda.enums import (
         CategoriaExposicion,
         CategoriaEstructura,
         PosicionBloqueoCubierta,
@@ -90,7 +96,9 @@ class Cartel:
         self.distancia_barlovento_sotavento: distancia_barlovento_sotavento
         self.direccion: direccion
 
-        self.geometria = geometria.Cartel(profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas)
+        self.geometria = geometria.Cartel(
+            profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas
+        )
         self.cf = cp.Cartel.desde_cartel(self.geometria, es_parapeto)
         self.rafaga = Rafaga(
             ancho,

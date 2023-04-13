@@ -4,8 +4,8 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QFontDatabase, QIcon
 
-from sse102 import __acercade__, recursos, sistema
-from sse102.widgets.zonda import WidgetBienvenida
+from zonda import __acercade__, recursos
+from zonda.widgets.zonda import WidgetBienvenida
 
 
 def main():
@@ -26,6 +26,7 @@ def main():
     widget = WidgetBienvenida()
 
     app.exec_()
+
 
 if __name__ == "__main__":
     main()

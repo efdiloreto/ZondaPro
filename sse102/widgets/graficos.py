@@ -6,11 +6,11 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from vtkmodules import all as vtk
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
-from sse102.cirsoc import Edificio, CubiertaAislada, Cartel
-from sse102.enums import Estructura
-from sse102.enums import PosicionCamara, SistemaResistente, Unidad
-from sse102.graficos.actores import color_3d
-from sse102.graficos.escenas import (
+from zonda.cirsoc import Edificio, CubiertaAislada, Cartel
+from zonda.enums import Estructura
+from zonda.enums import PosicionCamara, SistemaResistente, Unidad
+from zonda.graficos.actores import color_3d
+from zonda.graficos.escenas import (
     geometrias,
     edificio as escena_edificio,
     aisladas as escena_aisladas,
@@ -44,7 +44,9 @@ class WidgetGraficoBase(QtWidgets.QWidget):
         accion_vista_perspectiva.triggered.connect(self._vista_perspectiva)
         self._toolbar.addAction(accion_vista_perspectiva)
 
-        accion_vista_frente = QtWidgets.QAction(QtGui.QIcon(":/iconos/vista-frente.png"), "Vista Frente", self)
+        accion_vista_frente = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/vista-frente.png"), "Vista Frente", self
+        )
         accion_vista_frente.triggered.connect(self._vista_frente)
         self._toolbar.addAction(accion_vista_frente)
 
@@ -66,7 +68,9 @@ class WidgetGraficoBase(QtWidgets.QWidget):
         accion_vista_lateral_izquierda.triggered.connect(self._vista_lateral_izquierda)
         self._toolbar.addAction(accion_vista_lateral_izquierda)
 
-        accion_vista_superior = QtWidgets.QAction(QtGui.QIcon(":/iconos/vista-superior.png"), "Vista Superior", self)
+        accion_vista_superior = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/vista-superior.png"), "Vista Superior", self
+        )
         accion_vista_superior.triggered.connect(self._vista_superior)
         self._toolbar.addAction(accion_vista_superior)
 
@@ -78,11 +82,15 @@ class WidgetGraficoBase(QtWidgets.QWidget):
         accion_camara_ortogonal.setChecked(True)
         self._toolbar.addAction(accion_camara_ortogonal)
 
-        accion_acercar = QtWidgets.QAction(QtGui.QIcon(":/iconos/acercar.png"), "Acercar", self)
+        accion_acercar = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/acercar.png"), "Acercar", self
+        )
         accion_acercar.triggered.connect(self._zoom_acercar)
         self._toolbar.addAction(accion_acercar)
 
-        accion_alejar = QtWidgets.QAction(QtGui.QIcon(":/iconos/alejar.png"), "Alejar", self)
+        accion_alejar = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/alejar.png"), "Alejar", self
+        )
         accion_alejar.triggered.connect(self._zoom_alejar)
         self._toolbar.addAction(accion_alejar)
 
@@ -105,14 +113,18 @@ class WidgetGraficoBase(QtWidgets.QWidget):
 
         self._camara = self._renderer.GetActiveCamera()
 
-        self._interactor = self._qvtk_window_interactor.GetRenderWindow().GetInteractor()
+        self._interactor = (
+            self._qvtk_window_interactor.GetRenderWindow().GetInteractor()
+        )
 
         estilo_interactor = vtk.vtkInteractorStyleTrackballCamera()
         self._interactor.SetInteractorStyle(estilo_interactor)
 
         self._qvtk_window_interactor.GetRenderWindow().AddRenderer(self._renderer)
 
-        accion_captura_imagen = QtWidgets.QAction(QtGui.QIcon(":/iconos/screenshot.png"), "Capturar Imagen", self)
+        accion_captura_imagen = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/screenshot.png"), "Capturar Imagen", self
+        )
         accion_captura_imagen.triggered.connect(self._capturar_imagen)
         self._toolbar.addAction(accion_captura_imagen)
 
@@ -131,7 +143,9 @@ class WidgetGraficoBase(QtWidgets.QWidget):
         filtro_ventana_imagen.SetInputBufferTypeToRGB()
         filtro_ventana_imagen.Update()
 
-        nombre, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Guardar Imagen", "Captura.png", filter="PNG (*.png)")
+        nombre, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Guardar Imagen", "Captura.png", filter="PNG (*.png)"
+        )
         if nombre:
             writer = vtk.vtkPNGWriter()
             writer.SetFileName(nombre)
@@ -154,27 +168,39 @@ class WidgetGraficoBase(QtWidgets.QWidget):
         self._interactor.ReInitialize()
 
     def _vista_perspectiva(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.PERSPECTIVA)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.PERSPECTIVA
+        )
         self._interactor.ReInitialize()
 
     def _vista_lateral_izquierda(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.IZQUIERDA)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.IZQUIERDA
+        )
         self._interactor.ReInitialize()
 
     def _vista_lateral_derecha(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.DERECHA)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.DERECHA
+        )
         self._interactor.ReInitialize()
 
     def _vista_frente(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.FRENTE)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.FRENTE
+        )
         self._interactor.ReInitialize()
 
     def _vista_contrafrente(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.CONTRAFRENTE)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.CONTRAFRENTE
+        )
         self._interactor.ReInitialize()
 
     def _vista_superior(self) -> None:
-        self.escena.director.setear_posicion_camara(self._camara, posicion=PosicionCamara.SUPERIOR)
+        self.escena.director.setear_posicion_camara(
+            self._camara, posicion=PosicionCamara.SUPERIOR
+        )
         self._interactor.ReInitialize()
 
     def finalizar(self) -> None:
@@ -190,7 +216,9 @@ class WidgetGraficoGeometria(WidgetGraficoBase):
     def __init__(self, estructura: Estructura):
         self.estructura = estructura
         super().__init__()
-        self.escena = geometrias.Geometria(self._interactor, self._renderer, self._camara, self.estructura)
+        self.escena = geometrias.Geometria(
+            self._interactor, self._renderer, self._camara, self.estructura
+        )
 
 
 class WidgetPresiones(WidgetGraficoBase):
@@ -198,7 +226,9 @@ class WidgetPresiones(WidgetGraficoBase):
         super().__init__()
         self._crear_widget_distancia()
 
-        accion_medir = QtWidgets.QAction(QtGui.QIcon(":/iconos/regla.png"), "Medir Distancia", self)
+        accion_medir = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/regla.png"), "Medir Distancia", self
+        )
         accion_medir.setCheckable(True)
         accion_medir.triggered.connect(self._medir_distancia)
         self._toolbar.addAction(accion_medir)
@@ -210,29 +240,44 @@ class WidgetPresiones(WidgetGraficoBase):
         settings.endGroup()
 
     def _crear_comandos_presiones(self):
-
         accion_aumentar_escala_flecha = QtWidgets.QAction(
-            QtGui.QIcon(":/iconos/aumentar-flecha.png"), "Aumentar Escalas Flechas", self
+            QtGui.QIcon(":/iconos/aumentar-flecha.png"),
+            "Aumentar Escalas Flechas",
+            self,
         )
-        accion_aumentar_escala_flecha.triggered.connect(self.escena.aumentar_escala_flechas)
+        accion_aumentar_escala_flecha.triggered.connect(
+            self.escena.aumentar_escala_flechas
+        )
         self._toolbar.addAction(accion_aumentar_escala_flecha)
 
         accion_disminuir_escala_flecha = QtWidgets.QAction(
-            QtGui.QIcon(":/iconos/disminuir-flecha.png"), "Disminuir Escalas Flechas", self
+            QtGui.QIcon(":/iconos/disminuir-flecha.png"),
+            "Disminuir Escalas Flechas",
+            self,
         )
-        accion_disminuir_escala_flecha.triggered.connect(self.escena.disminuir_escala_flechas)
+        accion_disminuir_escala_flecha.triggered.connect(
+            self.escena.disminuir_escala_flechas
+        )
         self._toolbar.addAction(accion_disminuir_escala_flecha)
 
         accion_aumentar_tamanio_texto = QtWidgets.QAction(
-            QtGui.QIcon(":/iconos/aumentar-texto.png"), "Aumentar Tamaño Texto Presiones", self
+            QtGui.QIcon(":/iconos/aumentar-texto.png"),
+            "Aumentar Tamaño Texto Presiones",
+            self,
         )
-        accion_aumentar_tamanio_texto.triggered.connect(self.escena.aumentar_tamanio_label_presion)
+        accion_aumentar_tamanio_texto.triggered.connect(
+            self.escena.aumentar_tamanio_label_presion
+        )
         self._toolbar.addAction(accion_aumentar_tamanio_texto)
 
         accion_disminuir_tamanio_texto = QtWidgets.QAction(
-            QtGui.QIcon(":/iconos/disminuir-texto.png"), "Disminuir Tamaño Texto Presiones", self
+            QtGui.QIcon(":/iconos/disminuir-texto.png"),
+            "Disminuir Tamaño Texto Presiones",
+            self,
         )
-        accion_disminuir_tamanio_texto.triggered.connect(self.escena.disminuir_tamanio_label_presion)
+        accion_disminuir_tamanio_texto.triggered.connect(
+            self.escena.disminuir_tamanio_label_presion
+        )
         self._toolbar.addAction(accion_disminuir_tamanio_texto)
 
     def _crear_widget_distancia(self) -> None:
@@ -254,7 +299,9 @@ class WidgetPresiones(WidgetGraficoBase):
         self._representation.SetHandleRepresentation(self._handle)
         self._point_picker = vtk.vtkPointPicker()
         self._point_picker.SetUseCells(True)
-        self._widget_distancia.AddObserver(vtk.vtkCommand.EndInteractionEvent, self._ubicar_puntos_distancia)
+        self._widget_distancia.AddObserver(
+            vtk.vtkCommand.EndInteractionEvent, self._ubicar_puntos_distancia
+        )
         self._widget_distancia.SetRepresentation(self._representation)
         self._interactor.SetPicker(self._point_picker)
 
@@ -283,7 +330,9 @@ class WidgetGraficoEdificioPresiones(WidgetPresiones):
     el gráfico (Por ejemplo, zoom-in, zoom-out, etc).
     """
 
-    def __init__(self, edificio: Edificio, sistema_resistente: SistemaResistente) -> None:
+    def __init__(
+        self, edificio: Edificio, sistema_resistente: SistemaResistente
+    ) -> None:
         """
 
         Args:
@@ -322,7 +371,10 @@ class WidgetGraficoCubiertaAisladaPresiones(WidgetPresiones):
         super().__init__()
 
         self.escena = escena_aisladas.Presiones(
-            self._interactor, self._renderer, cubierta_aislada, Unidad(self._unidad_presion)
+            self._interactor,
+            self._renderer,
+            cubierta_aislada,
+            Unidad(self._unidad_presion),
         )
 
         self._crear_comandos_presiones()
@@ -346,7 +398,11 @@ class WidgetGraficoCartelPresiones(WidgetPresiones):
         super().__init__()
 
         self.escena = escena_cartel.Presiones(
-            self._interactor, self._renderer, cartel, Unidad(self._unidad_presion), Unidad(self._unidad_fuerza)
+            self._interactor,
+            self._renderer,
+            cartel,
+            Unidad(self._unidad_presion),
+            Unidad(self._unidad_fuerza),
         )
 
         self._crear_comandos_presiones()

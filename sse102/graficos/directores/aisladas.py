@@ -4,18 +4,21 @@ from typing import TYPE_CHECKING
 
 from vtkmodules import all as vtk
 
-from sse102.enums import (
+from zonda.enums import (
     TipoCubierta,
     PosicionBloqueoCubierta,
     PosicionCamara,
     ZonaPresionCubiertaAislada,
     TipoPresionCubiertaAislada,
 )
-from sse102.graficos.actores import actores_poligonos, color_3d
-from sse102.graficos.directores.utils_geometria import coords_zona_cubierta, coords_zona_cubierta_desde_proyeccion
+from zonda.graficos.actores import actores_poligonos, color_3d
+from zonda.graficos.directores.utils_geometria import (
+    coords_zona_cubierta,
+    coords_zona_cubierta_desde_proyeccion,
+)
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import CubiertaAislada
+    from zonda.cirsoc import CubiertaAislada
 
 
 class Geometria:
@@ -73,7 +76,9 @@ class Geometria:
         self.cubierta()
         self._crear_soportes()
 
-    def setear_posicion_camara(self, camara: vtk.vtkCamera, posicion: PosicionCamara) -> None:
+    def setear_posicion_camara(
+        self, camara: vtk.vtkCamera, posicion: PosicionCamara
+    ) -> None:
         """Setea la posición de la camara.
         Args:
             camara: La camara a la que se le setea la vista.
@@ -81,7 +86,11 @@ class Geometria:
         """
         camara.SetFocalPoint(self.ancho / 2, 0, self.longitud / 2)
         posiciones = {
-            PosicionCamara.SUPERIOR: (self.ancho / 2, self.altura_alero, self.longitud / 2),
+            PosicionCamara.SUPERIOR: (
+                self.ancho / 2,
+                self.altura_alero,
+                self.longitud / 2,
+            ),
             PosicionCamara.PERSPECTIVA: (self.ancho, self.altura_alero, 0),
             PosicionCamara.IZQUIERDA: (0, 0, self.longitud / 2),
             PosicionCamara.DERECHA: (self.ancho, 0, self.longitud / 2),
@@ -127,11 +136,20 @@ class Geometria:
             Las coordenadas para cada zona de la cubierta.
         """
         return coords_zona_cubierta(
-            (0, self.altura_alero), (self.ancho, self.altura_cumbrera), 0, self.longitud, dist_eucl=True
+            (0, self.altura_alero),
+            (self.ancho, self.altura_cumbrera),
+            0,
+            self.longitud,
+            dist_eucl=True,
         )
 
     def _crear_soportes(self):
-        for (x, y, z) in ((0, 0, 0), (self.ancho, 0, 0), (0, 0, self.longitud), (self.ancho, 0, self.longitud)):
+        for x, y, z in (
+            (0, 0, 0),
+            (self.ancho, 0, 0),
+            (0, 0, self.longitud),
+            (self.ancho, 0, self.longitud),
+        ):
             line_source = vtk.vtkLineSource()
             line_source.SetPoint1(x, y, z)
             if x == self.ancho and self.tipo_cubierta == TipoCubierta.UN_AGUA:
@@ -157,7 +175,10 @@ class Presiones(Geometria):
     """
 
     def __init__(
-        self, renderer: vtk.vtkRenderer, tabla_colores: vtk.vtkLookupTable, cubierta_aislada: CubiertaAislada
+        self,
+        renderer: vtk.vtkRenderer,
+        tabla_colores: vtk.vtkLookupTable,
+        cubierta_aislada: CubiertaAislada,
     ) -> None:
         """
 
@@ -228,18 +249,28 @@ class Presiones(Geometria):
         coords_zonas_bc = []
         for z_inicio, z_fin in zonas_z[:1] + zonas_z[-1:]:
             coords_zonas_b.append(
-                coords_zona_cubierta_desde_proyeccion(zonas_x[1], punto_inicio, punto_fin, z_inicio, z_fin)
+                coords_zona_cubierta_desde_proyeccion(
+                    zonas_x[1], punto_inicio, punto_fin, z_inicio, z_fin
+                )
             )
             for zona_x in zonas_c:
                 coords_zonas_bc.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_fin, z_inicio, z_fin
+                    )
                 )
 
-        coords_zonas_a = coords_zona_cubierta_desde_proyeccion(zonas_x[1], punto_inicio, punto_fin, *zonas_z[1])
+        coords_zonas_a = coords_zona_cubierta_desde_proyeccion(
+            zonas_x[1], punto_inicio, punto_fin, *zonas_z[1]
+        )
 
         coords_zonas_c = []
         for zona_x in zonas_c:
-            coords_zonas_c.append(coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_fin, *zonas_z[1]))
+            coords_zonas_c.append(
+                coords_zona_cubierta_desde_proyeccion(
+                    zona_x, punto_inicio, punto_fin, *zonas_z[1]
+                )
+            )
 
         return {
             ZonaPresionCubiertaAislada.A: coords_zonas_a,
@@ -294,27 +325,39 @@ class Presiones(Geometria):
         for z_inicio, z_fin in zonas_z[:1] + zonas_z[-1:]:
             for zona_x in zonas_b_izq:
                 coords_zonas_b.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_b_der:
                 coords_zonas_b.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_esq_bc_izq:
                 coords_zonas_bc.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_esq_bc_der:
                 coords_zonas_bc.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_esq_bd_izq:
                 coords_zonas_bd.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_esq_bd_der:
                 coords_zonas_bd.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
 
         coords_zonas_a = []
@@ -323,27 +366,39 @@ class Presiones(Geometria):
         for z_inicio, z_fin in zonas_z[1:2]:
             for zona_x in zonas_a_izq:
                 coords_zonas_a.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_a_der:
                 coords_zonas_a.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_c_izq:
                 coords_zonas_c.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_c_der:
                 coords_zonas_c.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_d_izq:
                 coords_zonas_d.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_inicio, punto_mitad, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_inicio, punto_mitad, z_inicio, z_fin
+                    )
                 )
             for zona_x in zonas_d_der:
                 coords_zonas_d.append(
-                    coords_zona_cubierta_desde_proyeccion(zona_x, punto_mitad, punto_fin, z_inicio, z_fin)
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona_x, punto_mitad, punto_fin, z_inicio, z_fin
+                    )
                 )
 
         return {

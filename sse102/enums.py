@@ -1,4 +1,4 @@
-"""Enums que se utiliza SSE102.
+"""Enums que se utiliza ZONDA.
 
 Es preferible utilizar estas clases antes que strings ya que las opciones requeridas
 en las distintas funciones son especificas. De esta manera, utilizando Enums se disminuye la posibilidad de errores.

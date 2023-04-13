@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Optional, Sequence, TYPE_CHECKING, Tuple
 
-from sse102.cirsoc.geometria.utils_alturas import array_alturas
+from zonda.cirsoc.geometria.utils_alturas import array_alturas
 
 if TYPE_CHECKING:
     import numpy as np
@@ -71,7 +71,9 @@ class Cartel:
         Returns:
             Un array de alturas.
         """
-        return array_alturas(self.altura_inferior, self.altura_superior, self.alturas_personalizadas)
+        return array_alturas(
+            self.altura_inferior, self.altura_superior, self.alturas_personalizadas
+        )
 
     @cached_property
     def areas_parciales(self) -> Tuple[float, ...]:
@@ -80,4 +82,7 @@ class Cartel:
         Returns:
             Las areas parciales del cartel.
         """
-        return tuple(self.ancho * (area_sup - area_inf) for area_inf, area_sup in zip(self.alturas, self.alturas[1:]))
+        return tuple(
+            self.ancho * (area_sup - area_inf)
+            for area_inf, area_sup in zip(self.alturas, self.alturas[1:])
+        )

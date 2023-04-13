@@ -10,13 +10,13 @@ from jinja2 import Environment
 from jinja2.exceptions import TemplateNotFound
 from jinja2.loaders import BaseLoader, split_template_path
 
-from sse102 import enums
-from sse102.sistema import guardar_archivo_temporal
-from sse102.unidades import convertir_unidad
+from zonda import enums
+from zonda.sistema import guardar_archivo_temporal
+from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import Edificio, Cartel, CubiertaAislada
-    from sse102.enums import Unidad
+    from zonda.cirsoc import Edificio, Cartel, CubiertaAislada
+    from zonda.enums import Unidad
 
 
 class QFileSystemLoader(BaseLoader):
@@ -93,7 +93,10 @@ class Reporte:
     """
 
     def __init__(
-        self, plantilla: str, estructura: Union[Edificio, Cartel, CubiertaAislada], unidades: Dict[str, Unidad]
+        self,
+        plantilla: str,
+        estructura: Union[Edificio, Cartel, CubiertaAislada],
+        unidades: Dict[str, Unidad],
     ) -> None:
         """
 
@@ -102,7 +105,9 @@ class Reporte:
             estructura: La estructura de donde se renderizan los resultados.
             unidades: Las unidades en la que se muestran los resultados
         """
-        self._texto_md = render_plantilla(plantilla, estructura=estructura, unidades=unidades)
+        self._texto_md = render_plantilla(
+            plantilla, estructura=estructura, unidades=unidades
+        )
 
     def exportar(
         self,
@@ -131,11 +136,19 @@ class Reporte:
         elif formato == "html":
             if isinstance(css, QFile):
                 if css.open(QIODevice.ReadOnly):
-                    ruta_css = guardar_archivo_temporal(css.readAll().data().decode("utf-8"), ".css")
+                    ruta_css = guardar_archivo_temporal(
+                        css.readAll().data().decode("utf-8"), ".css"
+                    )
             else:
                 ruta_css = css
             extra_args.append(f"--include-in-header={ruta_css}")
         elif formato == "pdf" and papel is not None:
             for propiedad, valor in papel.items():
                 extra_args.append(f"--variable=geometry:{propiedad}={valor}mm")
-        return pypandoc.convert_text(self._texto_md, formato, "md", outputfile=nombre_archivo, extra_args=extra_args)
+        return pypandoc.convert_text(
+            self._texto_md,
+            formato,
+            "md",
+            outputfile=nombre_archivo,
+            extra_args=extra_args,
+        )

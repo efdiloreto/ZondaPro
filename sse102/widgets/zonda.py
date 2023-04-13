@@ -6,8 +6,8 @@ from typing import Dict, Union
 from PyQt5 import QtWidgets, QtGui, QtCore, QtNetwork
 from pkg_resources import parse_version
 
-from sse102 import __acercade__
-from sse102.widgets.custom import (
+from zonda import __acercade__
+from zonda.widgets.custom import (
     WidgetSinBorde,
     WidgetPanel,
     WidgetLogo,
@@ -15,8 +15,12 @@ from sse102.widgets.custom import (
     EfectoPulsacion,
     WidgetLinksInfo,
 )
-from sse102.widgets.dialogos import DialogoConfiguracion
-from sse102.widgets.modulos import WidgetModuloEdificio, WidgetModuloCubiertaAislada, WidgetModuloCartel
+from zonda.widgets.dialogos import DialogoConfiguracion
+from zonda.widgets.modulos import (
+    WidgetModuloEdificio,
+    WidgetModuloCubiertaAislada,
+    WidgetModuloCartel,
+)
 
 
 class WidgetAcercaDe(QtWidgets.QWidget):
@@ -29,13 +33,17 @@ class WidgetAcercaDe(QtWidgets.QWidget):
         fuente_label_version = QtGui.QFont()
         fuente_label_version.setPixelSize(18)
         label_version.setFont(fuente_label_version)
-        label_copyright = QtWidgets.QLabel("Copyright © 2020 ZondaCS. Todos los derechos reservados.")
+        label_copyright = QtWidgets.QLabel(
+            "Copyright © 2020 ZondaCS. Todos los derechos reservados."
+        )
 
         label_descripcion = QtWidgets.QLabel(
             "Cálculo de cargas de viento de acuerdo al Reglamento Argentino de Acción del Viento sobre las Construcciones CIRSOC 102-2005."
         )
 
-        widget_links_info = WidgetLinksInfo(pagina_web=True, contacto=True, eula=True, licencias_terceros=True)
+        widget_links_info = WidgetLinksInfo(
+            pagina_web=True, contacto=True, eula=True, licencias_terceros=True
+        )
 
         layout_logo = QtWidgets.QGridLayout()
         layout_logo.addWidget(widget_logo, 0, 0)
@@ -65,8 +73,7 @@ class WidgetAcercaDe(QtWidgets.QWidget):
 
 class WidgetBienvenida(WidgetSinBorde):
     def __init__(self):
-        """
-        """
+        """ """
 
         super().__init__()
 
@@ -76,25 +83,37 @@ class WidgetBienvenida(WidgetSinBorde):
         self._toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         self._toolbar.setIconSize(QtCore.QSize(16, 16))
 
-        accion_ayuda = QtWidgets.QAction(QtGui.QIcon(":/iconos/ayuda.png"), "Ayuda", self)
+        accion_ayuda = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/ayuda.png"), "Ayuda", self
+        )
         accion_ayuda.triggered.connect(lambda: webbrowser.open(__acercade__.__ayuda__))
         self._toolbar.addAction(accion_ayuda)
 
-        accion_configuracion = QtWidgets.QAction(QtGui.QIcon(":/iconos/configuracion.png"), "Configuración", self)
+        accion_configuracion = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/configuracion.png"), "Configuración", self
+        )
         accion_configuracion.triggered.connect(self._dialogo_configuracion)
         self._toolbar.addAction(accion_configuracion)
 
-        accion_informacion = QtWidgets.QAction(QtGui.QIcon(":/iconos/informacion.png"), "Acerca de", self)
+        accion_informacion = QtWidgets.QAction(
+            QtGui.QIcon(":/iconos/informacion.png"), "Acerca de", self
+        )
         accion_informacion.triggered.connect(self._acerca_de)
         self._toolbar.addAction(accion_informacion)
 
-        boton_edificio = WidgetBotonModulo("Edificio", ":/iconos/edificio.png", self._modulo_edificio)
-
-        boton_cubierta_aislada = WidgetBotonModulo(
-            "Cubierta Aislada", ":/iconos/cubierta-aislada.png", self._modulo_cubierta_aislada
+        boton_edificio = WidgetBotonModulo(
+            "Edificio", ":/iconos/edificio.png", self._modulo_edificio
         )
 
-        boton_cartel = WidgetBotonModulo("Cartel", ":/iconos/cartel.png", self._modulo_cartel)
+        boton_cubierta_aislada = WidgetBotonModulo(
+            "Cubierta Aislada",
+            ":/iconos/cubierta-aislada.png",
+            self._modulo_cubierta_aislada,
+        )
+
+        boton_cartel = WidgetBotonModulo(
+            "Cartel", ":/iconos/cartel.png", self._modulo_cartel
+        )
 
         # boton_abrir_archivo = QtWidgets.QPushButton(" Abrir Archivo")
         # boton_abrir_archivo.setCursor(QtCore.Qt.PointingHandCursor)
@@ -170,13 +189,17 @@ class WidgetBienvenida(WidgetSinBorde):
             datos = json.loads(respuesta_str)
             nueva_version = datos["tag_name"]
             version_actual = __acercade__.__version__
-            existe_nueva_version = parse_version(nueva_version) > parse_version(version_actual)
+            existe_nueva_version = parse_version(nueva_version) > parse_version(
+                version_actual
+            )
             if existe_nueva_version:
                 boton_actualizar = QtWidgets.QToolButton()
                 boton_actualizar.setIcon(QtGui.QIcon(":/iconos/actualizar.png"))
                 boton_actualizar.setIconSize(QtCore.QSize(16, 16))
                 boton_actualizar.setToolTip("Existe una nueva versión")
-                boton_actualizar.clicked.connect(lambda: webbrowser.open(__acercade__.__descarga__))
+                boton_actualizar.clicked.connect(
+                    lambda: webbrowser.open(__acercade__.__descarga__)
+                )
                 self._efecto_boton_actualizar = EfectoPulsacion()
                 boton_actualizar.setGraphicsEffect(self._efecto_boton_actualizar)
                 self._efecto_boton_actualizar.iniciar()

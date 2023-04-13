@@ -5,27 +5,39 @@ from typing import NamedTuple, Union, Dict
 
 import numpy as np
 
-from sse102.cirsoc import geometria
-from sse102.enums import (
+from zonda.cirsoc import geometria
+from zonda.enums import (
     Flexibilidad,
     CategoriaExposicion,
     DireccionVientoMetodoDireccionalSprfv,
     TipoTerrenoTopografia,
     DireccionTopografia,
 )
-from sse102.tipos import EscalarOArray
+from zonda.tipos import EscalarOArray
 
-_Constantes = namedtuple("Constantes", "alfa zg a_hat b_hat alpha_bar b_bar c le ep_bar zmin")
+_Constantes = namedtuple(
+    "Constantes", "alfa zg a_hat b_hat alpha_bar b_bar c le ep_bar zmin"
+)
 
 
-_ParametrosTopograficos = namedtuple("ParametrosTopograficos", "factor_k gamma mu lh k1 k2 k3")
+_ParametrosTopograficos = namedtuple(
+    "ParametrosTopograficos", "factor_k gamma mu lh k1 k2 k3"
+)
 
 
 _constantes_exposicion = {
-    CategoriaExposicion.A: _Constantes(5, 457, 1 / 5, 0.64, 1 / 3, 0.3, 0.45, 55, 1 / 2, 18.3),
-    CategoriaExposicion.B: _Constantes(7, 366, 1 / 7, 0.84, 1 / 4, 0.45, 0.3, 98, 1 / 3, 9.2),
-    CategoriaExposicion.C: _Constantes(9.5, 274, 1 / 9.5, 1, 1 / 6.5, 0.65, 0.2, 152, 1 / 5, 4.6),
-    CategoriaExposicion.D: _Constantes(11.5, 213, 1 / 11.5, 1.07, 1 / 9, 0.8, 0.15, 198, 1 / 8, 2.1),
+    CategoriaExposicion.A: _Constantes(
+        5, 457, 1 / 5, 0.64, 1 / 3, 0.3, 0.45, 55, 1 / 2, 18.3
+    ),
+    CategoriaExposicion.B: _Constantes(
+        7, 366, 1 / 7, 0.84, 1 / 4, 0.45, 0.3, 98, 1 / 3, 9.2
+    ),
+    CategoriaExposicion.C: _Constantes(
+        9.5, 274, 1 / 9.5, 1, 1 / 6.5, 0.65, 0.2, 152, 1 / 5, 4.6
+    ),
+    CategoriaExposicion.D: _Constantes(
+        11.5, 213, 1 / 11.5, 1.07, 1 / 9, 0.8, 0.15, 198, 1 / 8, 2.1
+    ),
 }
 
 
@@ -84,11 +96,17 @@ class Rafaga:
         parametros_rafaga = namedtuple("ParametrosRafaga", "z iz lz gr r")
         z = max(self.altura_rafaga, self.constantes_exp_terreno.zmin)
         iz = self.constantes_exp_terreno.c * ((10 / z) ** (1 / 6))
-        lz = self.constantes_exp_terreno.le * ((z / 10) ** self.constantes_exp_terreno.ep_bar)
+        lz = self.constantes_exp_terreno.le * (
+            (z / 10) ** self.constantes_exp_terreno.ep_bar
+        )
         if self.flexibilidad == Flexibilidad.FLEXIBLE:
-            gr = (2 * math.log(3600 * self.frecuencia)) ** 0.5 + 0.577 / ((2 * math.log(3600 * self.frecuencia)) ** 0.5)
+            gr = (2 * math.log(3600 * self.frecuencia)) ** 0.5 + 0.577 / (
+                (2 * math.log(3600 * self.frecuencia)) ** 0.5
+            )
             vz = (
-                self.constantes_exp_terreno.b_bar * ((z / 10) ** self.constantes_exp_terreno.alpha_bar) * self.velocidad
+                self.constantes_exp_terreno.b_bar
+                * ((z / 10) ** self.constantes_exp_terreno.alpha_bar)
+                * self.velocidad
             )
             n1 = self.frecuencia * lz / vz
             rn = 7.47 * n1 / ((1 + 10.3 * n1) ** (5 / 3))
@@ -96,7 +114,10 @@ class Rafaga:
             nb = 4.6 * self.frecuencia * self.ancho / vz
             nl = 15.4 * self.frecuencia * self.longitud / vz
             n = (nh, nb, nl)
-            ri = tuple(1 / j - ((1 - np.e ** (-2 * j)) / (2 * j ** 2)) if j > 0 else 1 for j in n)
+            ri = tuple(
+                1 / j - ((1 - np.e ** (-2 * j)) / (2 * j**2)) if j > 0 else 1
+                for j in n
+            )
             rh, rb, rl = ri
             r = (rn * rh * rb * (0.53 + 0.47 * rl) / self.beta) ** 0.5
             return parametros_rafaga(z, iz, lz, gr, r)
@@ -109,7 +130,10 @@ class Rafaga:
         Returns:
             El factor Q.
         """
-        return (1 / (1 + 0.63 * ((self.longitud + self.altura) / self.parametros.lz) ** 0.63)) ** 0.5
+        return (
+            1
+            / (1 + 0.63 * ((self.longitud + self.altura) / self.parametros.lz) ** 0.63)
+        ) ** 0.5
 
     def _rigida(self) -> float:
         """Calcula el factor de ráfaga para una estructura rígida.
@@ -117,7 +141,10 @@ class Rafaga:
         Returns:
             El factor de ráfaga.
         """
-        return ((1 + 1.7 * 3.4 * self.parametros.iz * self.factor_q) / (1 + 1.7 * 3.4 * self.parametros.iz)) * 0.925
+        return (
+            (1 + 1.7 * 3.4 * self.parametros.iz * self.factor_q)
+            / (1 + 1.7 * 3.4 * self.parametros.iz)
+        ) * 0.925
 
     def _flexible(self) -> float:
         """Calcula el factor de ráfaga para una estructura flexible.
@@ -130,7 +157,13 @@ class Rafaga:
                 1
                 + 1.7
                 * self.parametros.iz
-                * (((3.4 * self.factor_q) ** 2 + (self.parametros.gr * self.parametros.r) ** 2) ** 0.5)
+                * (
+                    (
+                        (3.4 * self.factor_q) ** 2
+                        + (self.parametros.gr * self.parametros.r) ** 2
+                    )
+                    ** 0.5
+                )
             )
             / (1 + 1.7 * 3.4 * self.parametros.iz)
         ) * 0.925
@@ -255,8 +288,14 @@ class Topografia:
         if not self.considerar_topografia:
             return False
         if self.altura_terreno / self.distancia_cresta >= 0.2 and (
-            (self.categoria_exp in (CategoriaExposicion.A, CategoriaExposicion.B) and self.altura_terreno > 20)
-            or (self.categoria_exp in (CategoriaExposicion.C, CategoriaExposicion.D) and self.altura_terreno > 5)
+            (
+                self.categoria_exp in (CategoriaExposicion.A, CategoriaExposicion.B)
+                and self.altura_terreno > 20
+            )
+            or (
+                self.categoria_exp in (CategoriaExposicion.C, CategoriaExposicion.D)
+                and self.altura_terreno > 5
+            )
         ):
             return True
         return False
@@ -278,7 +317,10 @@ class Topografia:
                     CategoriaExposicion.D: 1.55,
                 },
                 "gamma": 3.0,
-                "mu": {DireccionTopografia.BARLOVENTO: 1.5, DireccionTopografia.SOTAVENTO: 1.5},
+                "mu": {
+                    DireccionTopografia.BARLOVENTO: 1.5,
+                    DireccionTopografia.SOTAVENTO: 1.5,
+                },
             },
             TipoTerrenoTopografia.ESCARPA_BIDIMENSIONAL: {
                 "factor_k": {
@@ -288,7 +330,10 @@ class Topografia:
                     CategoriaExposicion.D: 0.95,
                 },
                 "gamma": 2.5,
-                "mu": {DireccionTopografia.BARLOVENTO: 1.5, DireccionTopografia.SOTAVENTO: 4.0},
+                "mu": {
+                    DireccionTopografia.BARLOVENTO: 1.5,
+                    DireccionTopografia.SOTAVENTO: 4.0,
+                },
             },
             TipoTerrenoTopografia.COLINA_TRIDIMENSIONAL: {
                 "factor_k": {
@@ -298,7 +343,10 @@ class Topografia:
                     CategoriaExposicion.D: 1.15,
                 },
                 "gamma": 4.0,
-                "mu": {DireccionTopografia.BARLOVENTO: 1.5, DireccionTopografia.SOTAVENTO: 1.5},
+                "mu": {
+                    DireccionTopografia.BARLOVENTO: 1.5,
+                    DireccionTopografia.SOTAVENTO: 1.5,
+                },
             },
         }
         # Lh Referencia: CiIRSOC 102 2005 Fig. 2 Nota 2

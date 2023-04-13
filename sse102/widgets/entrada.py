@@ -2,9 +2,9 @@ from typing import Dict, Union, Optional, Tuple
 
 from PyQt5 import QtWidgets, QtCore
 
-from sse102 import excepciones
-from sse102.cirsoc import geometria
-from sse102.enums import (
+from zonda import excepciones
+from zonda.cirsoc import geometria
+from zonda.enums import (
     CategoriaEstructura,
     TipoCubierta,
     Cerramiento,
@@ -13,7 +13,7 @@ from sse102.enums import (
     PosicionBloqueoCubierta,
     PosicionCamara,
 )
-from sse102.widgets.graficos import WidgetGraficoGeometria
+from zonda.widgets.graficos import WidgetGraficoGeometria
 
 
 class WidgetLineEditAlturasPersonalizadas(QtWidgets.QLineEdit):
@@ -25,13 +25,17 @@ class WidgetLineEditAlturasPersonalizadas(QtWidgets.QLineEdit):
     def __init__(self):
         super().__init__()
         self.setToolTip('Ingrese los valores de altura separados por coma (",")')
-        self.setStatusTip("Las alturas personalizadas donde se calcularán las presiones.")
+        self.setStatusTip(
+            "Las alturas personalizadas donde se calcularán las presiones."
+        )
 
     def text(self):
         alturas_personalizadas = super().text()
         if alturas_personalizadas:
             try:
-                alturas_personalizadas = [float(altura) for altura in alturas_personalizadas.split(",")]
+                alturas_personalizadas = [
+                    float(altura) for altura in alturas_personalizadas.split(",")
+                ]
             except (ValueError, TypeError) as error:
                 raise excepciones.ErrorEstructura(
                     'Las alturas personalizadas deben ser valores numéricos separados por ","'
@@ -79,7 +83,9 @@ class WidgetComponentes(QtWidgets.QTableWidget):
         self.verticalHeader().setDefaultSectionSize(22)
         self.verticalHeader().setVisible(False)
         self.setHorizontalHeaderLabels(("Descripción", "Área de influencia (m\u00B2)"))
-        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
         self.horizontalHeader().setStretchLastSection(True)
         self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         for fila in range(self.rowCount()):
@@ -105,14 +111,23 @@ class WidgetComponentes(QtWidgets.QTableWidget):
                     try:
                         area = float(area_str)
                         if area <= 0:
-                            raise ValueError("El valor de área debe ser un valor mayor o " "igual que cero.")
+                            raise ValueError(
+                                "El valor de área debe ser un valor mayor o "
+                                "igual que cero."
+                            )
                         componentes[nombre] = float(self.item(fila, 1).text())
                     except ValueError as error:
-                        raise excepciones.ErrorComponentes("El valor de área debe ser un valor numérico.") from error
+                        raise excepciones.ErrorComponentes(
+                            "El valor de área debe ser un valor numérico."
+                        ) from error
                 else:
-                    raise excepciones.ErrorComponentes("Existen descripciones de componentes repetidas.")
+                    raise excepciones.ErrorComponentes(
+                        "Existen descripciones de componentes repetidas."
+                    )
             elif not nombre and area_str:
-                raise excepciones.ErrorComponentes("Existen componentes sin descripción.")
+                raise excepciones.ErrorComponentes(
+                    "Existen componentes sin descripción."
+                )
         return componentes or None
 
     def __call__(self) -> Union[None, Dict[str, float]]:
@@ -144,8 +159,12 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         self._combobox_tipo_cubierta = QtWidgets.QComboBox()
         for enum in TipoCubierta:
             self._combobox_tipo_cubierta.addItem(enum.value.title(), enum)
-        self._combobox_tipo_cubierta.setCurrentText(TipoCubierta.DOS_AGUAS.value.title())
-        self._combobox_tipo_cubierta.currentTextChanged.connect(self._cambio_tipo_cubierta)
+        self._combobox_tipo_cubierta.setCurrentText(
+            TipoCubierta.DOS_AGUAS.value.title()
+        )
+        self._combobox_tipo_cubierta.currentTextChanged.connect(
+            self._cambio_tipo_cubierta
+        )
 
         datos_spinboxs = (
             ("ancho", 1, 300, 30, " m", True),
@@ -168,7 +187,9 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
                 spinbox.editingFinished.connect(self._generar_escena)
             self._spinboxs[nombre] = spinbox
         self._spinboxs["altura_alero"].editingFinished.connect(
-            lambda: self._spinboxs["alero"].setMaximum(self._spinboxs["altura_alero"].value())
+            lambda: self._spinboxs["alero"].setMaximum(
+                self._spinboxs["altura_alero"].value()
+            )
         )
 
         self._checkbox_alero = QtWidgets.QCheckBox("Alero")
@@ -177,7 +198,9 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         self._checkbox_alero.stateChanged.connect(self._generar_escena)
         self._checkbox_parapeto = QtWidgets.QCheckBox("Parapeto")
         self._checkbox_parapeto.setLayoutDirection(QtCore.Qt.RightToLeft)
-        self._checkbox_parapeto.stateChanged.connect(self._habilitar_deshabilitar_parapeto)
+        self._checkbox_parapeto.stateChanged.connect(
+            self._habilitar_deshabilitar_parapeto
+        )
 
         self._mensaje_parapeto = QtWidgets.QErrorMessage()
         self._mensaje_parapeto.setWindowTitle("Aviso parapeto")
@@ -195,17 +218,24 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         boton_calcular_cerramiento = QtWidgets.QPushButton("Verificar")
         boton_calcular_cerramiento.clicked.connect(self._verificar_cerramiento)
 
-        self._checkbox_unico_volumen = QtWidgets.QCheckBox("El edificio es un único volumen sin particionar")
+        self._checkbox_unico_volumen = QtWidgets.QCheckBox(
+            "El edificio es un único volumen sin particionar"
+        )
         self._checkbox_unico_volumen.setStatusTip(
-            "Si se activa, se adopta como volumen interno el volumen total del" " edificio."
+            "Si se activa, se adopta como volumen interno el volumen total del"
+            " edificio."
         )
         self._checkbox_unico_volumen.stateChanged.connect(
-            lambda: self._habilitar_deshabilitar_volumen(self._checkbox_unico_volumen.isChecked())
+            lambda: self._habilitar_deshabilitar_volumen(
+                self._checkbox_unico_volumen.isChecked()
+            )
         )
 
         texto_aberturas = ("Pared 1", "Pared 2", "Pared 3", "Pared 4", "Cubierta")
 
-        self._spinboxs_aberturas = {key: QtWidgets.QDoubleSpinBox() for key in texto_aberturas}
+        self._spinboxs_aberturas = {
+            key: QtWidgets.QDoubleSpinBox() for key in texto_aberturas
+        }
         for spinbox in self._spinboxs_aberturas.values():
             spinbox.setMinimum(0)
             spinbox.setMaximum(100000000)
@@ -220,18 +250,24 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         self._spinbox_volumen.setFixedWidth(100)
 
         self._grid_layout_geometria = QtWidgets.QGridLayout()
-        self._grid_layout_geometria.addWidget(QtWidgets.QLabel("Tipo de Cubierta"), 0, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Tipo de Cubierta"), 0, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_geometria.addWidget(self._combobox_tipo_cubierta, 0, 1)
 
         for i, texto in enumerate(textos_geometria):
-            self._grid_layout_geometria.addWidget(QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight)
+            self._grid_layout_geometria.addWidget(
+                QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight
+            )
 
         for i, spinbox in enumerate(self._spinboxs.values()):
             self._grid_layout_geometria.addWidget(spinbox, i + 1, 1)
 
         self._grid_layout_geometria.addWidget(self._checkbox_alero, 6, 0)
         self._grid_layout_geometria.addWidget(self._checkbox_parapeto, 7, 0)
-        self._grid_layout_geometria.addWidget(QtWidgets.QLabel("Personalizar Alturas"), 8, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Personalizar Alturas"), 8, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_geometria.addWidget(self._alturas_personalizadas, 8, 1)
 
         layout_cerramiento = QtWidgets.QHBoxLayout()
@@ -242,8 +278,12 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
 
         grid_layout_aberturas = QtWidgets.QGridLayout()
         coords_grid = ((0, 0), (0, 2), (1, 0), (1, 2), (2, 0))
-        for (f, c), (key, spinbox) in zip(coords_grid, self._spinboxs_aberturas.items()):
-            grid_layout_aberturas.addWidget(QtWidgets.QLabel(key), f, c, QtCore.Qt.AlignRight)
+        for (f, c), (key, spinbox) in zip(
+            coords_grid, self._spinboxs_aberturas.items()
+        ):
+            grid_layout_aberturas.addWidget(
+                QtWidgets.QLabel(key), f, c, QtCore.Qt.AlignRight
+            )
             grid_layout_aberturas.addWidget(spinbox, f, c + 1)
         grid_layout_aberturas.setRowStretch(4, 1)
         grid_layout_aberturas.setColumnStretch(1, 1)
@@ -255,16 +295,24 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         self._generar_escena()
 
         self._grid_layout_reduccion_gcpi = QtWidgets.QGridLayout()
-        self._grid_layout_reduccion_gcpi.addWidget(self._checkbox_unico_volumen, 0, 0, 1, 2)
-        self._grid_layout_reduccion_gcpi.addWidget(QtWidgets.QLabel("Volumen interno no dividido, V<sub>i</sub>"), 1, 0)
-        self._grid_layout_reduccion_gcpi.addWidget(self._spinbox_volumen, 1, 1, QtCore.Qt.AlignLeft)
+        self._grid_layout_reduccion_gcpi.addWidget(
+            self._checkbox_unico_volumen, 0, 0, 1, 2
+        )
+        self._grid_layout_reduccion_gcpi.addWidget(
+            QtWidgets.QLabel("Volumen interno no dividido, V<sub>i</sub>"), 1, 0
+        )
+        self._grid_layout_reduccion_gcpi.addWidget(
+            self._spinbox_volumen, 1, 1, QtCore.Qt.AlignLeft
+        )
         self._grid_layout_reduccion_gcpi.setColumnStretch(2, 1)
         self._grid_layout_reduccion_gcpi.setRowStretch(2, 1)
 
         box_estructura = QtWidgets.QGroupBox("Geometría")
         box_estructura.setLayout(self._grid_layout_geometria)
 
-        self._box_reduccion_gcpi = QtWidgets.QGroupBox("Considerar reducción de coeficiente de presión interna")
+        self._box_reduccion_gcpi = QtWidgets.QGroupBox(
+            "Considerar reducción de coeficiente de presión interna"
+        )
         self._box_reduccion_gcpi.setLayout(self._grid_layout_reduccion_gcpi)
         self._box_reduccion_gcpi.setCheckable(True)
         self._box_reduccion_gcpi.setChecked(False)
@@ -282,7 +330,9 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
 
         widget_input = QtWidgets.QWidget()
         widget_input.setLayout(layout_inputs)
-        widget_input.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        widget_input.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum
+        )
 
         layout_principal = QtWidgets.QHBoxLayout()
 
@@ -301,8 +351,12 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         """Cambia el tipo de cubierta y actualiza widgets y el gráfico."""
         tipo_cubierta = self._combobox_tipo_cubierta.currentData()
         bool_cubierta = tipo_cubierta == TipoCubierta.PLANA
-        self._grid_layout_geometria.itemAtPosition(3, 0).widget().setEnabled(not bool_cubierta)
-        self._grid_layout_geometria.itemAtPosition(3, 1).widget().setEnabled(not bool_cubierta)
+        self._grid_layout_geometria.itemAtPosition(3, 0).widget().setEnabled(
+            not bool_cubierta
+        )
+        self._grid_layout_geometria.itemAtPosition(3, 1).widget().setEnabled(
+            not bool_cubierta
+        )
         self._generar_escena()
 
     def _habilitar_deshabilitar_parapeto(self, estado: bool) -> None:
@@ -362,11 +416,22 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
     def parametros(self):
         if not self._validar():
             raise ValueError("Existen parámetros de entrada incorrectos.")
-        resultados_spinboxs = {key: spinbox.value() for key, spinbox in self._spinboxs.items() if spinbox.isEnabled()}
-        altura_cumbrera = resultados_spinboxs.pop("altura_cumbrera", resultados_spinboxs["altura_alero"])
-        aberturas = tuple(spinbox.value() for spinbox in self._spinboxs_aberturas.values())
+        resultados_spinboxs = {
+            key: spinbox.value()
+            for key, spinbox in self._spinboxs.items()
+            if spinbox.isEnabled()
+        }
+        altura_cumbrera = resultados_spinboxs.pop(
+            "altura_cumbrera", resultados_spinboxs["altura_alero"]
+        )
+        aberturas = tuple(
+            spinbox.value() for spinbox in self._spinboxs_aberturas.values()
+        )
         volumen_interno = self._spinbox_volumen.value()
-        if self._checkbox_unico_volumen.isChecked() or not self._box_reduccion_gcpi.isChecked():
+        if (
+            self._checkbox_unico_volumen.isChecked()
+            or not self._box_reduccion_gcpi.isChecked()
+        ):
             volumen_interno = None
         return dict(
             categoria=self._categoria(),
@@ -411,10 +476,18 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         """
         resultados_spinboxs = {
             key: self._spinboxs[key].value()
-            for key in ("ancho", "longitud", "elevacion", "altura_alero", "altura_cumbrera")
+            for key in (
+                "ancho",
+                "longitud",
+                "elevacion",
+                "altura_alero",
+                "altura_cumbrera",
+            )
         }
         tipo_cubierta = self._combobox_tipo_cubierta.currentData()
-        aberturas = tuple(spinbox.value() for spinbox in self._spinboxs_aberturas.values())
+        aberturas = tuple(
+            spinbox.value() for spinbox in self._spinboxs_aberturas.values()
+        )
         self.resultados_cerramiento = WidgetCerramientoEdificio(
             self,
             tipo_cubierta=tipo_cubierta,
@@ -456,7 +529,13 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
         super().__init__(parent=parent)
 
         edificio = geometria.Edificio(
-            ancho, longitud, elevacion, altura_alero, altura_cumbrera, tipo_cubierta, aberturas=aberturas
+            ancho,
+            longitud,
+            elevacion,
+            altura_alero,
+            altura_cumbrera,
+            tipo_cubierta,
+            aberturas=aberturas,
         )
         layout_principal = QtWidgets.QVBoxLayout()
 
@@ -469,7 +548,9 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
             grid_layout.setHorizontalSpacing(20)
             grid_layout.setVerticalSpacing(10)
             grid_layout.addWidget(
-                QtWidgets.QLabel(f"<b>Pared {i + 1} recibiendo presion externa positiva</b>"),
+                QtWidgets.QLabel(
+                    f"<b>Pared {i + 1} recibiendo presion externa positiva</b>"
+                ),
                 0,
                 0,
                 1,
@@ -489,7 +570,12 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
                 1,
                 2,
             )
-            grid_layout.addWidget(self._label_estado(edificio.cerramiento_condicion_1[i]), 1, 3, QtCore.Qt.AlignCenter)
+            grid_layout.addWidget(
+                self._label_estado(edificio.cerramiento_condicion_1[i]),
+                1,
+                3,
+                QtCore.Qt.AlignCenter,
+            )
             grid_layout.addWidget(
                 QtWidgets.QLabel("A<sub>0</sub> > 1.10 x A<sub>0i</sub>"),
                 2,
@@ -503,9 +589,16 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
                 2,
                 2,
             )
-            grid_layout.addWidget(self._label_estado(edificio.cerramiento_condicion_2[i]), 2, 3, QtCore.Qt.AlignCenter)
             grid_layout.addWidget(
-                QtWidgets.QLabel("A<sub>0</sub> > min(0.4 m<sup>2</sup>, 0.01 x A<sub>g</sub>)"),
+                self._label_estado(edificio.cerramiento_condicion_2[i]),
+                2,
+                3,
+                QtCore.Qt.AlignCenter,
+            )
+            grid_layout.addWidget(
+                QtWidgets.QLabel(
+                    "A<sub>0</sub> > min(0.4 m<sup>2</sup>, 0.01 x A<sub>g</sub>)"
+                ),
                 3,
                 0,
                 QtCore.Qt.AlignRight,
@@ -517,7 +610,12 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
                 3,
                 2,
             )
-            grid_layout.addWidget(self._label_estado(edificio.cerramiento_condicion_3[i]), 3, 3, QtCore.Qt.AlignCenter)
+            grid_layout.addWidget(
+                self._label_estado(edificio.cerramiento_condicion_3[i]),
+                3,
+                3,
+                QtCore.Qt.AlignCenter,
+            )
             grid_layout.addWidget(
                 QtWidgets.QLabel("A<sub>0i</sub> / A<sub>gi</sub> ≤ 0.2"),
                 4,
@@ -525,14 +623,23 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
                 QtCore.Qt.AlignRight,
             )
             grid_layout.addWidget(
-                QtWidgets.QLabel(f"{edificio.a0i[0]:.2f} m<sup>2</sup> / {edificio.agi[0]:.2f} m<sup>2</sup> ≤ 0.2"),
+                QtWidgets.QLabel(
+                    f"{edificio.a0i[0]:.2f} m<sup>2</sup> / {edificio.agi[0]:.2f} m<sup>2</sup> ≤ 0.2"
+                ),
                 4,
                 2,
             )
-            grid_layout.addWidget(self._label_estado(edificio.cerramiento_condicion_4[i]), 4, 3, QtCore.Qt.AlignCenter)
+            grid_layout.addWidget(
+                self._label_estado(edificio.cerramiento_condicion_4[i]),
+                4,
+                3,
+                QtCore.Qt.AlignCenter,
+            )
 
             for j in range(1, 5):
-                grid_layout.addWidget(QtWidgets.QLabel("="), j, 1, QtCore.Qt.AlignCenter)
+                grid_layout.addWidget(
+                    QtWidgets.QLabel("="), j, 1, QtCore.Qt.AlignCenter
+                )
 
             if es_abierto:
                 cerramiento = "Edificio Abierto"
@@ -579,13 +686,23 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
     def __init__(self):
         super().__init__()
 
-        textos_geometria = ("Ancho", "Altura de Alero", "Altura de Cumbrera", "Altura de Bloqueo", "Longitud")
+        textos_geometria = (
+            "Ancho",
+            "Altura de Alero",
+            "Altura de Cumbrera",
+            "Altura de Bloqueo",
+            "Longitud",
+        )
 
         self._combobox_tipo_cubierta = QtWidgets.QComboBox()
         for enum in (TipoCubierta.DOS_AGUAS, TipoCubierta.UN_AGUA):
             self._combobox_tipo_cubierta.addItem(enum.value.title(), enum)
-        self._combobox_tipo_cubierta.setCurrentText(TipoCubierta.DOS_AGUAS.value.title())
-        self._combobox_tipo_cubierta.currentTextChanged.connect(self._habilitar_deshabilitar_posicion_bloqueo)
+        self._combobox_tipo_cubierta.setCurrentText(
+            TipoCubierta.DOS_AGUAS.value.title()
+        )
+        self._combobox_tipo_cubierta.currentTextChanged.connect(
+            self._habilitar_deshabilitar_posicion_bloqueo
+        )
         self._combobox_tipo_cubierta.currentTextChanged.connect(self._generar_escena)
 
         datos_spinboxs = (
@@ -614,11 +731,15 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
 
         self._grid_layout_geometria = QtWidgets.QGridLayout()
 
-        self._grid_layout_geometria.addWidget(QtWidgets.QLabel("Tipo de Cubierta"), 0, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Tipo de Cubierta"), 0, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_geometria.addWidget(self._combobox_tipo_cubierta, 0, 1)
 
         for i, texto in enumerate(textos_geometria):
-            self._grid_layout_geometria.addWidget(QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight)
+            self._grid_layout_geometria.addWidget(
+                QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight
+            )
 
         for i, spinbox in enumerate(self._spinboxs.values()):
             self._grid_layout_geometria.addWidget(spinbox, i + 1, 1)
@@ -633,7 +754,9 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         self.grafico = WidgetGraficoGeometria(Estructura.CUBIERTA_AISLADA)
         self._generar_escena()
 
-        self._grid_layout_geometria.addWidget(QtWidgets.QLabel("Posición del bloqueo"), 6, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Posición del bloqueo"), 6, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_geometria.addWidget(self._combobox_posicion_bloqueo, 6, 1)
         self._grid_layout_geometria.setRowStretch(7, 1)
 
@@ -656,7 +779,9 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
 
         widget_input = QtWidgets.QWidget()
         widget_input.setLayout(layout_inputs)
-        widget_input.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        widget_input.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum
+        )
 
         layout_principal = QtWidgets.QHBoxLayout()
 
@@ -673,7 +798,11 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         self._habilitar_deshabilitar_posicion_bloqueo()
 
     def parametros(self):
-        resultados_spinboxs = {key: spinbox.value() for key, spinbox in self._spinboxs.items() if spinbox.isEnabled()}
+        resultados_spinboxs = {
+            key: spinbox.value()
+            for key, spinbox in self._spinboxs.items()
+            if spinbox.isEnabled()
+        }
         return dict(
             categoria=self._categoria(),
             tipo_cubierta=self._combobox_tipo_cubierta.currentData(),
@@ -685,8 +814,12 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
     def _habilitar_deshabilitar_posicion_bloqueo(self) -> None:
         tipo_cubierta = self._combobox_tipo_cubierta.currentData()
         bool_cubierta = not tipo_cubierta == TipoCubierta.UN_AGUA
-        self._grid_layout_geometria.itemAtPosition(6, 0).widget().setHidden(bool_cubierta)
-        self._grid_layout_geometria.itemAtPosition(6, 1).widget().setHidden(bool_cubierta)
+        self._grid_layout_geometria.itemAtPosition(6, 0).widget().setHidden(
+            bool_cubierta
+        )
+        self._grid_layout_geometria.itemAtPosition(6, 1).widget().setHidden(
+            bool_cubierta
+        )
 
     def _generar_escena(self):
         altura_cumbrera = self._spinboxs["altura_cumbrera"].value()
@@ -695,14 +828,26 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         longitud = self._spinboxs["longitud"].value()
         tipo_cubierta = self._combobox_tipo_cubierta.currentData()
         posicion_bloqueo = self._combobox_posicion_bloqueo.currentData()
-        self.grafico.escena.generar(ancho, longitud, altura_alero, altura_cumbrera, tipo_cubierta, posicion_bloqueo)
+        self.grafico.escena.generar(
+            ancho,
+            longitud,
+            altura_alero,
+            altura_cumbrera,
+            tipo_cubierta,
+            posicion_bloqueo,
+        )
 
 
 class WidgetEstructuraCartel(WidgetEstructuraBase):
     def __init__(self):
         super().__init__()
 
-        textos_geometria = ("Altura Superior", "Altura Inferior", "Ancho", "Profundidad")
+        textos_geometria = (
+            "Altura Superior",
+            "Altura Inferior",
+            "Ancho",
+            "Profundidad",
+        )
 
         datos_spinboxs = (
             ("altura_superior", 0.1, 300, 10, " m"),
@@ -734,7 +879,9 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         grid_layout_geometria.addWidget(self._es_parapeto, 0, 0, 1, 2)
 
         for i, texto in enumerate(textos_geometria):
-            grid_layout_geometria.addWidget(QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight)
+            grid_layout_geometria.addWidget(
+                QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight
+            )
 
         for i, spinbox in enumerate(self._spinboxs.values()):
             grid_layout_geometria.addWidget(spinbox, i + 1, 1)
@@ -756,7 +903,9 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
 
         widget_input = QtWidgets.QWidget()
         widget_input.setLayout(layout_inputs)
-        widget_input.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        widget_input.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum
+        )
 
         layout_principal = QtWidgets.QHBoxLayout()
 
@@ -774,7 +923,11 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
     def parametros(self):
         if not self._validar():
             raise ValueError("Existen parámetros de entrada incorrectos.")
-        resultados_spinboxs = {key: spinbox.value() for key, spinbox in self._spinboxs.items() if spinbox.isEnabled()}
+        resultados_spinboxs = {
+            key: spinbox.value()
+            for key, spinbox in self._spinboxs.items()
+            if spinbox.isEnabled()
+        }
         return dict(
             categoria=self._categoria(),
             alturas_personalizadas=self._alturas_personalizadas.text() or None,
@@ -809,5 +962,9 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
             ancho = self._spinboxs["ancho"].value()
             profundidad = self._spinboxs["profundidad"].value()
             self.grafico.escena.generar(
-                ancho, profundidad, altura_inferior, altura_superior, posicion_camara=PosicionCamara.FRENTE
+                ancho,
+                profundidad,
+                altura_inferior,
+                altura_superior,
+                posicion_camara=PosicionCamara.FRENTE,
             )

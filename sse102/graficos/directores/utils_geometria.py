@@ -6,7 +6,7 @@ import numpy as np
 import vg
 
 if TYPE_CHECKING:
-    from sse102.tipos import Punto, Punto2D, ParNumerico
+    from zonda.tipos import Punto, Punto2D, ParNumerico
 
 
 def punto_sobre_vector(
@@ -135,7 +135,9 @@ def coords_zona_cubierta(
     return coords
 
 
-def proyeccion_punto_horizontal_sobre_cubierta(valor_x: float, origen: Punto2D, fin: Punto2D) -> Punto2D:
+def proyeccion_punto_horizontal_sobre_cubierta(
+    valor_x: float, origen: Punto2D, fin: Punto2D
+) -> Punto2D:
     """Proyecta un punto horizontal 2D, el cual se asume que es P=(valor_x, 0), sobre la cubierta cuya inclinacion esta
     dada por el vector que forman los puntos origen y fin.
 
@@ -154,7 +156,12 @@ def proyeccion_punto_horizontal_sobre_cubierta(valor_x: float, origen: Punto2D, 
 
 
 def coords_zona_cubierta_desde_proyeccion(
-    zona: ParNumerico, origen: Punto2D, fin: Punto2D, z_inicio: float, z_fin: float, invertir_sentido: bool = False
+    zona: ParNumerico,
+    origen: Punto2D,
+    fin: Punto2D,
+    z_inicio: float,
+    z_fin: float,
+    invertir_sentido: bool = False,
 ):
     """Crea las coordenadas para un sector de cubierta que sirven para generar un poligono en VTK, desde la proyeccion
     de dos puntos sobre el eje X.
@@ -173,15 +180,23 @@ def coords_zona_cubierta_desde_proyeccion(
         La zona de cubierta.
     """
     dist_inicio, dist_fin = zona
-    array_origen = np.array(origen + (0,))  # Se le suma la coordenada z ya que lo requiere la función
+    array_origen = np.array(
+        origen + (0,)
+    )  # Se le suma la coordenada z ya que lo requiere la función
     array_punto_inicio_proyectado = np.array(
         proyeccion_punto_horizontal_sobre_cubierta(dist_inicio, origen, fin) + (0,)
     )
-    array_punto_fin_proyectado = np.array(proyeccion_punto_horizontal_sobre_cubierta(dist_fin, origen, fin) + (0,))
+    array_punto_fin_proyectado = np.array(
+        proyeccion_punto_horizontal_sobre_cubierta(dist_fin, origen, fin) + (0,)
+    )
     # noinspection PyTypeChecker
-    dist_inicio_proyectada: float = vg.euclidean_distance(array_origen, array_punto_inicio_proyectado)
+    dist_inicio_proyectada: float = vg.euclidean_distance(
+        array_origen, array_punto_inicio_proyectado
+    )
     # noinspection PyTypeChecker
-    dist_fin_proyectada: float = vg.euclidean_distance(array_origen, array_punto_fin_proyectado)
+    dist_fin_proyectada: float = vg.euclidean_distance(
+        array_origen, array_punto_fin_proyectado
+    )
     return coords_zona_cubierta(
         origen,
         fin,

@@ -5,7 +5,7 @@ from typing import Sequence, Dict, Callable, Any, Generator, TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from sse102.tipos import ParNumerico
+    from zonda.tipos import ParNumerico
 
 
 def aplicar_func_recursivamente(ob: Any, func: Callable, iterable: bool = True) -> Any:
@@ -22,7 +22,9 @@ def aplicar_func_recursivamente(ob: Any, func: Callable, iterable: bool = True) 
         El objecto con sus valores modificados por la función.
     """
     if isinstance(ob, dict):
-        return {k: aplicar_func_recursivamente(v, func, iterable) for k, v in ob.items()}
+        return {
+            k: aplicar_func_recursivamente(v, func, iterable) for k, v in ob.items()
+        }
     if not iterable:
         return func(ob)
     try:
@@ -50,7 +52,9 @@ def aplanar_dict(d: Dict) -> Dict:
                 try:
                     out.update({key + "_" + key2: val2 for key2, val2 in deeper})
                 except TypeError:
-                    out.update({str(key) + "_" + str(key2): val2 for key2, val2 in deeper})
+                    out.update(
+                        {str(key) + "_" + str(key2): val2 for key2, val2 in deeper}
+                    )
         else:
             out[key] = val
     return out

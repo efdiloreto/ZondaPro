@@ -4,15 +4,15 @@ from typing import TYPE_CHECKING
 
 from vtkmodules import all as vtk
 
-from sse102.enums import PosicionCamara
-from sse102.graficos.actores import actores_poligonos, color_3d
-from sse102.graficos.directores.utils_geometria import (
+from zonda.enums import PosicionCamara
+from zonda.graficos.actores import actores_poligonos, color_3d
+from zonda.graficos.directores.utils_geometria import (
     coords_zona_cubierta,
     coords_pared_rectangular,
 )
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import Cartel
+    from zonda.cirsoc import Cartel
 
 
 class Geometria:
@@ -120,7 +120,9 @@ class Geometria:
         self.cara_barlovento()
         self._crear_soportes()
 
-    def setear_posicion_camara(self, camara: vtk.vtkCamera, posicion: PosicionCamara) -> None:
+    def setear_posicion_camara(
+        self, camara: vtk.vtkCamera, posicion: PosicionCamara
+    ) -> None:
         """Setea la posición de la camara.
         Args:
             camara: La camara a la que se le setea la vista.
@@ -128,7 +130,11 @@ class Geometria:
         """
         camara.SetFocalPoint(self.ancho / 2, 0, self.profundidad / 2)
         posiciones = {
-            PosicionCamara.SUPERIOR: (self.ancho / 2, self.altura_superior, self.profundidad / 2),
+            PosicionCamara.SUPERIOR: (
+                self.ancho / 2,
+                self.altura_superior,
+                self.profundidad / 2,
+            ),
             PosicionCamara.PERSPECTIVA: (self.ancho, self.altura_superior, 0),
             PosicionCamara.IZQUIERDA: (0, 0, self.profundidad / 2),
             PosicionCamara.DERECHA: (self.ancho, 0, self.profundidad / 2),
@@ -149,7 +155,9 @@ class Geometria:
             radio = min(self.ancho, abs(self.profundidad)) / 4
 
             cylinder_source = vtk.vtkCylinderSource()
-            cylinder_source.SetCenter(self.ancho / 2, self.altura_inferior / 2, self.profundidad / 2)
+            cylinder_source.SetCenter(
+                self.ancho / 2, self.altura_inferior / 2, self.profundidad / 2
+            )
             cylinder_source.SetRadius(radio)
             cylinder_source.SetHeight(self.altura_inferior)
             cylinder_source.SetResolution(50)
@@ -167,7 +175,12 @@ class Presiones(Geometria):
     Representa las presiones para un cartel. Inicializa los actores, setea las diferentes posiciones de la camara.
     """
 
-    def __init__(self, renderer: vtk.vtkRenderer, tabla_colores: vtk.vtkLookupTable, cartel: Cartel) -> None:
+    def __init__(
+        self,
+        renderer: vtk.vtkRenderer,
+        tabla_colores: vtk.vtkLookupTable,
+        cartel: Cartel,
+    ) -> None:
         """
 
         Args:

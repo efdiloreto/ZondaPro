@@ -4,17 +4,20 @@ from typing import TYPE_CHECKING
 
 from vtkmodules import all as vtk
 
-from sse102.graficos.actores import ActorBarraEscala, ActorTexto2D
-from sse102.graficos.directores.utils_iter import min_max_valores, aplicar_func_recursivamente
-from sse102.graficos.escenas.base import PresionesMixin
-from sse102.graficos.escenas.edificio import obtener_actores_presion_en_renderer
-from sse102.unidades import convertir_unidad
-from sse102.graficos.directores import aisladas as director_aisladas
-from sse102.enums import ExtremoPresion, TipoPresionCubiertaAislada
+from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
+from zonda.graficos.directores.utils_iter import (
+    min_max_valores,
+    aplicar_func_recursivamente,
+)
+from zonda.graficos.escenas.base import PresionesMixin
+from zonda.graficos.escenas.edificio import obtener_actores_presion_en_renderer
+from zonda.unidades import convertir_unidad
+from zonda.graficos.directores import aisladas as director_aisladas
+from zonda.enums import ExtremoPresion, TipoPresionCubiertaAislada
 
 if TYPE_CHECKING:
-    from sse102.enums import Unidad
-    from sse102.cirsoc import CubiertaAislada
+    from zonda.enums import Unidad
+    from zonda.cirsoc import CubiertaAislada
 
 
 class Presiones(PresionesMixin):
@@ -44,7 +47,10 @@ class Presiones(PresionesMixin):
 
         self._presiones = cubierta_aislada.presiones()
 
-        min_max_presiones = (convertir_unidad(p, self.unidad) for p in min_max_valores(presiones=self._presiones))
+        min_max_presiones = (
+            convertir_unidad(p, self.unidad)
+            for p in min_max_valores(presiones=self._presiones)
+        )
 
         tabla_colores = vtk.vtkLookupTable()
         tabla_colores.SetTableRange(*min_max_presiones)
@@ -55,7 +61,9 @@ class Presiones(PresionesMixin):
 
         self._titulo = ActorTexto2D(self.renderer)
 
-        self.director = director_aisladas.Presiones(self.renderer, tabla_colores, cubierta_aislada)
+        self.director = director_aisladas.Presiones(
+            self.renderer, tabla_colores, cubierta_aislada
+        )
 
         self._extremo_presion_actual = ExtremoPresion.MAX
 
@@ -114,13 +122,13 @@ class Presiones(PresionesMixin):
                 for actor in self._actores_actuales:
                     actor.asignar_presion(presion=presion, unidad=self.unidad)
             except TypeError:
-                self._actores_actuales.asignar_presion(presion=presion, unidad=self.unidad)
+                self._actores_actuales.asignar_presion(
+                    presion=presion, unidad=self.unidad
+                )
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
 
-        texto = (
-            f"Presión {self.director.tipo_presion.value.capitalize()} {self._extremo_presion_actual.value.capitalize()}"
-        )
+        texto = f"Presión {self.director.tipo_presion.value.capitalize()} {self._extremo_presion_actual.value.capitalize()}"
 
         self._titulo.setear_texto(texto)

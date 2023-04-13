@@ -5,15 +5,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 from vtkmodules import all as vtk
 
-from sse102.graficos.actores import ActorBarraEscala, ActorTexto2D
-from sse102.graficos.directores import cartel as director_cartel
-from sse102.graficos.escenas.base import PresionesMixin
-from sse102.graficos.escenas.edificio import obtener_actores_presion_en_renderer
-from sse102.unidades import convertir_unidad
+from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
+from zonda.graficos.directores import cartel as director_cartel
+from zonda.graficos.escenas.base import PresionesMixin
+from zonda.graficos.escenas.edificio import obtener_actores_presion_en_renderer
+from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
-    from sse102.enums import Unidad
-    from sse102.cirsoc import Cartel
+    from zonda.enums import Unidad
+    from zonda.cirsoc import Cartel
 
 
 class Presiones(PresionesMixin):
@@ -56,7 +56,9 @@ class Presiones(PresionesMixin):
         tabla_colores.SetHueRange(0.66, 0)
         tabla_colores.Build()
 
-        self._barra_escala = ActorBarraEscala(self.renderer, tabla_colores, self.unidad_presion)
+        self._barra_escala = ActorBarraEscala(
+            self.renderer, tabla_colores, self.unidad_presion
+        )
 
         titulo = ActorTexto2D(self.renderer)
         titulo.setear_texto(
@@ -77,5 +79,7 @@ class Presiones(PresionesMixin):
         """
 
         presion = self._presiones[np.where(self._alturas == altura)][0]
-        self._actor.asignar_presion(presion, str_extra=f"({altura} m)", unidad=self.unidad_presion)
+        self._actor.asignar_presion(
+            presion, str_extra=f"({altura} m)", unidad=self.unidad_presion
+        )
         self.interactor.ReInitialize()

@@ -1,4 +1,4 @@
-# SSE102
+# ZONDA
 
 Software para calcular las cargas de viento segun CIRSOC 102. 
 

@@ -1,11 +1,11 @@
-"""Tipos utilizados por SSE102 para utilizar type hints.
+"""Tipos utilizados por ZONDA para utilizar type hints.
 """
 from typing import Dict, Union, DefaultDict, Tuple, TypeVar
 
 import numpy as np
 
-from sse102.cirsoc.presiones.edificio import PresionesEdificio
-from sse102.enums import (
+from zonda.cirsoc.presiones.edificio import PresionesEdificio
+from zonda.enums import (
     ExtremoPresion,
     ZonaPresionCubiertaAislada,
     TipoPresionCubiertaAislada,
@@ -29,23 +29,38 @@ EscalarOArray = TypeVar("EscalarOArray", float, np.ndarray)
 
 ValoresCpCubiertaAislada = Dict[
     TipoPresionCubiertaAislada,
-    Union[Dict[ExtremoPresion, float], Dict[ZonaPresionCubiertaAislada, Dict[ExtremoPresion, float]]],
+    Union[
+        Dict[ExtremoPresion, float],
+        Dict[ZonaPresionCubiertaAislada, Dict[ExtremoPresion, float]],
+    ],
 ]
 
 ValoresCpParedesEdificioSprfvMetodoDireccional = Dict[
     DireccionVientoMetodoDireccionalSprfv, Dict[ParedEdificioSprfv, float]
 ]
 
-ValoresCpParedesEdificioComponentes = DefaultDict[str, Dict[ZonaComponenteParedEdificio, float]]
+ValoresCpParedesEdificioComponentes = DefaultDict[
+    str, Dict[ZonaComponenteParedEdificio, float]
+]
 
 ValoresCpCubiertaEdificioSprfvMetodoDireccional = Dict[
     DireccionVientoMetodoDireccionalSprfv,
-    Union[np.ndarray, Dict[PosicionCubiertaAleroSprfv, Union[Dict[TipoPresionCubiertaBarloventoSprfv, float], float]]],
+    Union[
+        np.ndarray,
+        Dict[
+            PosicionCubiertaAleroSprfv,
+            Union[Dict[TipoPresionCubiertaBarloventoSprfv, float], float],
+        ],
+    ],
 ]
 
-ValoresCpAleroEdificioSprfvMetodoDireccional = ValoresCpCubiertaEdificioSprfvMetodoDireccional
+ValoresCpAleroEdificioSprfvMetodoDireccional = (
+    ValoresCpCubiertaEdificioSprfvMetodoDireccional
+)
 
-ValoresCpCubiertaEdificioComponentes = DefaultDict[str, Dict[ZonaComponenteCubiertaEdificio, float]]
+ValoresCpCubiertaEdificioComponentes = DefaultDict[
+    str, Dict[ZonaComponenteCubiertaEdificio, float]
+]
 
 ValoresCpParedesEdificioMetodoDireccional = Dict[
     SistemaResistente,
@@ -57,12 +72,18 @@ ValoresCpParedesEdificioMetodoDireccional = Dict[
 
 ValoresCpCubiertaEdificioMetodoDireccional = Dict[
     SistemaResistente,
-    Union[ValoresCpCubiertaEdificioSprfvMetodoDireccional, ValoresCpCubiertaEdificioComponentes],
+    Union[
+        ValoresCpCubiertaEdificioSprfvMetodoDireccional,
+        ValoresCpCubiertaEdificioComponentes,
+    ],
 ]
 
 ValoresCpAleroEdificioMetodoDireccional = Dict[
     SistemaResistente,
-    Union[ValoresCpAleroEdificioSprfvMetodoDireccional, ValoresCpCubiertaEdificioComponentes],
+    Union[
+        ValoresCpAleroEdificioSprfvMetodoDireccional,
+        ValoresCpCubiertaEdificioComponentes,
+    ],
 ]
 
 ValoresCpEdificioMetodoDireccional = Dict[
@@ -82,44 +103,68 @@ ValoresPresionesCubiertaEdificioSprfvMetodoDireccional = Dict[
         np.ndarray,
         Dict[
             PosicionCubiertaAleroSprfv,
-            Union[Dict[TipoPresionCubiertaBarloventoSprfv, PresionesEdificio], PresionesEdificio],
+            Union[
+                Dict[TipoPresionCubiertaBarloventoSprfv, PresionesEdificio],
+                PresionesEdificio,
+            ],
         ],
     ],
 ]
 
-ValoresPresionesAleroEdificioSprfvMetodoDireccional = ValoresCpAleroEdificioSprfvMetodoDireccional
+ValoresPresionesAleroEdificioSprfvMetodoDireccional = (
+    ValoresCpAleroEdificioSprfvMetodoDireccional
+)
 
 ValoresPresionesParedesEdificioSprfvMetodoDireccional = DefaultDict[
     DireccionVientoMetodoDireccionalSprfv,
     Union[Dict[ParedEdificioSprfv, Union[np.ndarray, PresionesEdificio]]],
 ]
 
-ValoresPresionesParedesEdificioComponentesA = DefaultDict[str, Dict[ZonaComponenteParedEdificio, PresionesEdificio]]
+ValoresPresionesParedesEdificioComponentesA = DefaultDict[
+    str, Dict[ZonaComponenteParedEdificio, PresionesEdificio]
+]
 ValoresPresionesParedesEdificioComponentesB = DefaultDict[
     str,
-    DefaultDict[ParedEdificioSprfv, Dict[ZonaComponenteParedEdificio, Union[np.ndarray, PresionesEdificio]]],
+    DefaultDict[
+        ParedEdificioSprfv,
+        Dict[ZonaComponenteParedEdificio, Union[np.ndarray, PresionesEdificio]],
+    ],
 ]
 
 ValoresPresionesParedesEdificioComponentes = Union[
-    ValoresPresionesParedesEdificioComponentesA, ValoresPresionesParedesEdificioComponentesB
+    ValoresPresionesParedesEdificioComponentesA,
+    ValoresPresionesParedesEdificioComponentesB,
 ]
 
-ValoresPresionesCubiertaEdificioComponentes = DefaultDict[str, Dict[ZonaComponenteCubiertaEdificio, PresionesEdificio]]
-ValoresPresionesAleroEdificioComponentes = DefaultDict[str, Dict[ZonaComponenteCubiertaEdificio, float]]
+ValoresPresionesCubiertaEdificioComponentes = DefaultDict[
+    str, Dict[ZonaComponenteCubiertaEdificio, PresionesEdificio]
+]
+ValoresPresionesAleroEdificioComponentes = DefaultDict[
+    str, Dict[ZonaComponenteCubiertaEdificio, float]
+]
 
 ValoresPresionesCubiertaEdificioMetodoDireccional = Dict[
     SistemaResistente,
-    Union[ValoresPresionesCubiertaEdificioSprfvMetodoDireccional, ValoresPresionesCubiertaEdificioComponentes],
+    Union[
+        ValoresPresionesCubiertaEdificioSprfvMetodoDireccional,
+        ValoresPresionesCubiertaEdificioComponentes,
+    ],
 ]
 
 ValoresPresionesParedesEdificioMetodoDireccional = Dict[
     SistemaResistente,
-    Union[ValoresPresionesParedesEdificioSprfvMetodoDireccional, ValoresPresionesParedesEdificioComponentes],
+    Union[
+        ValoresPresionesParedesEdificioSprfvMetodoDireccional,
+        ValoresPresionesParedesEdificioComponentes,
+    ],
 ]
 
 ValoresPresionesAleroEdificioMetodoDireccional = Dict[
     SistemaResistente,
-    Union[ValoresPresionesAleroEdificioSprfvMetodoDireccional, ValoresPresionesAleroEdificioComponentes],
+    Union[
+        ValoresPresionesAleroEdificioSprfvMetodoDireccional,
+        ValoresPresionesAleroEdificioComponentes,
+    ],
 ]
 
 ValoresPresionesEdificioMetodoDireccional = Dict[

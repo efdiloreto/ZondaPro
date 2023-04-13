@@ -6,18 +6,21 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtPrintSupport import QPageSetupDialog, QPrinter
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 
-from sse102.enums import Unidad
-from sse102.reportes import Reporte
-from sse102.sistema import guardar_archivo_temporal
-from sse102.widgets.errores import AvisoError
+from zonda.enums import Unidad
+from zonda.reportes import Reporte
+from zonda.sistema import guardar_archivo_temporal
+from zonda.widgets.errores import AvisoError
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import Edificio, Cartel, CubiertaAislada
+    from zonda.cirsoc import Edificio, Cartel, CubiertaAislada
 
 
 class WidgetReporte(QtWidgets.QWidget):
     def __init__(
-        self, parent: QtWidgets.QWidget, plantilla: str, estructura: Union[Edificio, Cartel, CubiertaAislada]
+        self,
+        parent: QtWidgets.QWidget,
+        plantilla: str,
+        estructura: Union[Edificio, Cartel, CubiertaAislada],
     ) -> None:
         """
 
@@ -37,7 +40,11 @@ class WidgetReporte(QtWidgets.QWidget):
         presion = settings.value("presion", "N")
         settings.endGroup()
 
-        self._reporte = Reporte(plantilla, estructura, unidades={"fuerza": Unidad(fuerza), "presion": Unidad(presion)})
+        self._reporte = Reporte(
+            plantilla,
+            estructura,
+            unidades={"fuerza": Unidad(fuerza), "presion": Unidad(presion)},
+        )
 
         self._vista_web = QWebEngineView()
         self._vista_web.setAutoFillBackground(False)
@@ -48,7 +55,9 @@ class WidgetReporte(QtWidgets.QWidget):
         pagina_settings = self._vista_web.page().settings()
         pagina_settings.setAttribute(QWebEngineSettings.JavascriptEnabled, False)
         pagina_settings.setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, False)
-        pagina_settings.setAttribute(QWebEngineSettings.JavascriptCanAccessClipboard, False)
+        pagina_settings.setAttribute(
+            QWebEngineSettings.JavascriptCanAccessClipboard, False
+        )
         pagina_settings.setAttribute(QWebEngineSettings.ErrorPageEnabled, False)
         pagina_settings.setAttribute(QWebEngineSettings.PdfViewerEnabled, False)
 
@@ -84,7 +93,9 @@ class WidgetReporte(QtWidgets.QWidget):
         boton_configurar_pagina.clicked.connect(self._configurar_pagina)
 
         self._checkbox_crear_pdf_html = QtWidgets.QCheckBox("Exportar como PDF")
-        self._checkbox_crear_pdf_html.stateChanged.connect(boton_configurar_pagina.setVisible)
+        self._checkbox_crear_pdf_html.stateChanged.connect(
+            boton_configurar_pagina.setVisible
+        )
 
         label_seleccion_archivo = QtWidgets.QLabel("Documento de referencia:")
         label_seleccion_archivo.setToolTip(
@@ -105,8 +116,12 @@ class WidgetReporte(QtWidgets.QWidget):
         label_aviso_latex.setOpenExternalLinks(True)
 
         self._dialogo_seleccionar_archivo = QtWidgets.QFileDialog()
-        self._dialogo_seleccionar_archivo.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
-        self._dialogo_seleccionar_archivo.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        self._dialogo_seleccionar_archivo.setAcceptMode(
+            QtWidgets.QFileDialog.AcceptSave
+        )
+        self._dialogo_seleccionar_archivo.setFileMode(
+            QtWidgets.QFileDialog.ExistingFile
+        )
 
         self._dialogo_guardar_archivo = QtWidgets.QFileDialog()
         self._dialogo_guardar_archivo.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
@@ -125,7 +140,9 @@ class WidgetReporte(QtWidgets.QWidget):
         self._layout_exportacion.addWidget(self._line_edit, 2, 0, 1, 5)
         self._layout_exportacion.addWidget(boton_seleccionar_archivo, 2, 6)
         self._layout_exportacion.addWidget(label_aviso_latex, 3, 0, 1, 7)
-        self._layout_exportacion.addWidget(boton_exportar_reporte, 5, 0, 1, 7, QtCore.Qt.AlignRight)
+        self._layout_exportacion.addWidget(
+            boton_exportar_reporte, 5, 0, 1, 7, QtCore.Qt.AlignRight
+        )
         self._layout_exportacion.setColumnStretch(4, 1)
         self._layout_exportacion.setRowStretch(4, 1)
 
@@ -157,7 +174,9 @@ class WidgetReporte(QtWidgets.QWidget):
     def _obtener_archivo(self):
         #  El método "getOpenFileName" es estatico, por lo tanto tengo que setear
         filtro = f"{self._combobox_formatos.currentText()} (*{self._combobox_formatos.currentData()})"
-        texto, _ = self._dialogo_seleccionar_archivo.getOpenFileName(self, filter=filtro)
+        texto, _ = self._dialogo_seleccionar_archivo.getOpenFileName(
+            self, filter=filtro
+        )
         if texto:
             self._line_edit.setText(texto)
 
@@ -165,8 +184,13 @@ class WidgetReporte(QtWidgets.QWidget):
         es_pdf = descripcion_formato == "PDF"
         self._layout_exportacion.itemAtPosition(0, 3).widget().setVisible(es_pdf)
         self._layout_exportacion.itemAtPosition(3, 0).widget().setVisible(es_pdf)
-        self._layout_exportacion.itemAtPosition(0, 2).widget().setVisible(descripcion_formato == "HTML")
-        bool_eleccion_archivo = descripcion_formato in ("Microsoft Word", "LibreOffice Writer")
+        self._layout_exportacion.itemAtPosition(0, 2).widget().setVisible(
+            descripcion_formato == "HTML"
+        )
+        bool_eleccion_archivo = descripcion_formato in (
+            "Microsoft Word",
+            "LibreOffice Writer",
+        )
         for fila in range(1, 3):
             for columna in range(7):
                 item = self._layout_exportacion.itemAtPosition(fila, columna)
@@ -181,7 +205,10 @@ class WidgetReporte(QtWidgets.QWidget):
         if descripcion_formato == "HTML" and self._checkbox_crear_pdf_html.isChecked():
             filtro = "PDF (*.pdf)"
         nombre_archivo, _ = self._dialogo_guardar_archivo.getSaveFileName(
-            filter=filtro, directory=QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
+            filter=filtro,
+            directory=QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.DocumentsLocation
+            ),
         )
         if nombre_archivo:
             if descripcion_formato == "HTML":
@@ -195,8 +222,15 @@ class WidgetReporte(QtWidgets.QWidget):
                     return
             elif descripcion_formato == "PDF":
                 tamaño_papel = self._printer.pageLayout().fullRect()
-                papel = dict(zip(("left", "top", "right", "bottom"), self._printer.getPageMargins(QPrinter.Millimeter)))
-                papel.update(paperwidth=tamaño_papel.width(), paperheight=tamaño_papel.height())
+                papel = dict(
+                    zip(
+                        ("left", "top", "right", "bottom"),
+                        self._printer.getPageMargins(QPrinter.Millimeter),
+                    )
+                )
+                papel.update(
+                    paperwidth=tamaño_papel.width(), paperheight=tamaño_papel.height()
+                )
             else:
                 papel = None
             ruta_archivo = self._line_edit.text()

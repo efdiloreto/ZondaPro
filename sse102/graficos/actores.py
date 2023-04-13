@@ -10,12 +10,12 @@ import numpy as np
 import vtkmodules.all as vtk
 from vtkmodules.util import numpy_support
 
-from sse102.enums import Unidad
-from sse102.graficos.directores.utils_iter import aplicar_func_recursivamente
-from sse102.unidades import convertir_unidad
+from zonda.enums import Unidad
+from zonda.graficos.directores.utils_iter import aplicar_func_recursivamente
+from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
-    from sse102.tipos import Punto
+    from zonda.tipos import Punto
 
 colores = vtk.vtkNamedColors()
 
@@ -51,7 +51,8 @@ def crear_poly_data(puntos: Sequence[Punto]) -> vtk.vtkPolyData:
 
 
 def crear_mapper(
-    data: Union[vtk.vtkPolyData, vtk.vtkPolyDataAlgorithm], scalar_visibility: bool = False
+    data: Union[vtk.vtkPolyData, vtk.vtkPolyDataAlgorithm],
+    scalar_visibility: bool = False,
 ) -> vtk.vtkPolyDataMapper:
     """
 
@@ -72,7 +73,9 @@ def crear_mapper(
     return mapper
 
 
-def clip_poly_data(poly_data: vtk.vtkPolyData, origen: Punto, normal: Punto) -> Union[None, vtk.vtkPolyData]:
+def clip_poly_data(
+    poly_data: vtk.vtkPolyData, origen: Punto, normal: Punto
+) -> Union[None, vtk.vtkPolyData]:
     plano = vtk.vtkPlane()
     plano.SetOrigin(*origen)
     plano.SetNormal(*normal)
@@ -91,7 +94,9 @@ def clip_poly_data(poly_data: vtk.vtkPolyData, origen: Punto, normal: Punto) -> 
 
 
 def crear_actor(
-    data: Union[vtk.vtkPolyData, vtk.vtkPolyDataAlgorithm], color: Optional[str] = None, scalar_visibility: bool = False
+    data: Union[vtk.vtkPolyData, vtk.vtkPolyDataAlgorithm],
+    color: Optional[str] = None,
+    scalar_visibility: bool = False,
 ) -> vtk.vtkActor:
     """Crea un actor VTK.
 
@@ -172,7 +177,12 @@ class ActorBarraEscala(vtk.vtkScalarBarActor, ActorMixin):
     Genera una barra de escalas de colores.
     """
 
-    def __init__(self, renderer: vtk.vtkRenderer, tabla_colores: vtk.vtkLookupTable, unidad: Unidad) -> None:
+    def __init__(
+        self,
+        renderer: vtk.vtkRenderer,
+        tabla_colores: vtk.vtkLookupTable,
+        unidad: Unidad,
+    ) -> None:
         """
         Args:
             renderer: El renderer que añade el actor.
@@ -285,7 +295,12 @@ class ActorFlechaPresion(vtk.vtkActor, ActorMixin):
     Actor representado por una flecha que se usa para indicar las presiones sobre las superficies.
     """
 
-    def __init__(self, renderer: vtk.vtkRenderer, normal_centro: vtk.vtkCellCenters, max_valor_presion: float) -> None:
+    def __init__(
+        self,
+        renderer: vtk.vtkRenderer,
+        normal_centro: vtk.vtkCellCenters,
+        max_valor_presion: float,
+    ) -> None:
         """
 
         Args:
@@ -357,7 +372,9 @@ class ActorFlechaPresion(vtk.vtkActor, ActorMixin):
         Args:
             valor: El valor de presión.
         """
-        self._escalar_reubicar_label(abs(valor) / self.max_valor_presion * self._escala_base)
+        self._escalar_reubicar_label(
+            abs(valor) / self.max_valor_presion * self._escala_base
+        )
         bool_invertir_flecha = valor >= 0
         self._arrow_source.SetInvert(bool_invertir_flecha)
 
@@ -376,7 +393,9 @@ class ActorFlechaPresion(vtk.vtkActor, ActorMixin):
         el punto extremos de la misma que es donde se ubica el label.
         """
         escala = self._glyph3d.GetScaleFactor()
-        np_normal = numpy_support.vtk_to_numpy(self.normals_centro.GetOutput().GetCellData().GetNormals())
+        np_normal = numpy_support.vtk_to_numpy(
+            self.normals_centro.GetOutput().GetCellData().GetNormals()
+        )
         posicion = np.array(self.GetCenter()) + escala / 2 * 1.05 * np_normal
         self.label.setear_posicion(posicion)
 
@@ -426,7 +445,9 @@ class ActorPresion(vtk.vtkActor, ActorMixin):
         if tabla_colores is not None:
             self.tabla_colores = tabla_colores
             valor_min_presion, valor_max_presion = tabla_colores.GetTableRange()
-            self._max_valor_presion = max(abs(valor_min_presion), abs(valor_max_presion))
+            self._max_valor_presion = max(
+                abs(valor_min_presion), abs(valor_max_presion)
+            )
 
         self._mapper = crear_mapper(self.poly_data)
         self.SetMapper(self._mapper)
@@ -448,7 +469,9 @@ class ActorPresion(vtk.vtkActor, ActorMixin):
         else:
             self.ocultar()
 
-    def asignar_presion(self, presion: float, unidad: Unidad, str_extra: str = "") -> None:
+    def asignar_presion(
+        self, presion: float, unidad: Unidad, str_extra: str = ""
+    ) -> None:
         """Asigna un valor de presión al actor.
 
         Al hacerlo obtiene un color de la tabla en base al valor de presión y se lo asigna al poligono. Además escala
@@ -463,7 +486,9 @@ class ActorPresion(vtk.vtkActor, ActorMixin):
         color_poligono = self._obtener_color(presion)
         self.GetProperty().SetColor(color_poligono)
         self.flecha.asignar_presion(presion)
-        self.flecha.label.setear_texto(f"{presion:.2f} {unidad.value}/m\u00B2 {str_extra}")
+        self.flecha.label.setear_texto(
+            f"{presion:.2f} {unidad.value}/m\u00B2 {str_extra}"
+        )
         self.mostrar()
 
     def mostrar(self) -> None:
@@ -565,7 +590,13 @@ def actores_poligonos(
         Actores generado en base los puntos retornado por el método decorado.
     """
     if func is None:
-        return partial(actores_poligonos, crear_atributo=crear_atributo, color=color, presion=presion, mostrar=mostrar)
+        return partial(
+            actores_poligonos,
+            crear_atributo=crear_atributo,
+            color=color,
+            presion=presion,
+            mostrar=mostrar,
+        )
 
     @wraps(func)
     def wrapped(self, *args, **kwargs):

@@ -1,7 +1,7 @@
 import math
 from functools import cached_property
 
-from sse102.enums import TipoCubierta, PosicionBloqueoCubierta
+from zonda.enums import TipoCubierta, PosicionBloqueoCubierta
 
 
 class Cubierta:
@@ -55,7 +55,10 @@ class Cubierta:
         Returns:
             La relación de bloqueo. (Valor entre 0 y 1)
         """
-        if self.tipo_cubierta == TipoCubierta.PLANA or self.posicion_bloqueo == PosicionBloqueoCubierta.ALERO_BAJO:
+        if (
+            self.tipo_cubierta == TipoCubierta.PLANA
+            or self.posicion_bloqueo == PosicionBloqueoCubierta.ALERO_BAJO
+        ):
             altura = self.altura_alero
         else:
             altura = self.altura_cumbrera

@@ -10,9 +10,14 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QTimer
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest, QNetworkAccessManager
 
-from sse102.enums import CategoriaExposicion, Flexibilidad, TipoTerrenoTopografia, DireccionTopografia
-from sse102.excepciones import ErrorViento, ErrorComponentes
-from sse102.widgets.entrada import WidgetComponentes
+from zonda.enums import (
+    CategoriaExposicion,
+    Flexibilidad,
+    TipoTerrenoTopografia,
+    DireccionTopografia,
+)
+from zonda.excepciones import ErrorViento, ErrorComponentes
+from zonda.widgets.entrada import WidgetComponentes
 
 
 class DialogoBase(QtWidgets.QDialog):
@@ -24,7 +29,9 @@ class DialogoBase(QtWidgets.QDialog):
     def __init__(self) -> None:
         super().__init__()
 
-        self._botones = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self._botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
         self._botones.accepted.connect(self.accept)
         self._botones.rejected.connect(self.reject)
 
@@ -71,10 +78,17 @@ class DialogoViento(DialogoBase):
         datos_spinboxs = (
             ("velocidad", 20, 100, " m/s", 2, "Velocidad básica del viento."),
             ("frecuencia", 0.1, 100, " Hz", 2, "Frecuencia natural de la estructura."),
-            ("beta", 0.01, 0.05, None, 3, "Relación de amortiguamiento β, expresada como porcentaje del crítico."),
+            (
+                "beta",
+                0.01,
+                0.05,
+                None,
+                3,
+                "Relación de amortiguamiento β, expresada como porcentaje del crítico.",
+            ),
         )
         self._spinboxs = {}
-        for (nombre, minimo, maximo, sufijo, precision, status_tip) in datos_spinboxs:
+        for nombre, minimo, maximo, sufijo, precision, status_tip in datos_spinboxs:
             spinbox = QtWidgets.QDoubleSpinBox()
             spinbox.setMinimum(minimo)
             spinbox.setMaximum(maximo)
@@ -89,7 +103,9 @@ class DialogoViento(DialogoBase):
 
         self._editar_velocidad = QtWidgets.QCheckBox("Velocidad")
         self._editar_velocidad.setChecked(editar_velocidad)
-        self._editar_velocidad.stateChanged.connect(self._habilitar_deshabilitar_velocidad)
+        self._editar_velocidad.stateChanged.connect(
+            self._habilitar_deshabilitar_velocidad
+        )
 
         ciudades_velocidad = (
             ("Bahía Blanca", 55),
@@ -128,12 +144,18 @@ class DialogoViento(DialogoBase):
             self._combobox_ciudades.addItem(opcion, valor)
         self._combobox_ciudades.setCurrentText(ciudad)
         self._combobox_ciudades.currentIndexChanged.connect(
-            lambda: self._spinboxs["velocidad"].setValue(self._combobox_ciudades.currentData())
+            lambda: self._spinboxs["velocidad"].setValue(
+                self._combobox_ciudades.currentData()
+            )
         )
 
-        self._factor_g_simplificado = QtWidgets.QCheckBox("Considerar Factor de Ráfaga igual a 0.85")
+        self._factor_g_simplificado = QtWidgets.QCheckBox(
+            "Considerar Factor de Ráfaga igual a 0.85"
+        )
         self._factor_g_simplificado.stateChanged.connect(
-            lambda: self._habilitar_deshabilitar_widgets_rafaga(self._factor_g_simplificado.isChecked())
+            lambda: self._habilitar_deshabilitar_widgets_rafaga(
+                self._factor_g_simplificado.isChecked()
+            )
         )
 
         self._combobox_flex = QtWidgets.QComboBox()
@@ -154,22 +176,30 @@ class DialogoViento(DialogoBase):
         )
 
         self._grid_layout_viento = QtWidgets.QGridLayout()
-        self._grid_layout_viento.addWidget(QtWidgets.QLabel("Ciudad"), 0, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_viento.addWidget(
+            QtWidgets.QLabel("Ciudad"), 0, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_viento.addWidget(self._combobox_ciudades, 0, 1)
-        self._grid_layout_viento.addWidget(self._editar_velocidad, 1, 0, QtCore.Qt.AlignRight)
+        self._grid_layout_viento.addWidget(
+            self._editar_velocidad, 1, 0, QtCore.Qt.AlignRight
+        )
         self._grid_layout_viento.addWidget(self._spinboxs["velocidad"], 1, 1)
         self._grid_layout_viento.setColumnStretch(2, 1)
 
         grid_layout_exposicion = QtWidgets.QGridLayout()
 
-        grid_layout_exposicion.addWidget(QtWidgets.QLabel("Categoría de Exposición"), 0, 0, QtCore.Qt.AlignRight)
+        grid_layout_exposicion.addWidget(
+            QtWidgets.QLabel("Categoría de Exposición"), 0, 0, QtCore.Qt.AlignRight
+        )
         grid_layout_exposicion.addWidget(self._combobox_exposicion, 0, 1)
         grid_layout_exposicion.setColumnStretch(2, 1)
 
         self._grid_layout_rafaga = QtWidgets.QGridLayout()
         self._grid_layout_rafaga.addWidget(self._factor_g_simplificado, 0, 0, 1, 3)
         for i, texto in enumerate(textos_rafaga):
-            self._grid_layout_rafaga.addWidget(QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight)
+            self._grid_layout_rafaga.addWidget(
+                QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignRight
+            )
         self._grid_layout_rafaga.addWidget(self._combobox_flex, 1, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["frecuencia"], 2, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["beta"], 3, 1)
@@ -242,10 +272,13 @@ class DialogoViento(DialogoBase):
                 )
             elif flexibilidad == Flexibilidad.FLEXIBLE and frecuencia >= 1:
                 raise ErrorViento(
-                    "Para que la estructura sea considerada flexible, la" " frecuencia debe ser menor a 1 Hz."
+                    "Para que la estructura sea considerada flexible, la"
+                    " frecuencia debe ser menor a 1 Hz."
                 )
 
-    def parametros(self) -> Union[None, Dict[str, Union[float, Flexibilidad, CategoriaExposicion, str]]]:
+    def parametros(
+        self,
+    ) -> Union[None, Dict[str, Union[float, Flexibilidad, CategoriaExposicion, str]]]:
         """Determina los parámetros de viento.
 
         Returns:
@@ -256,7 +289,9 @@ class DialogoViento(DialogoBase):
     def accept(self):
         try:
             self._validar()
-            resultados_spinboxs = {key: spinbox.value() for key, spinbox in self._spinboxs.items()}
+            resultados_spinboxs = {
+                key: spinbox.value() for key, spinbox in self._spinboxs.items()
+            }
             self._parametros = {
                 "factor_g_simplificado": self._factor_g_simplificado.isChecked(),
                 "categoria_exp": self._combobox_exposicion.currentData(),
@@ -303,12 +338,18 @@ class DialogoTopografia(DialogoBase):
         for enum in TipoTerrenoTopografia:
             self._combobox_tipo_terreno.addItem(enum.value.title(), enum)
         self._combobox_tipo_terreno.setCurrentText(tipo_terreno.value.title())
-        self._combobox_tipo_terreno.currentIndexChanged.connect(self._cambio_tipo_terreno)
+        self._combobox_tipo_terreno.currentIndexChanged.connect(
+            self._cambio_tipo_terreno
+        )
 
         self._combobox_direccion = QtWidgets.QComboBox()
         for enum in DireccionTopografia:
-            self._combobox_direccion.addItem(f"{enum.value.capitalize()} de la cresta", enum)
-        self._combobox_direccion.setCurrentIndex(self._combobox_direccion.findData(direccion))
+            self._combobox_direccion.addItem(
+                f"{enum.value.capitalize()} de la cresta", enum
+            )
+        self._combobox_direccion.setCurrentIndex(
+            self._combobox_direccion.findData(direccion)
+        )
 
         textos_spinboxs = (
             "Distancia, L<sub>h</sub>",
@@ -322,7 +363,7 @@ class DialogoTopografia(DialogoBase):
         )
 
         self._spinboxs = {}
-        for (nombre, minimo, maximo, default, sufijo, activado) in datos_spinboxs:
+        for nombre, minimo, maximo, default, sufijo, activado in datos_spinboxs:
             spinbox = QtWidgets.QDoubleSpinBox()
             spinbox.setMinimum(minimo)
             spinbox.setMaximum(maximo)
@@ -332,7 +373,9 @@ class DialogoTopografia(DialogoBase):
             self._spinboxs[nombre] = spinbox
 
         self._spinboxs["distancia_cresta"].setValue(distancia_cresta)
-        self._spinboxs["distancia_barlovento_sotavento"].setValue(distancia_barlovento_sotavento)
+        self._spinboxs["distancia_barlovento_sotavento"].setValue(
+            distancia_barlovento_sotavento
+        )
         self._spinboxs["altura_terreno"].setValue(altura_terreno)
 
         self._imagen = QtWidgets.QLabel()
@@ -340,16 +383,25 @@ class DialogoTopografia(DialogoBase):
 
         self._layout_principal = QtWidgets.QGridLayout()
 
-        self._layout_principal.addWidget(QtWidgets.QLabel("Tipo de Terreno"), 0, 0, QtCore.Qt.AlignRight)
+        self._layout_principal.addWidget(
+            QtWidgets.QLabel("Tipo de Terreno"), 0, 0, QtCore.Qt.AlignRight
+        )
         self._layout_principal.addWidget(self._combobox_tipo_terreno, 0, 1)
-        self._layout_principal.addWidget(QtWidgets.QLabel("Dirección"), 1, 0, QtCore.Qt.AlignRight)
+        self._layout_principal.addWidget(
+            QtWidgets.QLabel("Dirección"), 1, 0, QtCore.Qt.AlignRight
+        )
         self._layout_principal.addWidget(self._combobox_tipo_terreno, 0, 1)
         self._layout_principal.addWidget(self._combobox_direccion, 1, 1)
         for i, (nombre, widget) in enumerate(self._spinboxs.items()):
-            self._layout_principal.addWidget(QtWidgets.QLabel(textos_spinboxs[i]), i + 2, 0, QtCore.Qt.AlignRight)
+            self._layout_principal.addWidget(
+                QtWidgets.QLabel(textos_spinboxs[i]), i + 2, 0, QtCore.Qt.AlignRight
+            )
             self._layout_principal.addWidget(widget, i + 2, 1)
         self._layout_principal.addWidget(
-            QtWidgets.QLabel("* Se condisera que se satisfacen los puntos 1, 2 y 3 " "del artículo 5.7.1."),
+            QtWidgets.QLabel(
+                "* Se condisera que se satisfacen los puntos 1, 2 y 3 "
+                "del artículo 5.7.1."
+            ),
             7,
             0,
             1,
@@ -381,7 +433,11 @@ class DialogoTopografia(DialogoBase):
 
         self.setFixedSize(self.sizeHint())
 
-    def parametros(self) -> Union[None, Dict[str, Union[TipoTerrenoTopografia, DireccionTopografia, float, bool]]]:
+    def parametros(
+        self,
+    ) -> Union[
+        None, Dict[str, Union[TipoTerrenoTopografia, DireccionTopografia, float, bool]]
+    ]:
         """Determina los parámetros de topografía.
 
         Returns:
@@ -390,7 +446,9 @@ class DialogoTopografia(DialogoBase):
         return self._parametros
 
     def accept(self):
-        resultados_spinboxs = {key: spinbox.value() for key, spinbox in self._spinboxs.items()}
+        resultados_spinboxs = {
+            key: spinbox.value() for key, spinbox in self._spinboxs.items()
+        }
         self._parametros = {
             "considerar_topografia": self._considerar_topografia.isChecked(),
             "tipo_terreno": self._combobox_tipo_terreno.currentData(),
@@ -400,7 +458,10 @@ class DialogoTopografia(DialogoBase):
         super().accept()
 
     def _cambio_tipo_terreno(self):
-        if self._combobox_tipo_terreno.currentData() == TipoTerrenoTopografia.ESCARPA_BIDIMENSIONAL:
+        if (
+            self._combobox_tipo_terreno.currentData()
+            == TipoTerrenoTopografia.ESCARPA_BIDIMENSIONAL
+        ):
             imagen = "escarpa.jpg"
         else:
             imagen = "loma.jpg"
@@ -423,8 +484,12 @@ class DialogoComponentes(DialogoBase):
 
         self._componentes = componentes
 
-        self._componentes_paredes = WidgetComponentes(componentes["componentes_paredes"])
-        self._componentes_cubierta = WidgetComponentes(componentes["componentes_cubierta"])
+        self._componentes_paredes = WidgetComponentes(
+            componentes["componentes_paredes"]
+        )
+        self._componentes_cubierta = WidgetComponentes(
+            componentes["componentes_cubierta"]
+        )
 
         label_aviso_geometria = QtWidgets.QLabel(
             "* Dependiendo de la geometria de la estructura es posible que existan solapamientos en la visualizazión"
@@ -433,8 +498,12 @@ class DialogoComponentes(DialogoBase):
         label_aviso_geometria.setWordWrap(True)
 
         layout_componentes = QtWidgets.QGridLayout()
-        layout_componentes.addWidget(QtWidgets.QLabel("PAREDES"), 0, 0, QtCore.Qt.AlignCenter)
-        layout_componentes.addWidget(QtWidgets.QLabel("CUBIERTA"), 0, 2, QtCore.Qt.AlignCenter)
+        layout_componentes.addWidget(
+            QtWidgets.QLabel("PAREDES"), 0, 0, QtCore.Qt.AlignCenter
+        )
+        layout_componentes.addWidget(
+            QtWidgets.QLabel("CUBIERTA"), 0, 2, QtCore.Qt.AlignCenter
+        )
         layout_componentes.addWidget(self._componentes_paredes, 2, 0)
         layout_componentes.addWidget(self._componentes_cubierta, 2, 2)
         layout_componentes.setVerticalSpacing(2)
@@ -494,18 +563,26 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         self._combobox_presiones = QtWidgets.QComboBox()
         for opcion, valor in presiones:
             self._combobox_presiones.addItem(opcion, userData=QtCore.QVariant(valor))
-        self._combobox_presiones.setCurrentIndex(self._combobox_presiones.findData(presion))
+        self._combobox_presiones.setCurrentIndex(
+            self._combobox_presiones.findData(presion)
+        )
 
         layout_unidades = QtWidgets.QGridLayout()
-        layout_unidades.addWidget(QtWidgets.QLabel("Presión"), 0, 0, QtCore.Qt.AlignRight)
-        layout_unidades.addWidget(QtWidgets.QLabel("Fuerza"), 1, 0, QtCore.Qt.AlignRight)
+        layout_unidades.addWidget(
+            QtWidgets.QLabel("Presión"), 0, 0, QtCore.Qt.AlignRight
+        )
+        layout_unidades.addWidget(
+            QtWidgets.QLabel("Fuerza"), 1, 0, QtCore.Qt.AlignRight
+        )
         layout_unidades.addWidget(self._combobox_presiones, 0, 1)
         layout_unidades.addWidget(self._combobox_fuerzas, 1, 1)
 
         groupbox_unidades = QtWidgets.QGroupBox("Unidades")
         groupbox_unidades.setLayout(layout_unidades)
 
-        botones = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
         botones.accepted.connect(self.accept)
         botones.rejected.connect(self.reject)
 
@@ -522,7 +599,6 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         self.show()
 
     def accept(self):
-
         settings = QtCore.QSettings()
         settings.beginGroup("unidades")
         settings.setValue("fuerza", self._combobox_fuerzas.currentData())

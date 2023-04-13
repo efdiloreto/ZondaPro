@@ -3,16 +3,16 @@ from typing import Tuple
 
 import numpy as np
 
-from sse102 import excepciones
-from sse102.cirsoc import geometria
-from sse102.enums import (
+from zonda import excepciones
+from zonda.cirsoc import geometria
+from zonda.enums import (
     TipoPresionCubiertaAislada,
     ExtremoPresion,
     ZonaPresionCubiertaAislada,
     PosicionBloqueoCubierta,
     TipoCubierta,
 )
-from sse102.tipos import ValoresCpCubiertaAislada
+from zonda.tipos import ValoresCpCubiertaAislada
 
 
 class CubiertaAislada:
@@ -161,35 +161,60 @@ class CubiertaAislada:
             (-2.0, -1.6),
             (-2.0, -1.6),
         )
-        valor_maximo_global: float = np.interp(self.angulo, angulos, maximos_valores_globales)
-        valor_maximo_zona_a: float = np.interp(self.angulo, angulos, maximos_valores_zona_a)
-        valor_maximo_zona_b: float = np.interp(self.angulo, angulos, maximos_valores_zona_b)
-        valor_maximo_zona_c: float = np.interp(self.angulo, angulos, maximos_valores_zona_c)
-        valor_maximo_zona_d: float = np.interp(self.angulo, angulos, maximos_valores_zona_d)
+        valor_maximo_global: float = np.interp(
+            self.angulo, angulos, maximos_valores_globales
+        )
+        valor_maximo_zona_a: float = np.interp(
+            self.angulo, angulos, maximos_valores_zona_a
+        )
+        valor_maximo_zona_b: float = np.interp(
+            self.angulo, angulos, maximos_valores_zona_b
+        )
+        valor_maximo_zona_c: float = np.interp(
+            self.angulo, angulos, maximos_valores_zona_c
+        )
+        valor_maximo_zona_d: float = np.interp(
+            self.angulo, angulos, maximos_valores_zona_d
+        )
 
         bloqueos = [0, 1]
 
         minimos_valores_globales_relacion: Tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_globales
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_globales
         )
         minimos_valores_caso_a_relacion: Tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_zona_a
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_zona_a
         )
         minimos_valores_caso_b_relacion: Tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_zona_b
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_zona_b
         )
         minimos_valores_caso_c_relacion: Tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_zona_c
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_zona_c
         )
         minimos_valores_caso_d_relacion: Tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_zona_d
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_zona_d
         )
         # TODO Corregir esto, es repetitivo
-        valor_minimo_global: float = np.interp(self.angulo, angulos, minimos_valores_globales_relacion)
-        valor_minimo_zona_a: float = np.interp(self.angulo, angulos, minimos_valores_caso_a_relacion)
-        valor_minimo_zona_b: float = np.interp(self.angulo, angulos, minimos_valores_caso_b_relacion)
-        valor_minimo_zona_c: float = np.interp(self.angulo, angulos, minimos_valores_caso_c_relacion)
-        valor_minimo_zona_d: float = np.interp(self.angulo, angulos, minimos_valores_caso_d_relacion)
+        valor_minimo_global: float = np.interp(
+            self.angulo, angulos, minimos_valores_globales_relacion
+        )
+        valor_minimo_zona_a: float = np.interp(
+            self.angulo, angulos, minimos_valores_caso_a_relacion
+        )
+        valor_minimo_zona_b: float = np.interp(
+            self.angulo, angulos, minimos_valores_caso_b_relacion
+        )
+        valor_minimo_zona_c: float = np.interp(
+            self.angulo, angulos, minimos_valores_caso_c_relacion
+        )
+        valor_minimo_zona_d: float = np.interp(
+            self.angulo, angulos, minimos_valores_caso_d_relacion
+        )
 
         return {
             TipoPresionCubiertaAislada.GLOBAL: {
@@ -323,17 +348,26 @@ class CubiertaAislada:
             for valores in minimos_valores_zona_a[self.posicion_bloqueo]
         )
         minimos_valores_caso_b_relacion = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores) for valores in minimos_valores_zona_b
+            np.interp(self.relacion_bloqueo, bloqueos, valores)
+            for valores in minimos_valores_zona_b
         )
         minimos_valores_caso_c_relacion = tuple(
             np.interp(self.relacion_bloqueo, bloqueos, valores)
             for valores in minimos_valores_zona_c[self.posicion_bloqueo]
         )
         # TODO Corregir, es repetitivo
-        valor_minimo_global = np.interp(self.angulo, angulos, minimos_valores_globales_relacion)
-        valor_minimo_zona_a = np.interp(self.angulo, angulos, minimos_valores_caso_a_relacion)
-        valor_minimo_zona_b = np.interp(self.angulo, angulos, minimos_valores_caso_b_relacion)
-        valor_minimo_zona_c = np.interp(self.angulo, angulos, minimos_valores_caso_c_relacion)
+        valor_minimo_global = np.interp(
+            self.angulo, angulos, minimos_valores_globales_relacion
+        )
+        valor_minimo_zona_a = np.interp(
+            self.angulo, angulos, minimos_valores_caso_a_relacion
+        )
+        valor_minimo_zona_b = np.interp(
+            self.angulo, angulos, minimos_valores_caso_b_relacion
+        )
+        valor_minimo_zona_c = np.interp(
+            self.angulo, angulos, minimos_valores_caso_c_relacion
+        )
         return {
             TipoPresionCubiertaAislada.GLOBAL: {
                 ExtremoPresion.MAX: valor_maximo_global,
@@ -366,7 +400,12 @@ class CubiertaAislada:
         Args:
             cubierta: La geometria de una cubierta.
         """
-        return cls(cubierta.tipo_cubierta, cubierta.angulo, cubierta.relacion_bloqueo, cubierta.posicion_bloqueo)
+        return cls(
+            cubierta.tipo_cubierta,
+            cubierta.angulo,
+            cubierta.relacion_bloqueo,
+            cubierta.posicion_bloqueo,
+        )
 
     def __call__(
         self,

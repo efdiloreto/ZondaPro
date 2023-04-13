@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, Tuple
 
 from vtkmodules import all as vtk
 
-from sse102.enums import (
+from zonda.enums import (
     DireccionVientoMetodoDireccionalSprfv,
     TipoCubierta,
     TipoPresionCubiertaBarloventoSprfv,
@@ -18,22 +18,29 @@ from sse102.enums import (
     ZonaComponenteParedEdificio,
     ZonaComponenteCubiertaEdificio,
 )
-from sse102.graficos.actores import ActorBarraEscala, ActorTexto2D, ActorPresion
-from sse102.graficos.directores import edificio as directores_edificio
-from sse102.graficos.directores.utils_iter import min_max_valores, aplicar_func_recursivamente
-from sse102.graficos.escenas.base import PresionesMixin
-from sse102.unidades import convertir_unidad
+from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D, ActorPresion
+from zonda.graficos.directores import edificio as directores_edificio
+from zonda.graficos.directores.utils_iter import (
+    min_max_valores,
+    aplicar_func_recursivamente,
+)
+from zonda.graficos.escenas.base import PresionesMixin
+from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
-    from sse102.cirsoc import Edificio
-    from sse102.cirsoc.presiones.edificio import PresionesEdificio
-    from sse102.enums import Unidad
+    from zonda.cirsoc import Edificio
+    from zonda.cirsoc.presiones.edificio import PresionesEdificio
+    from zonda.enums import Unidad
 
 
-def obtener_actores_presion_en_renderer(renderer: vtk.vtkRenderer) -> Tuple[ActorPresion, ...]:
+def obtener_actores_presion_en_renderer(
+    renderer: vtk.vtkRenderer,
+) -> Tuple[ActorPresion, ...]:
     """Obtiene todos los actores de presión presentes en el renderer."""
     return tuple(
-        actor for actor in renderer.GetActors() if isinstance(actor, ActorPresion) and hasattr(actor, "flecha")
+        actor
+        for actor in renderer.GetActors()
+        if isinstance(actor, ActorPresion) and hasattr(actor, "flecha")
     )
 
 
@@ -45,7 +52,11 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
     """
 
     def __init__(
-        self, interactor: vtk.vtkRenderWindowInteractor, renderer: vtk.vtkRenderer, edificio: Edificio, unidad: Unidad
+        self,
+        interactor: vtk.vtkRenderWindowInteractor,
+        renderer: vtk.vtkRenderer,
+        edificio: Edificio,
+        unidad: Unidad,
     ) -> None:
         """
 
@@ -70,11 +81,15 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             self._presiones_alero = None
 
         presiones = {}
-        for i, presion in enumerate((self._presiones_paredes, self._presiones_cubierta, self._presiones_alero)):
+        for i, presion in enumerate(
+            (self._presiones_paredes, self._presiones_cubierta, self._presiones_alero)
+        ):
             if presion is not None:
                 presiones[str(i)] = presion
 
-        min_max_presiones = (convertir_unidad(p, self.unidad) for p in min_max_valores(**presiones))
+        min_max_presiones = (
+            convertir_unidad(p, self.unidad) for p in min_max_valores(**presiones)
+        )
 
         tabla_colores = vtk.vtkLookupTable()
         tabla_colores.SetTableRange(*min_max_presiones)
@@ -85,20 +100,30 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
 
         self._titulo = ActorTexto2D(self.renderer)
 
-        self.director = directores_edificio.PresionesSprfvMetodoDireccional(self.renderer, tabla_colores, edificio)
+        self.director = directores_edificio.PresionesSprfvMetodoDireccional(
+            self.renderer, tabla_colores, edificio
+        )
 
         # Preseteo de alturas barlovento iniciales. Como todos los parametros son definidos inicialmente por el metodo
         # "cambiar_direccion_viento" es necesario esten asignadas estas alturas para poder actualizar la pared barlovento.
 
         self.alturas_presion_barlovento = {
-            DireccionVientoMetodoDireccionalSprfv.PARALELO: self.alturas_presiones_frente[-1]
+            DireccionVientoMetodoDireccionalSprfv.PARALELO: self.alturas_presiones_frente[
+                -1
+            ]
         }
-        posicion_cubierta_un_agua = getattr(self.director, "posicion_cubierta_un_agua", None)
+        posicion_cubierta_un_agua = getattr(
+            self.director, "posicion_cubierta_un_agua", None
+        )
         if posicion_cubierta_un_agua is not None:
             self._posicion_cubierta_un_agua_actual = posicion_cubierta_un_agua
-            self.alturas_presion_barlovento[DireccionVientoMetodoDireccionalSprfv.NORMAL] = {
+            self.alturas_presion_barlovento[
+                DireccionVientoMetodoDireccionalSprfv.NORMAL
+            ] = {
                 PosicionCubiertaAleroSprfv.SOTAVENTO: self.alturas_presiones_frente[-1],
-                PosicionCubiertaAleroSprfv.BARLOVENTO: self.alturas_presiones_lateral[-1],
+                PosicionCubiertaAleroSprfv.BARLOVENTO: self.alturas_presiones_lateral[
+                    -1
+                ],
             }
         else:
             self.alturas_presion_barlovento[
@@ -114,10 +139,14 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             TipoCubierta.UN_AGUA,
             TipoCubierta.DOS_AGUAS,
         ):
-            self._tipo_presion_cubierta_barlovento = TipoPresionCubiertaBarloventoSprfv.NEGATIVA
+            self._tipo_presion_cubierta_barlovento = (
+                TipoPresionCubiertaBarloventoSprfv.NEGATIVA
+            )
 
         if hasattr(self.director, "posicion_cubierta_un_agua"):
-            self._posicion_cubierta_un_agua_actual = self.director.posicion_cubierta_un_agua
+            self._posicion_cubierta_un_agua_actual = (
+                self.director.posicion_cubierta_un_agua
+            )
 
         # Inicialización de variables internas que serán actualizadas cuando los métodos correspondientes sean llamados.
         self._actores_actuales_paredes = self._actores_actuales_cubierta = None
@@ -143,7 +172,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_direccion_viento(self, direccion: DireccionVientoMetodoDireccionalSprfv) -> None:
+    def actualizar_direccion_viento(
+        self, direccion: DireccionVientoMetodoDireccionalSprfv
+    ) -> None:
         """Actualiza la dirección del viento actual y los actores de la escena para esa dirección.
 
         Args:
@@ -153,7 +184,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self.director.direccion = direccion
         self._presiones_actuales_paredes = self._presiones_paredes[direccion]
         self._presiones_actuales_cubierta = self._presiones_cubierta[direccion]
-        self._alturas_actuales_presion_barlovento = self.alturas_presion_barlovento[direccion]
+        self._alturas_actuales_presion_barlovento = self.alturas_presion_barlovento[
+            direccion
+        ]
         self._actualizar_paredes_sotavento_lateral(regenerar_actores=True)
         self._actualizar_cubierta(regenerar_actores=True)
         if self._presiones_alero is not None:
@@ -162,7 +195,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_posicion_cubierta_un_agua(self, posicion: PosicionCubiertaAleroSprfv) -> None:
+    def actualizar_posicion_cubierta_un_agua(
+        self, posicion: PosicionCubiertaAleroSprfv
+    ) -> None:
         """Actualiza las presiones de la cubierta a un agua respecto para la nueva posición respecto al viento.
 
         Se debe utilizar cuando el tipo de cubierta es a un agua y la dirección del viento es normal a la cumbrera.
@@ -170,7 +205,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         Args:
             posicion: La posición de la cubierta respecto al viento para la que se actualizan las presiones.
         """
-        self.director.posicion_cubierta_un_agua = self._posicion_cubierta_un_agua_actual = posicion
+        self.director.posicion_cubierta_un_agua = (
+            self._posicion_cubierta_un_agua_actual
+        ) = posicion
         self._actualizar_paredes_sotavento_lateral(regenerar_actores=True)
 
         # Si la cubierta con viento normal se comporta como paralelo (angulo < 10°), se tienen que regenerar los actores
@@ -181,7 +218,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_presion_cubierta_inclinada(self, presion: TipoPresionCubiertaBarloventoSprfv) -> None:
+    def actualizar_presion_cubierta_inclinada(
+        self, presion: TipoPresionCubiertaBarloventoSprfv
+    ) -> None:
         """Actualiza las presiones del faldón de cubierta que corresponde a la posición de barlovento respecto al viento.
 
         Se debe utilizar cuando el tipo de cubierta es a un agua o dos aguas, el angulo de la misma es >=10° y
@@ -200,7 +239,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_altura_pared_barlovento(self, altura, reiniciar_interactor=True) -> None:
+    def actualizar_altura_pared_barlovento(
+        self, altura, reiniciar_interactor=True
+    ) -> None:
         """Actualiza la altura a la que se calcula la presión sobre la pared a barlovento.
 
         Args:
@@ -208,17 +249,24 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             reiniciar_interactor: Indica si hay que reiniciar el intercator.
         """
         actor = self._actores_actuales_paredes[ParedEdificioSprfv.BARLOVENTO]
-        if self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.NORMAL and hasattr(
-            self, "_posicion_cubierta_un_agua_actual"
+        if (
+            self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.NORMAL
+            and hasattr(self, "_posicion_cubierta_un_agua_actual")
         ):
-            self.alturas_presion_barlovento[self._direccion_actual][self._posicion_cubierta_un_agua_actual] = altura
+            self.alturas_presion_barlovento[self._direccion_actual][
+                self._posicion_cubierta_un_agua_actual
+            ] = altura
         else:
             self.alturas_presion_barlovento[self._direccion_actual] = altura
-        array_presiones = self._presiones_actuales_paredes[ParedEdificioSprfv.BARLOVENTO][self._gcpi_actual]
+        array_presiones = self._presiones_actuales_paredes[
+            ParedEdificioSprfv.BARLOVENTO
+        ][self._gcpi_actual]
 
         # Se usa las alturas del frente ya que contiene todas las de lateral también con los mismo indices.
         presion = array_presiones[self.alturas_presiones_frente.index(altura)]
-        actor.asignar_presion(presion, str_extra=f"({altura:.2f} m)", unidad=self.unidad)
+        actor.asignar_presion(
+            presion, str_extra=f"({altura:.2f} m)", unidad=self.unidad
+        )
         if reiniciar_interactor:
             self.interactor.ReInitialize()
 
@@ -231,7 +279,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         """
         if regenerar_actores:
             if self._actores_actuales_paredes is not None:
-                aplicar_func_recursivamente(self._actores_actuales_paredes, lambda _actor: _actor.ocultar())
+                aplicar_func_recursivamente(
+                    self._actores_actuales_paredes, lambda _actor: _actor.ocultar()
+                )
             self._actores_actuales_paredes = self.director.obtener_paredes()
         for pared, actores in self._actores_actuales_paredes.items():
             presion = self._presiones_actuales_paredes[pared][self._gcpi_actual]
@@ -253,27 +303,38 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         """
         if regenerar_actores:
             if self._actores_actuales_cubierta is not None:
-                aplicar_func_recursivamente(self._actores_actuales_cubierta, lambda actor: actor.ocultar())
+                aplicar_func_recursivamente(
+                    self._actores_actuales_cubierta, lambda actor: actor.ocultar()
+                )
             self._actores_actuales_cubierta = self.director.obtener_cubierta()
-        if self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.PARALELO or (
-            self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.NORMAL
-            and self.director.normal_como_paralelo
+        if (
+            self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.PARALELO
+            or (
+                self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.NORMAL
+                and self.director.normal_como_paralelo
+            )
         ):
-            for i, presion in enumerate(self._presiones_actuales_cubierta[self._gcpi_actual]):
+            for i, presion in enumerate(
+                self._presiones_actuales_cubierta[self._gcpi_actual]
+            ):
                 try:
                     # Caso de cubierta a dos aguas que tiene barlovento y sotavento como actores en cada zona
                     for actores in self._actores_actuales_cubierta.values():
                         actores[i].asignar_presion(presion, unidad=self.unidad)
                 except AttributeError:
-                    self._actores_actuales_cubierta[i].asignar_presion(presion, unidad=self.unidad)
+                    self._actores_actuales_cubierta[i].asignar_presion(
+                        presion, unidad=self.unidad
+                    )
         else:
             presiones = self._presiones_actuales_cubierta.copy()
-            presiones[PosicionCubiertaAleroSprfv.BARLOVENTO] = presiones[PosicionCubiertaAleroSprfv.BARLOVENTO][
-                self._tipo_presion_cubierta_barlovento
-            ]
+            presiones[PosicionCubiertaAleroSprfv.BARLOVENTO] = presiones[
+                PosicionCubiertaAleroSprfv.BARLOVENTO
+            ][self._tipo_presion_cubierta_barlovento]
             if self.director.tipo_cubierta == TipoCubierta.UN_AGUA:
                 presion = presiones[self._posicion_cubierta_un_agua_actual]
-                self._actores_actuales_cubierta.asignar_presion(presion[self._gcpi_actual], unidad=self.unidad)
+                self._actores_actuales_cubierta.asignar_presion(
+                    presion[self._gcpi_actual], unidad=self.unidad
+                )
             else:
                 for zona, presion in presiones.items():
                     self._actores_actuales_cubierta[zona].asignar_presion(
@@ -289,7 +350,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         """
         if regenerar_actores:
             if self._actores_actuales_alero is not None:
-                aplicar_func_recursivamente(self._actores_actuales_alero, lambda x: x.ocultar())
+                aplicar_func_recursivamente(
+                    self._actores_actuales_alero, lambda x: x.ocultar()
+                )
             self._actores_actuales_alero = self.director.obtener_alero()
         if self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.PARALELO:
             for i, presion in enumerate(self._presiones_actuales_alero):
@@ -298,26 +361,32 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         else:
             presiones = self._presiones_actuales_alero.copy()
             if not self.director.normal_como_paralelo:
-                presiones[PosicionCubiertaAleroSprfv.BARLOVENTO] = presiones[PosicionCubiertaAleroSprfv.BARLOVENTO][
-                    self._tipo_presion_cubierta_barlovento
-                ]
+                presiones[PosicionCubiertaAleroSprfv.BARLOVENTO] = presiones[
+                    PosicionCubiertaAleroSprfv.BARLOVENTO
+                ][self._tipo_presion_cubierta_barlovento]
             if self.director.tipo_cubierta != TipoCubierta.UN_AGUA:
                 for posicion, actor in self._actores_actuales_alero.items():
                     actor.asignar_presion(presiones[posicion], unidad=self.unidad)
             else:
                 presion = presiones[self._posicion_cubierta_un_agua_actual]
-                self._actores_actuales_alero.asignar_presion(presion, unidad=self.unidad)
+                self._actores_actuales_alero.asignar_presion(
+                    presion, unidad=self.unidad
+                )
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
         texto = f"Viento {self._direccion_actual.value.capitalize()} a la Cumbrera"
         texto += f" ({self._textos_presion_interna[self._gcpi_actual]}GCpi)"
         if self._direccion_actual == DireccionVientoMetodoDireccionalSprfv.NORMAL:
-            posicion_cubierta_un_agua = getattr(self, "_posicion_cubierta_un_agua_actual", None)
+            posicion_cubierta_un_agua = getattr(
+                self, "_posicion_cubierta_un_agua_actual", None
+            )
             if posicion_cubierta_un_agua is not None:
                 texto += f" - Cubierta a {posicion_cubierta_un_agua.value.capitalize()}"
             if posicion_cubierta_un_agua != PosicionCubiertaAleroSprfv.SOTAVENTO:
-                caso_cubierta_barlovento = getattr(self, "_caso_cubierta_barlovento", None)
+                caso_cubierta_barlovento = getattr(
+                    self, "_caso_cubierta_barlovento", None
+                )
                 if caso_cubierta_barlovento is not None:
                     texto += f" - Caso {self._tipo_presion_cubierta_barlovento.value}"
 
@@ -332,7 +401,11 @@ class PresionesComponentes(PresionesMixin):
     """
 
     def __init__(
-        self, interactor: vtk.vtkRenderWindowInteractor, renderer: vtk.vtkRenderer, edificio: Edificio, unidad: Unidad
+        self,
+        interactor: vtk.vtkRenderWindowInteractor,
+        renderer: vtk.vtkRenderer,
+        edificio: Edificio,
+        unidad: Unidad,
     ) -> None:
         """
 
@@ -352,17 +425,24 @@ class PresionesComponentes(PresionesMixin):
 
         self._presiones_cubierta = edificio.presiones.cubierta.componentes()
 
-        if hasattr(edificio.presiones, "alero") and self._presiones_cubierta is not None:
+        if (
+            hasattr(edificio.presiones, "alero")
+            and self._presiones_cubierta is not None
+        ):
             self._presiones_alero = edificio.presiones.alero.componentes()
         else:
             self._presiones_alero = None
 
         presiones = {}
-        for i, presion in enumerate((self._presiones_paredes, self._presiones_cubierta, self._presiones_alero)):
+        for i, presion in enumerate(
+            (self._presiones_paredes, self._presiones_cubierta, self._presiones_alero)
+        ):
             if presion is not None:
                 presiones[str(i)] = presion
 
-        min_max_presiones = (convertir_unidad(p, self.unidad) for p in min_max_valores(**presiones))
+        min_max_presiones = (
+            convertir_unidad(p, self.unidad) for p in min_max_valores(**presiones)
+        )
 
         tabla_colores = vtk.vtkLookupTable()
         tabla_colores.SetTableRange(*min_max_presiones)
@@ -375,28 +455,40 @@ class PresionesComponentes(PresionesMixin):
 
         self._titulo = ActorTexto2D(self.renderer)
 
-        self.director = directores_edificio.PresionesComponentes(self.renderer, tabla_colores, edificio)
+        self.director = directores_edificio.PresionesComponentes(
+            self.renderer, tabla_colores, edificio
+        )
 
         self._actores_paredes = self.director.obtener_paredes()
         if self._presiones_paredes is None:
-            aplicar_func_recursivamente(self._actores_paredes, lambda actor: actor.flecha.ocultar())
+            aplicar_func_recursivamente(
+                self._actores_paredes, lambda actor: actor.flecha.ocultar()
+            )
 
         self._actores_cubierta = self.director.obtener_cubierta()
 
         if self._presiones_cubierta is None:
-            aplicar_func_recursivamente(self._actores_cubierta, lambda actor: actor.flecha.ocultar())
+            aplicar_func_recursivamente(
+                self._actores_cubierta, lambda actor: actor.flecha.ocultar()
+            )
 
         self._actores_alero = self.director.obtener_alero()
         if self._presiones_alero is None and self._actores_alero is not None:
-            aplicar_func_recursivamente(self._actores_alero, lambda actor: actor.flecha.ocultar())
+            aplicar_func_recursivamente(
+                self._actores_alero, lambda actor: actor.flecha.ocultar()
+            )
 
         self._gcpi_actual = 0
         self._textos_presion_interna = ("+", "-")
 
-        self._tipo_presion_componente_actual = TipoPresionComponentesParedesCubierta.NEGATIVA
+        self._tipo_presion_componente_actual = (
+            TipoPresionComponentesParedesCubierta.NEGATIVA
+        )
         self._componente_actual_pared = self._componente_actual_cubierta = None
 
-        self._es_figura_8_paredes = edificio.cp.paredes.componentes.referencia == "Figura 8"
+        self._es_figura_8_paredes = (
+            edificio.cp.paredes.componentes.referencia == "Figura 8"
+        )
         if self._es_figura_8_paredes:
             self._alturas_pared_barlovento = edificio.geometria.alturas.tolist()
 
@@ -416,7 +508,9 @@ class PresionesComponentes(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_tipo_presion(self, tipo_presion: TipoPresionComponentesParedesCubierta) -> None:
+    def actualizar_tipo_presion(
+        self, tipo_presion: TipoPresionComponentesParedesCubierta
+    ) -> None:
         """Actualiza el tipo de presión para los actores de paredes y cubierta.
 
         Args:
@@ -454,7 +548,9 @@ class PresionesComponentes(PresionesMixin):
         self._actualizar_titulo()
         self.interactor.ReInitialize()
 
-    def actualizar_altura_pared_barlovento(self, altura, reiniciar_interactor=True) -> None:
+    def actualizar_altura_pared_barlovento(
+        self, altura, reiniciar_interactor=True
+    ) -> None:
         """Actualiza la altura a la que se calcula la presión sobre la pared a barlovento.
 
         Args:
@@ -462,15 +558,21 @@ class PresionesComponentes(PresionesMixin):
             reiniciar_interactor: Indica si hay que reiniciar el intercator.
         """
         pared = self._actores_paredes[ParedEdificioSprfv.BARLOVENTO]
-        presiones = self._presiones_paredes[ParedEdificioSprfv.BARLOVENTO][self._componente_actual_pared]
+        presiones = self._presiones_paredes[ParedEdificioSprfv.BARLOVENTO][
+            self._componente_actual_pared
+        ]
         for zona, actores in pared.items():
             array_presiones = self._seleccionar_presion_pared_por_tipo(presiones, zona)
             presion = array_presiones[self._alturas_pared_barlovento.index(altura)]
             if zona == ZonaComponenteParedEdificio.CINCO:
                 for actor in actores:
-                    actor.asignar_presion(presion=presion, str_extra=f"({altura} m)", unidad=self.unidad)
+                    actor.asignar_presion(
+                        presion=presion, str_extra=f"({altura} m)", unidad=self.unidad
+                    )
             else:
-                actores.asignar_presion(presion=presion, str_extra=f"({altura} m)", unidad=self.unidad)
+                actores.asignar_presion(
+                    presion=presion, str_extra=f"({altura} m)", unidad=self.unidad
+                )
         if reiniciar_interactor:
             self.interactor.ReInitialize()
 
@@ -489,11 +591,17 @@ class PresionesComponentes(PresionesMixin):
                 if zona == ZonaComponenteParedEdificio.CINCO:
                     for actor in actores:
                         actor.asignar_presion(
-                            presion=self._seleccionar_presion_pared_por_tipo(presiones, zona), unidad=self.unidad
+                            presion=self._seleccionar_presion_pared_por_tipo(
+                                presiones, zona
+                            ),
+                            unidad=self.unidad,
                         )
                 else:
                     actores.asignar_presion(
-                        presion=self._seleccionar_presion_pared_por_tipo(presiones, zona), unidad=self.unidad
+                        presion=self._seleccionar_presion_pared_por_tipo(
+                            presiones, zona
+                        ),
+                        unidad=self.unidad,
                     )
 
     def _actualizar_cubierta(self) -> None:
@@ -517,18 +625,30 @@ class PresionesComponentes(PresionesMixin):
                 actores.asignar_presion(presiones[zona], unidad=self.unidad)
 
     def _seleccionar_presion_pared_por_tipo(
-        self, presiones: Dict[ZonaComponenteParedEdificio, PresionesEdificio], zona: ZonaComponenteParedEdificio
+        self,
+        presiones: Dict[ZonaComponenteParedEdificio, PresionesEdificio],
+        zona: ZonaComponenteParedEdificio,
     ):
-        if self._tipo_presion_componente_actual == TipoPresionComponentesParedesCubierta.POSITIVA:
+        if (
+            self._tipo_presion_componente_actual
+            == TipoPresionComponentesParedesCubierta.POSITIVA
+        ):
             return presiones[ZonaComponenteParedEdificio.TODAS][self._gcpi_actual]
         return presiones[zona][self._gcpi_actual]
 
     def _seleccionar_presion_cubierta_por_tipo(
-        self, presiones: Dict[ZonaComponenteCubiertaEdificio, PresionesEdificio], zona: ZonaComponenteCubiertaEdificio
+        self,
+        presiones: Dict[ZonaComponenteCubiertaEdificio, PresionesEdificio],
+        zona: ZonaComponenteCubiertaEdificio,
     ):
-        if self._tipo_presion_componente_actual == TipoPresionComponentesParedesCubierta.POSITIVA:
+        if (
+            self._tipo_presion_componente_actual
+            == TipoPresionComponentesParedesCubierta.POSITIVA
+        ):
             try:
-                return presiones[ZonaComponenteCubiertaEdificio.TODAS][self._gcpi_actual]
+                return presiones[ZonaComponenteCubiertaEdificio.TODAS][
+                    self._gcpi_actual
+                ]
             except KeyError:
                 return
         return presiones[zona][self._gcpi_actual]
@@ -538,7 +658,8 @@ class PresionesComponentes(PresionesMixin):
         texto = f"Presión {self._tipo_presion_componente_actual.value.capitalize()}"
         if (
             self._es_figura_8_paredes
-            and self._tipo_presion_componente_actual == TipoPresionComponentesParedesCubierta.POSITIVA
+            and self._tipo_presion_componente_actual
+            == TipoPresionComponentesParedesCubierta.POSITIVA
         ):
             texto = (
                 "("
