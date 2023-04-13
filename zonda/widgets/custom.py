@@ -12,23 +12,6 @@ from zonda.enums import (
 from zonda.widgets import dialogos
 
 
-class EfectoPulsacion(QtWidgets.QGraphicsOpacityEffect):
-    def __init__(self):
-        super().__init__()
-        self._animacion = QtCore.QPropertyAnimation(self, b"opacity")
-        self._animacion.setDuration(1300)
-        self._animacion.setStartValue(0.2)
-        self._animacion.setKeyValueAt(0.5, 1)
-        self._animacion.setEndValue(0.2)
-        self._animacion.setLoopCount(-1)
-
-    def iniciar(self):
-        self._animacion.start()
-
-    def detener(self):
-        self._animacion.stop()
-
-
 class WidgetBotonModulo(QtWidgets.QWidget):
     def __init__(self, label: str, ruta_qrc_icono: str, funcion: callable) -> None:
         """
@@ -260,8 +243,6 @@ class WidgetLinksInfo(QtWidgets.QWidget):
         self,
         pagina_web: bool = False,
         contacto: bool = False,
-        eula: bool = False,
-        licencias_terceros: bool = False,
         ayuda: bool = False,
     ):
         super().__init__()
@@ -279,18 +260,6 @@ class WidgetLinksInfo(QtWidgets.QWidget):
         if contacto:
             layout_principal.addWidget(
                 WidgetLabelLinkInfo("Contacto", __acercade__.__contacto__)
-            )
-
-        if eula:
-            layout_principal.addWidget(
-                WidgetLabelLinkInfo("Contrato de licencia", __acercade__.__eula__)
-            )
-
-        if licencias_terceros:
-            layout_principal.addWidget(
-                WidgetLabelLinkInfo(
-                    "Licencias de terceros", __acercade__.__licencias_terceros__
-                )
             )
 
         if ayuda:

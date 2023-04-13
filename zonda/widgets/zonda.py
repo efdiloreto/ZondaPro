@@ -12,7 +12,6 @@ from zonda.widgets.custom import (
     WidgetPanel,
     WidgetLogo,
     WidgetBotonModulo,
-    EfectoPulsacion,
     WidgetLinksInfo,
 )
 from zonda.widgets.dialogos import DialogoConfiguracion
@@ -42,7 +41,7 @@ class WidgetAcercaDe(QtWidgets.QWidget):
         )
 
         widget_links_info = WidgetLinksInfo(
-            pagina_web=True, contacto=True, eula=True, licencias_terceros=True
+            pagina_web=True, contacto=True
         )
 
         layout_logo = QtWidgets.QGridLayout()
@@ -157,7 +156,6 @@ class WidgetBienvenida(WidgetSinBorde):
         self.setLayout(layout_principal)
         self.setWindowFlag(QtCore.Qt.Window)
         self.show()
-        self._request_nueva_version()
 
     def _acerca_de(self):
         WidgetAcercaDe(self)
@@ -173,38 +171,6 @@ class WidgetBienvenida(WidgetSinBorde):
 
     def _modulo_cartel(self):
         self._modulo = WidgetModuloCartel(self)
-
-    def _request_nueva_version(self):
-        url = "https://api.github.com/repos/efdiloreto/ZondaV/releases/latest"
-        request = QtNetwork.QNetworkRequest(QtCore.QUrl(url))
-
-        self._manager = QtNetwork.QNetworkAccessManager()
-        self._manager.finished.connect(self._procesar_respuesta)
-        self._manager.get(request)
-
-    def _procesar_respuesta(self, respuesta: QtNetwork.QNetworkReply):
-        error = respuesta.error()
-        if error == QtNetwork.QNetworkReply.NoError:
-            respuesta_str = respuesta.readAll().data().decode()
-            datos = json.loads(respuesta_str)
-            nueva_version = datos["tag_name"]
-            version_actual = __acercade__.__version__
-            existe_nueva_version = parse_version(nueva_version) > parse_version(
-                version_actual
-            )
-            if existe_nueva_version:
-                boton_actualizar = QtWidgets.QToolButton()
-                boton_actualizar.setIcon(QtGui.QIcon(":/iconos/actualizar.png"))
-                boton_actualizar.setIconSize(QtCore.QSize(16, 16))
-                boton_actualizar.setToolTip("Existe una nueva versión")
-                boton_actualizar.clicked.connect(
-                    lambda: webbrowser.open(__acercade__.__descarga__)
-                )
-                self._efecto_boton_actualizar = EfectoPulsacion()
-                boton_actualizar.setGraphicsEffect(self._efecto_boton_actualizar)
-                self._efecto_boton_actualizar.iniciar()
-
-                self._toolbar.addWidget(boton_actualizar)
 
     @staticmethod
     def _salir():
