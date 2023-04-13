@@ -1,4 +1,4 @@
-# ZONDA
+![Zonda](https://imgur.com/WJDyN6A.png)
 
 Software para calcular las cargas de viento segun CIRSOC 102. 
 
