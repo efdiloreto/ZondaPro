@@ -33,7 +33,7 @@ class WidgetAcercaDe(QtWidgets.QWidget):
         fuente_label_version.setPixelSize(18)
         label_version.setFont(fuente_label_version)
         label_copyright = QtWidgets.QLabel(
-            "Copyright © 2020 ZondaCS. Todos los derechos reservados."
+            "Copyright © 2023 Eduardo Di Loreto. Todos los derechos reservados."
         )
 
         label_descripcion = QtWidgets.QLabel(
