@@ -8,7 +8,7 @@ Software para calcular las cargas de viento segun CIRSOC 102.
 
 1. Clona este repositorio
 2. Descarga Python 3.8.10
-3. Usando Python 3.8.10 como interprete, instala lor requerimientos utilizando `pip install -r requeriments.txt`
+3. Usando Python 3.8.10 como interprete, instala lor requerimientos utilizando `pip install -r requirements.txt`
 4. Corre el archivo `main.py`
 
 ### Binarios instalables
