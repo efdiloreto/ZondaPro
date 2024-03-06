@@ -1,5 +1,7 @@
 ![Zonda](https://imgur.com/WJDyN6A.png)
 
+Eduardo Di Loreto - Natalia Alvarado
+
 Software para calcular las cargas de viento segun CIRSOC 102.
 
 ## Instalacion
