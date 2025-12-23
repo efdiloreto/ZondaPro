@@ -15,10 +15,7 @@ Software para calcular las cargas de viento segun CIRSOC 102.
 
 ### Binarios instalables
 
-Tenes dos opciones:
-
  - Utilizar PyInstaller o Py2Exe para crear un ejecutable.
- - Descargalo [aqui](https://github.com/efdiloreto/ZondaPro/releases/tag/1.0.0).
 
 ## [Video](https://www.youtube.com/watch?v=uPwBUbLcfzs) (Antes se llamaba SSE102)
 
