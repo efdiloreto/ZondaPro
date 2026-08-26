@@ -42,7 +42,7 @@ from pathlib import Path
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QFontDatabase
 
-from zonda import __acercade__, proyecto, recursos
+from zonda import __acercade__, actualizaciones, proyecto, recursos
 from zonda.excepciones import ErrorArchivo
 from zonda.widgets.zonda import WidgetBienvenida
 
@@ -274,9 +274,16 @@ def main():
 
     app.setStyleSheet(recursos.texto("qss/zonda.qss"))
 
+    # La consulta a GitHub sale ya, mientras se arma la interfaz, para que el
+    # resultado esté listo cuando se abra el primer módulo, que es donde se
+    # avisa. Es asincrónica y falla en silencio, así que no demora el arranque
+    # ni molesta a quien esté sin internet.
+    buscador = actualizaciones.BuscadorActualizaciones(app)
+    buscador.buscar()
+
     # Se mantiene la referencia para que el recolector de basura no cierre la
     # ventana apenas termina esta función.
-    bienvenida = WidgetBienvenida()
+    bienvenida = WidgetBienvenida(buscador)
     app.archivoPedido.connect(lambda ruta: abrir_proyecto(bienvenida, ruta))
 
     ruta = app.tomar_pendiente() or _archivo_de_los_argumentos(app.arguments())

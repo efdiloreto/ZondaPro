@@ -27,6 +27,7 @@ abre directo y la bienvenida queda escondida hasta que se cierre ese módulo.
 
 from PyQt6 import QtCore, QtWidgets
 
+from zonda.actualizaciones import Actualizacion, BuscadorActualizaciones
 from zonda.enums import Estructura
 from zonda.widgets.custom import (
     WidgetBotonModulo,
@@ -34,6 +35,7 @@ from zonda.widgets.custom import (
     WidgetPanel,
     WidgetSinBorde,
 )
+from zonda.widgets.dialogos import DialogoActualizacion
 from zonda.widgets.modulos import (
     WidgetModuloCartel,
     WidgetModuloCubiertaAislada,
@@ -48,12 +50,19 @@ MODULOS = {
 
 
 class WidgetBienvenida(WidgetSinBorde):
-    def __init__(self):
-        """ """
+    def __init__(self, buscador: BuscadorActualizaciones | None = None):
+        """
+        Args:
+            buscador: Quien averigua si hay una versión nueva publicada. Si no
+                se pasa ninguno, no se avisa de actualizaciones.
+        """
 
         super().__init__()
 
-        self._modulo = None
+        # Los tres modulos derivan de WidgetModuloEdificio.
+        self._modulo: WidgetModuloEdificio | None = None
+        self._buscador = buscador
+        self._ya_aviso = False
 
         widget_logo = WidgetLogo()
 
@@ -125,7 +134,36 @@ class WidgetBienvenida(WidgetSinBorde):
         # tocarla levantaría ``RuntimeError``.
         modulo.destroyed.connect(self._olvidar_modulo)
         self._modulo = modulo
+        self._avisar_de_actualizacion()
         return modulo
+
+    def _avisar_de_actualizacion(self) -> None:
+        """Avisa, sobre el módulo recién abierto, si hay una versión nueva.
+
+        Se avisa una sola vez por sesión: abrir y cerrar módulos no tiene por
+        qué repetir el aviso. Si la consulta a GitHub todavía no volvió, el
+        aviso queda enganchado a la señal y aparece cuando llegue.
+        """
+        if self._buscador is None or self._ya_aviso:
+            return
+        self._ya_aviso = True
+
+        if self._buscador.actualizacion is not None:
+            self._mostrar_aviso(self._buscador.actualizacion)
+            return
+
+        # El stub de PyQt6 no declara el parametro de tipo de conexion, pero
+        # existe: sin SingleShotConnection el aviso se repetiria si la senal
+        # volviera a emitirse.
+        self._buscador.encontrada.connect(  # type: ignore[call-arg]
+            self._mostrar_aviso,
+            QtCore.Qt.ConnectionType.SingleShotConnection,
+        )
+
+    def _mostrar_aviso(self, actualizacion: Actualizacion) -> None:
+        # El módulo pudo cerrarse mientras GitHub contestaba, y los módulos se
+        # destruyen al cerrarse. La bienvenida, en cambio, vive toda la sesión.
+        DialogoActualizacion(self._modulo or self, actualizacion)
 
     def _olvidar_modulo(self) -> None:
         self._modulo = None

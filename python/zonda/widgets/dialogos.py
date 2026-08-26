@@ -17,9 +17,10 @@
 
 """Contiene clases que representan los dialogos de la interfaz."""
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import recursos
+from zonda import __acercade__, actualizaciones, recursos
+from zonda.actualizaciones import Actualizacion
 from zonda.enums import (
     CategoriaExposicion,
     DireccionTopografia,
@@ -631,3 +632,53 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         settings.sync()
 
         super().accept()
+
+
+class DialogoActualizacion(QtWidgets.QMessageBox):
+    """Avisa que hay una versión nueva de Zonda y ofrece ir a descargarla.
+
+    Es un ``QMessageBox`` y no un diálogo propio para que el aviso conserve el
+    aspecto, los atajos y el manejo de foco nativos de cada sistema.
+
+    El check de "no volver a avisarme" se anota por número de versión, no como
+    un "nunca más": si el usuario decide saltear una versión, la siguiente
+    vuelve a avisar.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget, actualizacion: Actualizacion):
+        super().__init__(parent)
+
+        self._actualizacion = actualizacion
+
+        self.setIcon(QtWidgets.QMessageBox.Icon.Information)
+        self.setWindowTitle("Hay una versión nueva de Zonda")
+        self.setText(f"Ya está disponible Zonda {actualizacion.version}.")
+        self.setInformativeText(
+            f"Tenés instalada la versión {__acercade__.__version__}."
+        )
+
+        self._no_avisar = QtWidgets.QCheckBox(
+            f"No volver a avisarme de la versión {actualizacion.version}"
+        )
+        self.setCheckBox(self._no_avisar)
+
+        self._boton_descargar = self.addButton(
+            "Ir a la descarga", QtWidgets.QMessageBox.ButtonRole.AcceptRole
+        )
+        self.addButton("Ahora no", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+        self.setDefaultButton(self._boton_descargar)
+
+        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+
+        self.finished.connect(self._resolver)
+        self.show()
+
+    def _resolver(self) -> None:
+        if self._no_avisar.isChecked():
+            actualizaciones.ignorar_version(self._actualizacion.version)
+
+        if self.clickedButton() is self._boton_descargar:
+            # Igual que en ``errores``: se lo pide al sistema operativo, que es
+            # lo único que funciona en las tres plataformas.
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl(self._actualizacion.url))
