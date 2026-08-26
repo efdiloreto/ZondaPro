@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2023-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
+  This file is part of Zonda (GPLv3).
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*"
+             Name="Zonda"
+             Language="1033"
+             Version="1.0.0.0"
+             Manufacturer="Eduardo Di Loreto"
+             UpgradeCode="A2B3C4D5-E6F7-48A9-B1C2-D3E4F5A6B7C8">
+
+        <Package InstallerVersion="500"
+                 Compressed="yes"
+                 InstallScope="perMachine"
+                 Description="Instalador de Zonda - Cargas de viento CIRSOC 102-2005" />
+
+        <MajorUpgrade DowngradeErrorMessage="Una version mas reciente de Zonda ya esta instalada." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <!-- Icono de la aplicacion -->
+        <Icon Id="ZondaIcon.ico" SourceFile="$(var.SourceDir)\zonda.ico" />
+        <Property Id="ARPPRODUCTICON" Value="ZondaIcon.ico" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/efdiloreto/ZondaPro" />
+
+        <!-- Estructura de Directorios -->
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="Zonda" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Zonda" />
+            </Directory>
+            <Directory Id="DesktopFolder" Name="Desktop" />
+        </Directory>
+
+        <!-- Componente Principal: Zonda.exe y Accesos Directos -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="ZondaExecutable" Guid="B1C2D3E4-F5A6-47B8-C9D0-E1F2A3B4C5D6" Win64="yes">
+                <File Id="ZondaExe"
+                      Source="$(var.SourceDir)\Zonda.exe"
+                      KeyPath="yes">
+                    <!-- Acceso directo en Menu Inicio -->
+                    <Shortcut Id="ApplicationStartMenuShortcut"
+                              Directory="ApplicationProgramsFolder"
+                              Name="Zonda"
+                              Description="Cálculo de cargas de viento según CIRSOC 102-2005"
+                              WorkingDirectory="INSTALLFOLDER"
+                              Icon="ZondaIcon.ico"
+                              Advertise="yes" />
+                    <!-- Acceso directo en Escritorio -->
+                    <Shortcut Id="ApplicationDesktopShortcut"
+                              Directory="DesktopFolder"
+                              Name="Zonda"
+                              Description="Cálculo de cargas de viento según CIRSOC 102-2005"
+                              WorkingDirectory="INSTALLFOLDER"
+                              Icon="ZondaIcon.ico"
+                              Advertise="yes" />
+                </File>
+
+                <!-- Registro de extension .zda -->
+                <ProgId Id="Zonda.Project.1" Description="Archivo de Proyecto Zonda" Icon="ZondaExe" IconIndex="0">
+                    <Extension Id="zda" ContentType="application/x-zonda">
+                        <Verb Id="open" Command="Abrir con Zonda" Argument="&quot;%1&quot;" />
+                    </Extension>
+                </ProgId>
+            </Component>
+        </DirectoryRef>
+
+        <!-- Limpieza de carpetas de accesos directos -->
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="C2D3E4F5-A6B7-48C9-D0E1-F2A3B4C5D6E7">
+                <RemoveFolder Id="CleanUpShortCut" On="uninstall" />
+                <RegistryValue Root="HKCU" Key="Software\EduardoDiLoreto\Zonda" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- Caracteristicas (Features) a instalar -->
+        <Feature Id="ProductFeature" Title="Zonda" Level="1">
+            <ComponentRef Id="ZondaExecutable" />
+            <ComponentRef Id="ApplicationShortcut" />
+            <ComponentGroupRef Id="BundleComponents" />
+        </Feature>
+    </Product>
+</Wix>

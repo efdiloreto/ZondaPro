@@ -1,0 +1,122 @@
+# Copyright (c) 2023, Eduardo Di Loreto <efdiloreto@gmail.com>
+
+# This file is part of Zonda.
+
+# Zonda is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# Zonda is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Configuración común de los tests.
+
+Los tests son *smoke tests*: verifican que cada pieza del programa se construye
+y corre de punta a punta, no la exactitud de los valores del CIRSOC 102. Las
+pocas cifras que se afirman son valores de referencia capturados del propio
+programa, y sirven para detectar cambios inadvertidos al actualizar numpy u
+otra dependencia de cálculo.
+
+Sobre la plataforma de Qt: se usa la nativa siempre que haya un display, porque
+la vista 3D necesita un contexto gráfico real. Sólo se cae a ``offscreen`` en
+sistemas sin display (por ejemplo CI en Linux), donde esos tests se saltean.
+"""
+
+import os
+import sys
+
+
+def _hay_display() -> bool:
+    if sys.platform in ("darwin", "win32"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+if "QT_QPA_PLATFORM" not in os.environ and not _hay_display():
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+SIN_OPENGL = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
+
+import pytest
+from PyQt6 import QtCore, QtWidgets
+
+# QtWebEngine exige contextos OpenGL compartidos y el atributo debe fijarse
+# antes de que exista una QApplication, incluida la que crea pytest-qt.
+QtWidgets.QApplication.setAttribute(
+    QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts
+)
+
+from zonda import enums
+from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
+
+
+@pytest.fixture(scope="session")
+def qapp_cls():
+    """Los tests usan la QApplication real del programa.
+
+    Es la que sabe recibir los archivos que le manda el sistema (ver
+    ``zonda.main.Aplicacion``), así que conviene que sea la misma que corre en
+    producción y no una QApplication pelada.
+    """
+    from zonda.main import Aplicacion
+
+    return Aplicacion
+
+
+@pytest.fixture(scope="session")
+def edificio() -> Edificio:
+    return Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=8,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
+def cartel() -> Cartel:
+    return Cartel(
+        profundidad=1,
+        ancho=10,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+
+
+@pytest.fixture(scope="session")
+def cubierta_aislada() -> CubiertaAislada:
+    return CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        altura_bloqueo=0,
+        posicion_bloqueo=enums.PosicionBloqueoCubierta.ALERO_BAJO,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )

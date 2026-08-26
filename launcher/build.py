@@ -1,0 +1,183 @@
+# Copyright (c) 2023-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
+#
+# This file is part of Zonda.
+#
+# Zonda is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Zonda is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Script para compilar el lanzador nativo de Zonda en cualquier plataforma."""
+
+import argparse
+import platform
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+SRC_DIR = RAIZ / "launcher" / "src"
+DIST_DIR = RAIZ / "launcher" / "bin"
+
+
+def compilar_macos(salida: Path) -> None:
+    clang = shutil.which("clang") or shutil.which("gcc")
+    if not clang:
+        print("Error: No se encontró clang ni gcc en el sistema.", file=sys.stderr)
+        sys.exit(1)
+
+    cmd = [
+        clang,
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        str(salida),
+        str(SRC_DIR / "main.c"),
+    ]
+    print(f"Compilando en macOS: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+
+def compilar_linux(salida: Path) -> None:
+    gcc = shutil.which("gcc") or shutil.which("clang")
+    if not gcc:
+        print("Error: No se encontró gcc ni clang en el sistema.", file=sys.stderr)
+        sys.exit(1)
+
+    cmd = [
+        gcc,
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        str(salida),
+        str(SRC_DIR / "main.c"),
+    ]
+    print(f"Compilando en Linux: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+
+def compilar_windows_mingw(salida: Path, cross: bool = False) -> None:
+    windres = shutil.which("x86_64-w64-mingw32-windres") if cross else shutil.which("windres")
+    gcc = shutil.which("x86_64-w64-mingw32-gcc") if cross else shutil.which("gcc")
+
+    if not gcc:
+        print(
+            "Error: No se encontró el compilador MinGW-w64 (gcc).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    res_obj = SRC_DIR / "recursos.o"
+    if windres and (SRC_DIR / "recursos.rc").exists():
+        cmd_rc = [
+            windres,
+            str(SRC_DIR / "recursos.rc"),
+            "-O",
+            "coff",
+            "-o",
+            str(res_obj),
+        ]
+        print(f"Compilando recursos Windows: {' '.join(cmd_rc)}")
+        subprocess.run(cmd_rc, check=True, cwd=str(SRC_DIR))
+
+    cmd = [
+        gcc,
+        "-O2",
+        "-municode",
+        "-mwindows",
+        "-o",
+        str(salida),
+        str(SRC_DIR / "main.c"),
+    ]
+    if res_obj.exists():
+        cmd.append(str(res_obj))
+    cmd.append("-lshlwapi")
+
+    print(f"Compilando en Windows (MinGW): {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+    if res_obj.exists():
+        res_obj.unlink()
+
+
+def compilar_windows_msvc(salida: Path) -> None:
+    cl = shutil.which("cl")
+    rc = shutil.which("rc")
+    if not cl:
+        print("Error: No se encontró el compilador de MSVC (cl.exe).", file=sys.stderr)
+        sys.exit(1)
+
+    res_file = SRC_DIR / "recursos.res"
+    if rc and (SRC_DIR / "recursos.rc").exists():
+        subprocess.run([rc, "/fo", str(res_file), str(SRC_DIR / "recursos.rc")], check=True, cwd=str(SRC_DIR))
+
+    cmd = [
+        cl,
+        "/O2",
+        "/W3",
+        "/D_UNICODE",
+        "/DUNICODE",
+        f"/Fe:{salida}",
+        str(SRC_DIR / "main.c"),
+    ]
+    if res_file.exists():
+        cmd.append(str(res_file))
+    cmd.extend(["/link", "/SUBSYSTEM:WINDOWS", "shlwapi.lib", "shell32.lib"])
+
+    print(f"Compilando en Windows (MSVC): {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+    if res_file.exists():
+        res_file.unlink()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Compilar el lanzador nativo de Zonda.")
+    parser.add_argument(
+        "--target",
+        choices=["auto", "windows", "macos", "linux"],
+        default="auto",
+        help="Plataforma objetivo a compilar (default: auto)",
+    )
+    args = parser.parse_args()
+
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+
+    target = args.target
+    sistema_actual = platform.system().lower()
+
+    if target == "auto":
+        target = "macos" if sistema_actual == "darwin" else ("windows" if sistema_actual == "windows" else "linux")
+
+    if target == "windows":
+        salida = DIST_DIR / "Zonda.exe"
+        if sistema_actual == "windows":
+            if shutil.which("cl"):
+                compilar_windows_msvc(salida)
+            else:
+                compilar_windows_mingw(salida, cross=False)
+        else:
+            compilar_windows_mingw(salida, cross=True)
+    elif target == "macos":
+        salida = DIST_DIR / "zonda"
+        compilar_macos(salida)
+    elif target == "linux":
+        salida = DIST_DIR / "zonda"
+        compilar_linux(salida)
+
+    print(f"\n✓ Lanzador compilado exitosamente en: {salida}")
+
+
+if __name__ == "__main__":
+    main()

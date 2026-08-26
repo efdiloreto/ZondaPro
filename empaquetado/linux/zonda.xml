@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+    <mime-type type="application/x-zonda">
+        <comment>Archivo de Proyecto Zonda</comment>
+        <comment xml:lang="es">Archivo de Proyecto Zonda</comment>
+        <icon name="application-x-zonda"/>
+        <glob pattern="*.zda"/>
+    </mime-type>
+</mime-info>

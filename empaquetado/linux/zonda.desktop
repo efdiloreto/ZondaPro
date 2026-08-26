@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Zonda
+GenericName=Cálculo de cargas de viento
+Comment=Cálculo de cargas de viento según CIRSOC 102-2005
+Exec=zonda %f
+Icon=zonda
+Terminal=false
+Categories=Science;Engineering;Education;
+MimeType=application/x-zonda;
+Keywords=cirsoc;viento;estructuras;ingenieria;
+StartupNotify=true

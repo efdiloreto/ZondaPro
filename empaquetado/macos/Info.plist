@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>es</string>
+    <key>CFBundleDisplayName</key>
+    <string>Zonda</string>
+    <key>CFBundleExecutable</key>
+    <string>zonda</string>
+    <key>CFBundleIconFile</key>
+    <string>zonda.icns</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.efdiloreto.zonda</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Zonda</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+
+    <!-- Asociación de archivos de proyecto .zda -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>zda</string>
+            </array>
+            <key>CFBundleTypeIconFile</key>
+            <string>zonda.icns</string>
+            <key>CFBundleTypeName</key>
+            <string>Archivo de Proyecto Zonda</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.efdiloreto.zonda.project</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Declaración del tipo uniforme (UTI) -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.efdiloreto.zonda.project</string>
+            <key>UTTypeDescription</key>
+            <string>Archivo de Proyecto Zonda</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+                <string>public.content</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>zda</string>
+                </array>
+                <key>public.mime-type</key>
+                <string>application/x-zonda</string>
+            </dict>
+            <key>UTTypeIconFile</key>
+            <string>zonda.icns</string>
+        </dict>
+    </array>
+</dict>
+</plist>

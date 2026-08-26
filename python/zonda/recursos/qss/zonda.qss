@@ -1,0 +1,189 @@
+
+QPushButton:pressed
+{
+    background-color: #6fbaf5;
+}
+
+QPushButton.login
+{
+    color: white;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #1858a8, stop: 1 #1858a8);
+    font-size: 16px;
+    border: 1px solid #1a1a1a;
+    border-radius: 2px;
+    padding: 10px;
+}
+
+QPushButton.login:hover:pressed
+{
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #12417b, stop: 1 #12417b);
+}
+
+QPushButton.login:pressed
+{
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #12417b, stop: 1 #12417b);
+}
+
+QPushButton.login:hover
+{
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #416795, stop: 1 #416795);
+}
+
+QPushButton#adquirir-licencia
+{
+    font-size: 11px;
+    padding: 5px;
+}
+
+QPushButton.salir
+{
+    color: black;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #cccccc, stop: 1 #cccccc);
+    font-size: 11px;
+    border: 1px solid #1a1a1a;
+    border-radius: 2px;
+    padding: 5px;
+}
+
+QPushButton.salir:hover:pressed
+{
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #8a8a8a, stop: 1 #8a8a8a);
+}
+
+QPushButton.salir:hover
+{
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #d9d9d9, stop: 1 #d9d9d9);
+}
+
+QPushButton.modulo {
+    border: none;
+    background-color: none;
+    padding: 10px;
+}
+
+QPushButton.modulo:hover {
+    /* background-color: #6fbaf5; */
+    padding-top: 1px;
+}
+
+QPushButton.modulo:hover:pressed {
+    background-color: lightgray;
+    padding-top: 10px;
+}
+
+QLabel.modulo {
+    color: #1a1a1a;
+    font-size:   18px;
+    font-weight: normal;
+    font-family: "Oswald";
+}
+
+QLabel#verificando-licencia {
+    font-size:   16px;
+    font-weight: normal;
+    font-family: "Oswald";
+    margin-top: 20px;
+}
+
+QLabel#error-auth {
+    font-size:   12px;
+    font-weight: bold;
+    color: #a5373d;
+    margin-top: 20px;
+}
+
+QLineEdit:focus, QAbstractSpinBox:focus {
+    background-color: #e5ebf3;
+}
+
+QLineEdit.login {
+    font-size: 16px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+QComboBox
+{
+    selection-background-color: #6fbaf5;
+    selection-color: black;
+}
+
+QToolButton {
+    border-width: 0px;
+    border-style: solid;
+    padding: 4px;
+    border-color: #6fbaf5;
+    margin: 2px;
+}
+
+QToolButton:checked, QToolButton:hover:pressed{
+    background-color: #e5ebf3;
+    border-width: 1px;
+}
+
+QToolButton:hover{
+    background-color: #E2F3FD;
+    border-width: 1px;
+}
+
+QFrame.recuadro {
+    border: 1px solid #d8d8d8;
+}
+
+WidgetPanel {
+    background-color: #e6e6e6;
+    border-bottom: 1px solid #a6a6a6;
+}
+
+WidgetBotonPanel {
+    border: none;
+    background-color: none;
+    font-size:   16px;
+    font-weight: normal;
+    font-family: "Oswald";
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+WidgetBotonPanel:hover
+{
+    background-color: #c0c0c0;
+}
+
+WidgetBotonPanel.accion {
+    background-color: #febe00;
+    border-bottom: 1px solid #a6a6a6;
+}
+
+WidgetBotonPanel.accion:hover {
+    background-color: #e4ab00;
+
+}
+
+WidgetBotonPanel.tab:hover {
+    color: #c0c0c0;
+    background-color: none;
+}
+
+WidgetBotonPanel.tab:checked {
+    color: #1858a8;
+    border-bottom: 5px solid #1858a8;
+    padding-top: 5px;
+}
+
+.verifica {
+    color: green;
+}
+
+.noverifica {
+    color: red;
+}
+
+

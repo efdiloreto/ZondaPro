@@ -1,0 +1,130 @@
+name: Release Multiplataforma
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact_pattern: dist/*.msi
+          - os: macos-latest
+            platform: macos
+            artifact_pattern: dist/*.dmg
+          - os: ubuntu-latest
+            platform: linux
+            artifact_pattern: dist/*.AppImage
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Instalar dependencias del proyecto
+        run: |
+          cd python
+          uv sync
+
+      # Pasos específicos para Windows
+      - name: Configurar WiX Toolset (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          dotnet tool install --global wix
+
+      - name: Compilar instalador Windows (.msi)
+        if: matrix.platform == 'windows'
+        run: |
+          python empaquetado/windows/make_msi.py
+
+      # Pasos específicos para macOS
+      - name: Compilar instalador macOS (.dmg)
+        if: matrix.platform == 'macos'
+        run: |
+          python3 empaquetado/macos/make_dmg.py
+
+      # Pasos específicos para Linux
+      - name: Instalar dependencias de compilación y FUSE (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 build-essential
+
+      - name: Compilar paquete Linux (.AppImage)
+        if: matrix.platform == 'linux'
+        run: |
+          python3 empaquetado/linux/make_appimage.py
+
+      # Guardar artefactos
+      - name: Subir artefacto de compilación
+        uses: actions/upload-artifact@v4
+        with:
+          name: zonda-${{ matrix.platform }}
+          path: ${{ matrix.artifact_pattern }}
+          if-no-files-found: error
+
+  publish-release:
+    name: Crear GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Obtener versión actual
+        id: get_version
+        run: |
+          VERSION=$(python empaquetado/version.py)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Versión detectada: $VERSION"
+
+      - name: Descargar todos los artefactos
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-release
+          merge-multiple: true
+
+      - name: Listar archivos a publicar
+        run: |
+          ls -la dist-release/
+
+      - name: Publicar Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          name: Zonda v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist-release/*.msi
+            dist-release/*.dmg
+            dist-release/*.AppImage

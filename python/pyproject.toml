@@ -1,0 +1,107 @@
+[project]
+name = "zonda"
+version = "1.0.0"
+description = "Cálculo de cargas de viento según CIRSOC 102-2005"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+authors = [{ name = "Eduardo Di Loreto", email = "efdiloreto@gmail.com" }]
+keywords = ["cirsoc", "viento", "estructuras", "ingenieria"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: Spanish",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "jinja2>=3.1.6",
+    "numpy>=2.5.2",
+    "packaging>=25.0",
+    "pypandoc>=1.17",
+    "pyqt6>=6.11.0",
+    "pyqt6-webengine>=6.11.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/efdiloreto/ZondaPro"
+Issues = "https://github.com/efdiloreto/ZondaPro/issues"
+
+[project.gui-scripts]
+zonda = "zonda.main:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18",
+    "pytest>=8.4",
+    "pytest-qt>=4.5",
+    "pytest-timeout>=2.4",
+    "ruff>=0.14",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["zonda"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",    # el formateador ya controla el largo de linea
+    "B008",    # llamadas en argumentos por defecto (patron comun en Qt)
+    # Agregar strict= a cada zip() cambia el comportamiento ante secuencias de
+    # distinto largo: hoy truncan en silencio. Revisarlos requiere criterio de
+    # dominio y queda fuera de esta migracion.
+    "B905",
+    "RUF001",  # caracteres unicode ambiguos (el proyecto esta en espanol)
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"zonda/enums.py" = ["E741"]
+# QT_QPA_PLATFORM tiene que quedar definido antes de importar Qt, asi que los
+# imports van despues de ese bloque a proposito.
+"tests/conftest.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["zonda"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+# El codigo existente no esta completamente tipado; se ajusta gradualmente.
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["pypandoc.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Los tests que abren una vista 3D dependen del contexto gráfico del sistema.
+# Con el timeout, si alguno se queda esperando, falla en vez de trabar la corrida
+# entera.
+timeout = 120
