@@ -7,6 +7,13 @@ on:
       - main
     tags:
       - 'v*'
+  # En los pull request se compila pero no se publica: es la forma de probar
+  # los tres instaladores antes de mergear. Quedan como artefactos de la
+  # corrida, para descargar y abrir.
+  pull_request:
+    branches:
+      - master
+      - main
   workflow_dispatch:
 
 permissions:
@@ -109,6 +116,8 @@ jobs:
   publish-release:
     name: Crear GitHub Release
     needs: build
+    # Un pull request compila para que se pueda probar, pero no publica nada.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
