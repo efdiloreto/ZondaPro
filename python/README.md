@@ -51,7 +51,7 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 ### Instaladores listos para usar (Recomendado)
 
-Podés descargar el instalador ejecutable correspondiente a tu sistema operativo directamente desde la sección de **[Releases](https://github.com/efdiloreto/ZondaPro/releases)**:
+Podés descargar el instalador ejecutable correspondiente a tu sistema operativo directamente desde la **[última release](https://github.com/efdiloreto/ZondaPro/releases/latest)**:
 
 - **Windows:** Instalador `.msi`
 - **macOS:** Imagen de disco `.dmg`
