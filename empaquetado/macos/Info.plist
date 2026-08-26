@@ -18,10 +18,12 @@
     <string>Zonda</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <!-- Estos dos los completa make_dmg.py con la version de
+         python/zonda/__acercade__.py. Editarlos a mano no tiene efecto. -->
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>0.0.0</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>0.0.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>

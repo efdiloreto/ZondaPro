@@ -559,7 +559,6 @@ wheels = [
 
 [[package]]
 name = "zonda"
-version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },

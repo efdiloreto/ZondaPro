@@ -28,6 +28,36 @@ RAIZ = Path(__file__).resolve().parent.parent
 SRC_DIR = RAIZ / "launcher" / "src"
 DIST_DIR = RAIZ / "launcher" / "bin"
 
+sys.path.insert(0, str(RAIZ))
+from empaquetado.version import obtener_version  # noqa: E402
+
+PLANTILLA_RC = SRC_DIR / "recursos.rc.in"
+# El .rc generado va al lado de la plantilla y no a bin/ porque adentro
+# referencia a zonda.ico con una ruta relativa, y los compiladores de recursos
+# se invocan con cwd=SRC_DIR.
+RC_GENERADO = SRC_DIR / "recursos.generado.rc"
+
+
+def generar_rc() -> Path | None:
+    """Completa la plantilla de recursos con la version del proyecto.
+
+    Los cuatro campos de version del ejecutable de Windows llevan cuatro
+    numeros, mientras que la version de Zonda tiene tres, asi que se completa
+    con un cero. Dos de esos campos se escriben con comas y dos con puntos.
+
+    Returns: El .rc listo para compilar, o ``None`` si no hay plantilla.
+    """
+    if not PLANTILLA_RC.exists():
+        return None
+
+    partes = (obtener_version().split(".") + ["0", "0", "0", "0"])[:4]
+    contenido = PLANTILLA_RC.read_text(encoding="utf-8")
+    contenido = contenido.replace("@VERSION_COMA@", ",".join(partes))
+    contenido = contenido.replace("@VERSION_PUNTO@", ".".join(partes))
+
+    RC_GENERADO.write_text(contenido, encoding="utf-8")
+    return RC_GENERADO
+
 
 def compilar_macos(salida: Path) -> None:
     clang = shutil.which("clang") or shutil.which("gcc")
@@ -79,10 +109,11 @@ def compilar_windows_mingw(salida: Path, cross: bool = False) -> None:
         sys.exit(1)
 
     res_obj = SRC_DIR / "recursos.o"
-    if windres and (SRC_DIR / "recursos.rc").exists():
+    archivo_rc = generar_rc()
+    if windres and archivo_rc is not None:
         cmd_rc = [
             windres,
-            str(SRC_DIR / "recursos.rc"),
+            str(archivo_rc),
             "-O",
             "coff",
             "-o",
@@ -109,6 +140,8 @@ def compilar_windows_mingw(salida: Path, cross: bool = False) -> None:
 
     if res_obj.exists():
         res_obj.unlink()
+    if RC_GENERADO.exists():
+        RC_GENERADO.unlink()
 
 
 def compilar_windows_msvc(salida: Path) -> None:
@@ -119,8 +152,9 @@ def compilar_windows_msvc(salida: Path) -> None:
         sys.exit(1)
 
     res_file = SRC_DIR / "recursos.res"
-    if rc and (SRC_DIR / "recursos.rc").exists():
-        subprocess.run([rc, "/fo", str(res_file), str(SRC_DIR / "recursos.rc")], check=True, cwd=str(SRC_DIR))
+    archivo_rc = generar_rc()
+    if rc and archivo_rc is not None:
+        subprocess.run([rc, "/fo", str(res_file), str(archivo_rc)], check=True, cwd=str(SRC_DIR))
 
     cmd = [
         cl,
@@ -143,6 +177,8 @@ def compilar_windows_msvc(salida: Path) -> None:
 
     if res_file.exists():
         res_file.unlink()
+    if RC_GENERADO.exists():
+        RC_GENERADO.unlink()
 
 
 def main() -> None:

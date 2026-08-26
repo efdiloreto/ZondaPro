@@ -20,8 +20,84 @@ permissions:
   contents: write
 
 jobs:
+  # Si esto falla no tiene sentido gastar tres compilaciones, asi que build
+  # depende de este job.
+  tests:
+    name: Tests y análisis estático
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Instalar dependencias del proyecto
+        run: |
+          cd python
+          uv sync
+
+      - name: Linter
+        run: |
+          cd python
+          uv run ruff check .
+
+      - name: Formato
+        run: |
+          cd python
+          uv run ruff format --check .
+
+      # Sin display, conftest.py fuerza QT_QPA_PLATFORM=offscreen y los tests
+      # que necesitan la vista 3D se saltean solos.
+      - name: Tests
+        run: |
+          cd python
+          uv run pytest
+
+      # No bloquea: hoy arrastra 149 errores de tipado preexistentes. Queda
+      # visible para poder ir bajándolos, pero no puede frenar una release.
+      - name: Tipos
+        continue-on-error: true
+        run: |
+          cd python
+          uv run mypy zonda
+
+  # La release se publica con el tag que sale de __version__. Si esa version ya
+  # se publico, mergear pisaria la release anterior sin avisar.
+  verificar-version:
+    name: Verificar que la versión no esté publicada
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Comprobar contra las releases publicadas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(python empaquetado/version.py)
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::La version $VERSION ya esta publicada. Subi __version__ en python/zonda/__acercade__.py"
+            exit 1
+          fi
+          echo "La version $VERSION todavia no esta publicada."
+
   build:
     name: Compilar en ${{ matrix.os }}
+    needs: tests
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

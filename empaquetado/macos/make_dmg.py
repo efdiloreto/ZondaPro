@@ -18,6 +18,7 @@
 """Generador del bundle Zonda.app y del archivo instalador Zonda.dmg para macOS."""
 
 import os
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -89,6 +90,27 @@ def generar_icns(destino_icns: Path) -> None:
     print(f"✓ Ícono generado desde isotipo: {destino_icns}")
 
 
+def escribir_info_plist(destino: Path) -> None:
+    """Copia el Info.plist completando los campos de version.
+
+    Se hace acá y no a mano en la plantilla para que la version que muestra
+    macOS en el Finder y en "Acerca de" no pueda quedar vieja: sale siempre de
+    ``__version__``, igual que el nombre del .dmg.
+
+    Args:
+        destino: El Info.plist a escribir dentro del bundle.
+    """
+    plantilla = PACKAGING_DIR / "macos" / "Info.plist"
+    with open(plantilla, "rb") as archivo:
+        datos = plistlib.load(archivo)
+
+    datos["CFBundleShortVersionString"] = VERSION
+    datos["CFBundleVersion"] = VERSION
+
+    with open(destino, "wb") as archivo:
+        plistlib.dump(datos, archivo)
+
+
 def construir_app_bundle() -> Path:
     """Construye la estructura estándar Zonda.app/Contents/..."""
     print("=== Construyendo Zonda.app ===")
@@ -109,8 +131,8 @@ def construir_app_bundle() -> Path:
     macos_dir.mkdir(parents=True, exist_ok=True)
     resources_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Copiar Info.plist
-    shutil.copy2(PACKAGING_DIR / "macos" / "Info.plist", contents_dir / "Info.plist")
+    # 2. Copiar Info.plist con la version del proyecto ya escrita
+    escribir_info_plist(contents_dir / "Info.plist")
 
     # 3. Copiar lanzador binario a Contents/MacOS/zonda
     lanzador_src = bundle_src / "zonda"

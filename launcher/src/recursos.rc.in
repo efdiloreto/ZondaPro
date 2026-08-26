@@ -17,6 +17,13 @@
  * along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * Plantilla: launcher/build.py la completa y escribe recursos.generado.rc, que
+ * es lo que se compila. Los marcadores salen de __version__ en
+ * python/zonda/__acercade__.py, para que la version que muestran las
+ * propiedades del ejecutable no se quede vieja.
+ */
+
 #include <windows.h>
 
 // Icono principal de la aplicacion
@@ -24,8 +31,8 @@
 
 // Informacion de version
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     1,0,0,0
-PRODUCTVERSION  1,0,0,0
+FILEVERSION     @VERSION_COMA@
+PRODUCTVERSION  @VERSION_COMA@
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS_NT_WINDOWS32
@@ -38,12 +45,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "Eduardo Di Loreto\0"
             VALUE "FileDescription",  "Zonda - Cargas de viento CIRSOC 102-2005\0"
-            VALUE "FileVersion",      "1.0.0.0\0"
+            VALUE "FileVersion",      "@VERSION_PUNTO@\0"
             VALUE "InternalName",     "Zonda\0"
             VALUE "LegalCopyright",   "Copyright (c) 2018-2026 Eduardo Di Loreto (GPLv3)\0"
             VALUE "OriginalFilename", "Zonda.exe\0"
             VALUE "ProductName",      "Zonda\0"
-            VALUE "ProductVersion",   "1.0.0.0\0"
+            VALUE "ProductVersion",   "@VERSION_PUNTO@\0"
         END
     END
     BLOCK "VarFileInfo"

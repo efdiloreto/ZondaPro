@@ -21,6 +21,8 @@ Corren sobre la plataforma ``offscreen`` de Qt (ver ``conftest.py``), así que n
 necesitan un servidor gráfico.
 """
 
+import sys
+
 import pytest
 from PyQt6 import QtCore, QtGui, QtWidgets
 
@@ -317,10 +319,15 @@ def modulo(qapp):
 
     from zonda.widgets.modulos import WidgetModuloEdificio
 
-    widget = WidgetModuloEdificio(QtWidgets.QWidget())
+    # El padre se guarda en una variable: sin una referencia viva de Python, el
+    # recolector se lo lleva, al destruirse en C++ arrastra al hijo, y el
+    # teardown de abajo revienta con RuntimeError sobre un objeto ya borrado.
+    padre = QtWidgets.QWidget()
+    widget = WidgetModuloEdificio(padre)
     yield widget
     widget._widget_estructura.finalizar()
     widget.deleteLater()
+    del padre
 
 
 @necesita_opengl
@@ -362,7 +369,12 @@ def test_el_menu_trae_las_acciones_con_atajo(modulo):
     sin_atajo = [
         texto for texto, accion in acciones.items() if not accion.shortcut().toString()
     ]
-    assert sin_atajo == ["Acerca de Zonda"]
+    # QKeySequence.StandardKey.Preferences solo resuelve a un atajo en macOS
+    # (Cmd+,); en Windows y Linux no existe la convencion y queda vacio.
+    esperado = ["Acerca de Zonda"]
+    if sys.platform != "darwin":
+        esperado.insert(0, "Configuración...")
+    assert sin_atajo == esperado
 
 
 @necesita_opengl

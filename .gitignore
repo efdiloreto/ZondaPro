@@ -126,3 +126,6 @@ bin/
 obj/
 
 .DS_Store
+
+# Lo genera launcher/build.py a partir de recursos.rc.in
+launcher/src/recursos.generado.rc

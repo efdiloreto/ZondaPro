@@ -85,7 +85,13 @@ def extraer_icono(destino: Path) -> Path:
 
 
 def verificar_metainfo() -> None:
-    """Avisa si la ultima <release> del metainfo no coincide con la version."""
+    """Corta si el metainfo no declara una <release> para la version actual.
+
+    Es la unica copia de la version que no se puede derivar sola, porque cada
+    entrada lleva un changelog escrito por una persona. Corta en vez de avisar
+    a proposito: si no, el Flatpak se publicaria mostrando el changelog de la
+    version anterior y nadie se enteraria.
+    """
     componente = ET.parse(METAINFO).getroot()
     versiones = [
         release.get("version")
@@ -93,12 +99,18 @@ def verificar_metainfo() -> None:
         if release.get("version")
     ]
     if VERSION not in versiones:
+        tiene = ", ".join(versiones) or "ninguna"
         print(
-            f"Aviso: {METAINFO.name} no declara ninguna <release> para la version "
-            f"{VERSION} (tiene {', '.join(versiones) or 'ninguna'}).\n"
-            "Los centros de software van a mostrar un changelog desactualizado.",
+            f"Error: {METAINFO.name} no declara ninguna <release> para la "
+            f"version {VERSION} (tiene {tiene}).",
             file=sys.stderr,
         )
+        print(
+            "Agregale la entrada que corresponde, con el changelog de lo que "
+            "cambio, antes de empaquetar.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def _runtime_del_manifiesto() -> tuple[str, str, str]:

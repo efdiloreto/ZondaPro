@@ -1,6 +1,8 @@
 [project]
 name = "zonda"
-version = "1.0.0"
+# La versión sale de zonda/__acercade__.py, que es la única fuente de verdad
+# del proyecto: de ahí la leen también el empaquetado y la pantalla "Acerca de".
+dynamic = ["version"]
 description = "Cálculo de cargas de viento según CIRSOC 102-2005"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -49,6 +51,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "zonda/__acercade__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["zonda"]
