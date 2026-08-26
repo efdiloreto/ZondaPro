@@ -102,7 +102,7 @@ def compilar_windows_mingw(salida: Path, cross: bool = False) -> None:
     ]
     if res_obj.exists():
         cmd.append(str(res_obj))
-    cmd.append("-lshlwapi")
+    cmd.extend(["-lshlwapi", "-lshell32", "-luser32"])
 
     print(f"Compilando en Windows (MinGW): {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
@@ -129,11 +129,14 @@ def compilar_windows_msvc(salida: Path) -> None:
         "/D_UNICODE",
         "/DUNICODE",
         f"/Fe:{salida}",
+        # Sin /Fo, cl.exe deja el .obj en el directorio de trabajo, que es la
+        # raiz del repositorio. Va junto al ejecutable, que ya esta ignorado.
+        f"/Fo:{DIST_DIR}" + chr(92),
         str(SRC_DIR / "main.c"),
     ]
     if res_file.exists():
         cmd.append(str(res_file))
-    cmd.extend(["/link", "/SUBSYSTEM:WINDOWS", "shlwapi.lib", "shell32.lib"])
+    cmd.extend(["/link", "/SUBSYSTEM:WINDOWS", "shlwapi.lib", "shell32.lib", "user32.lib"])
 
     print(f"Compilando en Windows (MSVC): {' '.join(cmd)}")
     subprocess.run(cmd, check=True)

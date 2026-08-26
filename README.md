@@ -55,7 +55,7 @@ Podés descargar el instalador ejecutable correspondiente a tu sistema operativo
 
 - **Windows:** Instalador `.msi`
 - **macOS:** Imagen de disco `.dmg`
-- **Linux:** Paquete `.AppImage`
+- **Linux:** Paquete `.flatpak` (se instala con `flatpak install --user Zonda-*.flatpak`)
 
 > **Nota:** Los instaladores oficiales ya incluyen todas las herramientas necesarias (incluido Pandoc para la exportación de reportes).
 

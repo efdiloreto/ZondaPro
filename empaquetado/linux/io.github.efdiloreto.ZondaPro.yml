@@ -1,0 +1,60 @@
+# Copyright (c) 2018-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
+# This file is part of Zonda (GPLv3).
+#
+# El bundle (interprete de Python, dependencias y pandoc) lo arma
+# empaquetado/build_bundle.py en el host, igual que para el .msi y el .dmg. Aca
+# solo se empaqueta, asi que este manifiesto no necesita ni red ni uv adentro
+# del sandbox de compilacion. Eso tambien es lo que impide publicarlo en Flathub
+# tal cual esta: alla el build tiene que ser offline y con hashes pineados.
+#
+# Se usa org.kde.Platform y no org.freedesktop.Platform porque garantiza que
+# este toda la pila que Qt necesita (xcb, wayland, fontconfig, temas de iconos).
+# El Qt propiamente dicho lo traen los wheels de PyQt6 adentro del bundle.
+app-id: io.github.efdiloreto.ZondaPro
+runtime: org.kde.Platform
+runtime-version: '6.9'
+sdk: org.kde.Sdk
+command: zonda
+
+finish-args:
+  # Qt Quick 3D dibuja por GPU.
+  - --device=dri
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  # Abrir y guardar proyectos .zda y exportar las memorias de calculo.
+  - --filesystem=home
+  # QtWebEngine trae el sandbox de Chromium, que no puede anidarse adentro del
+  # de Flatpak. El aislamiento lo sigue dando bubblewrap, que es la barrera de
+  # afuera y la que realmente contiene a la aplicacion.
+  - --env=QTWEBENGINE_DISABLE_SANDBOX=1
+
+modules:
+  - name: zonda
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/zonda
+      - cp -a bundle/. /app/zonda/
+      - install -Dm755 zonda.sh /app/bin/zonda
+      - install -Dm644 io.github.efdiloreto.ZondaPro.desktop /app/share/applications/io.github.efdiloreto.ZondaPro.desktop
+      - install -Dm644 io.github.efdiloreto.ZondaPro.metainfo.xml /app/share/metainfo/io.github.efdiloreto.ZondaPro.metainfo.xml
+      - install -Dm644 io.github.efdiloreto.ZondaPro.xml /app/share/mime/packages/io.github.efdiloreto.ZondaPro.xml
+      - install -Dm644 io.github.efdiloreto.ZondaPro.png /app/share/icons/hicolor/256x256/apps/io.github.efdiloreto.ZondaPro.png
+      # El mismo isotipo sirve de icono para los archivos .zda; el nombre tiene
+      # que coincidir con el <icon name="..."/> declarado en el XML de MIME.
+      - install -Dm644 io.github.efdiloreto.ZondaPro.png /app/share/icons/hicolor/256x256/mimetypes/application-x-zonda.png
+    sources:
+      - type: dir
+        path: ../../dist/bundle
+        dest: bundle
+      - type: file
+        path: zonda.sh
+      - type: file
+        path: io.github.efdiloreto.ZondaPro.desktop
+      - type: file
+        path: io.github.efdiloreto.ZondaPro.metainfo.xml
+      - type: file
+        path: io.github.efdiloreto.ZondaPro.xml
+      # Lo extrae make_flatpak.py desde zonda.ico.
+      - type: file
+        path: ../../dist/io.github.efdiloreto.ZondaPro.png

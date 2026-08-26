@@ -19,7 +19,7 @@
 
 Copia el código fuente de la aplicación, compila el lanzador nativo,
 prepara el runtime de Python y organiza la carpeta 'dist/' para que los
-empaquetadores (WiX para MSI, make_dmg para DMG, AppImage para Linux)
+empaquetadores (WiX para MSI, make_dmg para DMG, Flatpak para Linux)
 puedan generar el instalador final.
 """
 
@@ -86,22 +86,70 @@ def copiar_codigo_fuente(destino_app: Path) -> None:
     )
 
 
+def _python_standalone() -> Path:
+    """Consigue una distribución standalone de Python 3.13, relocalizable.
+
+    Returns: La carpeta raíz del intérprete descargado por uv.
+    """
+    subprocess.run(["uv", "python", "install", "3.13", "--managed-python"], check=True)
+    resultado = subprocess.run(
+        ["uv", "python", "find", "3.13", "--managed-python"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    ejecutable = Path(resultado.stdout.strip())
+    # En Windows el intérprete está en la raíz de la distribución; en macOS y
+    # Linux, adentro de bin/.
+    if ejecutable.parent.name == "bin":
+        return ejecutable.parent.parent
+    return ejecutable.parent
+
+
 def preparar_runtime_python(destino_python: Path, target_os: str) -> None:
     """Prepara el entorno de Python dentro de la distribución."""
     print(f"=== [3/4] Preparando entorno de Python en {destino_python} ===")
     sistema_actual = "macos" if platform.system().lower() == "darwin" else ("windows" if platform.system().lower() == "windows" else "linux")
 
     if target_os == sistema_actual:
-        # Crear un venv completo en destino_python usando uv
-        print(f"Creando entorno Python 3.13 en {destino_python}...")
+        # Un venv no sirve para distribuir: no lleva ni el intérprete ni la
+        # stdlib, sino que apunta con pyvenv.cfg al Python que lo creó, que en la
+        # máquina del usuario no existe. Por eso se copia una distribución
+        # standalone completa, que además deja el intérprete en su raíz, que es
+        # donde el lanzador (launcher/src/main.c) lo busca.
+        origen = _python_standalone()
+        print(f"Copiando el runtime standalone desde {origen}...")
         if destino_python.exists():
             shutil.rmtree(destino_python)
-        
-        subprocess.run(["uv", "venv", str(destino_python), "--python", "3.13"], check=True)
-        
-        py_exe = destino_python / "Scripts" / "python.exe" if target_os == "windows" else destino_python / "bin" / "python3"
+
+        shutil.copytree(
+            origen,
+            destino_python,
+            ignore=shutil.ignore_patterns(
+                "BUILD", "include", "libs", "__pycache__", "EXTERNALLY-MANAGED"
+            ),
+        )
+
+        py_exe = (
+            destino_python / "python.exe"
+            if target_os == "windows"
+            else destino_python / "bin" / "python3"
+        )
         print(f"Instalando dependencias de Zonda en {py_exe}...")
-        subprocess.run(["uv", "pip", "install", str(PYTHON_DIR), "--python", str(py_exe)], check=True)
+        subprocess.run(
+            [
+                "uv",
+                "pip",
+                "install",
+                str(PYTHON_DIR),
+                "--python",
+                str(py_exe),
+                # La distribución viene marcada como gestionada por uv; instalar
+                # adentro es justamente lo que se busca acá.
+                "--break-system-packages",
+            ],
+            check=True,
+        )
     else:
         print(
             "Nota: Compilando para un OS diferente al actual.\n"
@@ -239,12 +287,12 @@ def preparar_pandoc(tools_dir: Path, target_os: str) -> None:
     print(f"✓ pandoc listo: {tools_dir / nombre_binario} ({tamaño:.0f} MB)")
 
 
-def armar_bundle(target_os: str, con_pandoc: bool = True) -> Path:
+def armar_bundle(target_os: str, con_pandoc: bool = True, con_lanzador: bool = True) -> Path:
     """Ensambla todos los componentes en dist/bundle/."""
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
     # 1. Compilar lanzador
-    binario_lanzador = compilar_lanzador(target_os)
+    binario_lanzador = compilar_lanzador(target_os) if con_lanzador else None
 
     # 2. Limpiar y recrear estructura de carpetas
     app_dir = DIST_DIR / "app"
@@ -256,10 +304,11 @@ def armar_bundle(target_os: str, con_pandoc: bool = True) -> Path:
     tools_dir.mkdir(parents=True, exist_ok=True)
 
     # 3. Copiar lanzador al directorio raíz del bundle
-    dest_lanzador = DIST_DIR / binario_lanzador.name
-    shutil.copy2(binario_lanzador, dest_lanzador)
-    if target_os != "windows":
-        os.chmod(dest_lanzador, 0o755)
+    if binario_lanzador is not None:
+        dest_lanzador = DIST_DIR / binario_lanzador.name
+        shutil.copy2(binario_lanzador, dest_lanzador)
+        if target_os != "windows":
+            os.chmod(dest_lanzador, 0o755)
 
     # 4. Copiar código de la app
     copiar_codigo_fuente(app_dir)
@@ -298,6 +347,14 @@ def main() -> None:
         action="store_true",
         help="No incluir pandoc en el bundle (los reportes no se van a poder exportar)",
     )
+    parser.add_argument(
+        "--sin-lanzador",
+        action="store_true",
+        help=(
+            "No compilar el lanzador nativo. Lo usa el Flatpak, que lo reemplaza "
+            "por un wrapper y asi no necesita un compilador de C"
+        ),
+    )
     args = parser.parse_args()
 
     sistema_actual = platform.system().lower()
@@ -305,7 +362,11 @@ def main() -> None:
     if target == "auto":
         target = "macos" if sistema_actual == "darwin" else ("windows" if sistema_actual == "windows" else "linux")
 
-    armar_bundle(target, con_pandoc=not args.sin_pandoc)
+    armar_bundle(
+        target,
+        con_pandoc=not args.sin_pandoc,
+        con_lanzador=not args.sin_lanzador,
+    )
 
 
 if __name__ == "__main__":

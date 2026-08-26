@@ -1,0 +1,7 @@
+# Estos archivos los consume Linux y tienen que quedar con finales de linea LF
+# aunque se editen en Windows. Un shebang con CRLF falla con el error
+# "bad interpreter: /bin/sh^M".
+*.sh text eol=lf
+*.desktop text eol=lf
+empaquetado/linux/*.xml text eol=lf
+empaquetado/linux/*.yml text eol=lf

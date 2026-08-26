@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2018-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
+  This file is part of Zonda (GPLv3).
+
+  Al subir la version en python/zonda/__acercade__.py hay que agregar aca la
+  entrada <release> correspondiente; make_flatpak.py avisa si quedan desfasadas.
+-->
+<component type="desktop-application">
+    <id>io.github.efdiloreto.ZondaPro</id>
+
+    <name>Zonda</name>
+    <summary>Cálculo de cargas de viento según CIRSOC 102-2005</summary>
+    <summary xml:lang="es">Cálculo de cargas de viento según CIRSOC 102-2005</summary>
+
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0-or-later</project_license>
+
+    <developer id="io.github.efdiloreto">
+        <name>Eduardo Di Loreto, Natalia Alvarado</name>
+    </developer>
+
+    <description>
+        <p>
+            Zonda calcula cargas y presiones de viento sobre estructuras según el
+            reglamento argentino CIRSOC 102-2005.
+        </p>
+        <p>Incluye:</p>
+        <ul>
+            <li>Presiones dinámicas y factores de ráfaga, direccionalidad, importancia y efecto topográfico.</li>
+            <li>Coeficientes de presión externa e interna, para el SPRFV y para Componentes y Revestimientos.</li>
+            <li>Edificios cerrados y parcialmente cerrados, carteles y muros, y cubiertas aisladas.</li>
+            <li>Visualización 3D interactiva con mapeo de presiones en tiempo real.</li>
+            <li>Memorias de cálculo exportables a PDF, Word, LibreOffice y Markdown.</li>
+        </ul>
+    </description>
+
+    <launchable type="desktop-id">io.github.efdiloreto.ZondaPro.desktop</launchable>
+
+    <url type="homepage">https://github.com/efdiloreto/ZondaPro</url>
+    <url type="bugtracker">https://github.com/efdiloreto/ZondaPro/issues</url>
+    <url type="vcs-browser">https://github.com/efdiloreto/ZondaPro</url>
+
+    <categories>
+        <category>Science</category>
+        <category>Engineering</category>
+        <category>Education</category>
+    </categories>
+
+    <keywords>
+        <keyword>cirsoc</keyword>
+        <keyword>viento</keyword>
+        <keyword>estructuras</keyword>
+        <keyword>ingenieria</keyword>
+    </keywords>
+
+    <provides>
+        <mediatype>application/x-zonda</mediatype>
+    </provides>
+
+    <supports>
+        <control>pointing</control>
+        <control>keyboard</control>
+    </supports>
+
+    <requires>
+        <display_length compare="ge">1024</display_length>
+    </requires>
+
+    <screenshots>
+        <screenshot type="default">
+            <caption>Selección de módulo</caption>
+            <image>https://imgur.com/NQbA9GB.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Módulo Edificios</caption>
+            <image>https://imgur.com/dlz7Sib.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Módulo Carteles</caption>
+            <image>https://imgur.com/IG4UE8j.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Módulo Cubiertas Aisladas</caption>
+            <image>https://imgur.com/55xAq0k.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Visor y exportación de reportes</caption>
+            <image>https://imgur.com/DOw0StA.png</image>
+        </screenshot>
+    </screenshots>
+
+    <content_rating type="oars-1.1"/>
+
+    <releases>
+        <release version="1.0.0" date="2026-08-26">
+            <description>
+                <p>Primera versión pública: cálculo de viento según CIRSOC 102-2005.</p>
+            </description>
+        </release>
+    </releases>
+</component>

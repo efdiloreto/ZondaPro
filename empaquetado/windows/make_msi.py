@@ -53,6 +53,8 @@ def construir_msi() -> Path:
         cmd = [
             wix_exe,
             "build",
+            "-arch",
+            "x64",
             str(WXS_TEMPLATE),
             "-d",
             f"SourceDir={bundle_dir}",

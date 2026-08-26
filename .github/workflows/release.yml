@@ -28,7 +28,7 @@ jobs:
             artifact_pattern: dist/*.dmg
           - os: ubuntu-latest
             platform: linux
-            artifact_pattern: dist/*.AppImage
+            artifact_pattern: dist/*.flatpak
 
     steps:
       - name: Clonar repositorio
@@ -50,10 +50,21 @@ jobs:
           uv sync
 
       # Pasos específicos para Windows
+      # El lanzador nativo se compila con cl.exe, que no está en el PATH del
+      # runner por defecto. Sin este paso el build cae en el gcc que trae por
+      # casualidad Strawberry Perl.
+      - name: Configurar MSVC (Windows)
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Se fija la versión mayor de WiX porque el id de la EULA es específico de
+      # cada una: para la v7 es "wix7". Con la versión flotante, una v8 futura
+      # rompería el paso de aceptación.
       - name: Configurar WiX Toolset (Windows)
         if: matrix.platform == 'windows'
         run: |
-          dotnet tool install --global wix
+          dotnet tool install --global wix --version 7.0.0
+          wix eula accept wix7
 
       - name: Compilar instalador Windows (.msi)
         if: matrix.platform == 'windows'
@@ -67,16 +78,25 @@ jobs:
           python3 empaquetado/macos/make_dmg.py
 
       # Pasos específicos para Linux
-      - name: Instalar dependencias de compilación y FUSE (Linux)
+      # La branch del runtime se lee del manifiesto para no tener el número
+      # repetido en dos lugares que se puedan desincronizar.
+      - name: Instalar Flatpak y el runtime de KDE (Linux)
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfuse2 build-essential
+          sudo apt-get install -y flatpak flatpak-builder
+          BRANCH=$(grep -oP "^runtime-version:\s*'\K[^']+" \
+            empaquetado/linux/io.github.efdiloreto.ZondaPro.yml)
+          echo "Runtime de KDE: $BRANCH"
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub \
+            "org.kde.Platform//$BRANCH" "org.kde.Sdk//$BRANCH"
 
-      - name: Compilar paquete Linux (.AppImage)
+      - name: Compilar paquete Linux (.flatpak)
         if: matrix.platform == 'linux'
         run: |
-          python3 empaquetado/linux/make_appimage.py
+          python3 empaquetado/linux/make_flatpak.py
 
       # Guardar artefactos
       - name: Subir artefacto de compilación
@@ -127,4 +147,4 @@ jobs:
           files: |
             dist-release/*.msi
             dist-release/*.dmg
-            dist-release/*.AppImage
+            dist-release/*.flatpak
