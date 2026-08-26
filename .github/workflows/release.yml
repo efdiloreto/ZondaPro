@@ -120,6 +120,16 @@ jobs:
     name: Compilar en ${{ matrix.os }}
     needs: tests
     runs-on: ${{ matrix.os }}
+    # Los scripts de empaquetado imprimen un ✓ al terminar cada paso, y en el
+    # runner de Windows el stdout de Python queda en cp1252, que no lo puede
+    # representar. El UnicodeEncodeError hacia salir a launcher/build.py con
+    # codigo 1 despues de haber compilado el lanzador bien, y el error subia por
+    # build_bundle.py hasta make_msi.py: un mensaje decorativo tiraba abajo el
+    # MSI. El modo UTF-8 se hereda por toda la cadena de subprocesos con una
+    # sola variable. No cambia los archivos que generan: su I/O de texto declara
+    # encoding y el resto es binario.
+    env:
+      PYTHONUTF8: '1'
     strategy:
       fail-fast: false
       matrix:
