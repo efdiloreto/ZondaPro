@@ -39,6 +39,27 @@ jobs:
         with:
           version: 'latest'
 
+      # Los wheels de PyQt6 traen las librerias de Qt, pero no las librerias del
+      # sistema contra las que estas linkean. Sin libEGL.so.1 falla el import de
+      # QtWidgets en conftest, o sea antes de que la deteccion de display pueda
+      # saltear los tests de la vista 3D. Los tests importan zonda.main, que
+      # arrastra QtWebEngine, asi que no alcanza con libEGL.
+      #
+      # Se piden los paquetes Qt6 de la distro y no una lista de .so a mano para
+      # que apt resuelva las dependencias con los nombres que correspondan a la
+      # version de Ubuntu del runner: en 24.04 la transicion a time_t de 64 bits
+      # renombro varios (libqt6gui6 es libqt6gui6t64, libcups2 es libcups2t64).
+      # Estos dos alcanzan porque entre sus dependencias arrastran Gui, Widgets,
+      # PrintSupport, Quick y WebEngineCore. Las librerias de Qt asi instaladas
+      # quedan sin usar: los wheels resuelven las suyas por RPATH. Lo que hace
+      # falta son las del sistema que vienen de arrastre.
+      - name: Instalar librerias de sistema que necesita Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libqt6webenginewidgets6 \
+            libqt6quickwidgets6
+
       - name: Instalar dependencias del proyecto
         run: |
           cd python
