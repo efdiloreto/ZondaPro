@@ -6,7 +6,10 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
-authors = [{ name = "Eduardo Di Loreto", email = "efdiloreto@gmail.com" }]
+authors = [
+    { name = "Eduardo Di Loreto", email = "efdiloreto@gmail.com" },
+    { name = "Natalia Alvarado", email = "mnaa85@gmail.com" },
+]
 keywords = ["cirsoc", "viento", "estructuras", "ingenieria"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

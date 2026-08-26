@@ -374,7 +374,7 @@ class WidgetAcercaDe(QtWidgets.QDialog):
             ("Versión", QtWidgets.QLabel(__acercade__.__version__)),
             ("Licencia", QtWidgets.QLabel(__acercade__.__licencia__)),
             (
-                "Autor",
+                "Autores",
                 WidgetLabelLinkInfo(__acercade__.__autor__, __acercade__.__autor_web__),
             ),
             (
