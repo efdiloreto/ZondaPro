@@ -1,4 +1,4 @@
-# Copyright (c) 2023, Eduardo Di Loreto <efdiloreto@gmail.com>
+# Copyright (c) 2018-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
 
 # This file is part of Zonda.
 
@@ -22,7 +22,7 @@ __web__ = "https://github.com/efdiloreto/ZondaPro"
 __ayuda__ = "https://github.com/efdiloreto/ZondaPro/issues"
 __contacto__ = "mailto:efdiloreto@gmail.com"
 __nombre__ = "Zonda"
-__anio_inicio__ = "2023"
+__anio_inicio__ = "2018"
 __descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2005"
 __autor__ = "Eduardo Di Loreto, Natalia Alvarado"
 __autor_email__ = "efdiloreto@gmail.com, mnaa85@gmail.com"

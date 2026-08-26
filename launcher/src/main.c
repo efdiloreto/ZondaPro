@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
+ * Copyright (c) 2018-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
  *
  * This file is part of Zonda.
  *
