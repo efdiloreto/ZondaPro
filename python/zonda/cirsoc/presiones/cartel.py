@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from zonda.cirsoc.presiones.base import PresionesBase
-from zonda.cirsoc.resultados import FilaCartel, PresionVelocidad
+from zonda.cirsoc.resultados import FilaCartel
 
 if TYPE_CHECKING:
     from zonda.cirsoc import cp, geometria
@@ -74,22 +74,30 @@ class Cartel(PresionesBase):
         self.factor_rafaga = rafaga.factor
 
     @cached_property
-    def valores(self) -> np.ndarray:
+    def valores(self) -> tuple[float, ...]:
         """Calcula los valores de presión para el cartel para cada altura.
 
         Returns:
             Los valores de presión.
         """
-        return self.presiones_velocidad * self.factor_rafaga * self.cf()
+        return tuple(
+            float(q.valor * self.factor_rafaga * self.cf())
+            for q in self.presiones_velocidad
+        )
 
     @cached_property
-    def fuerzas_parciales(self) -> np.ndarray:
-        """Calcula las fuerzas (presión x área) en cada altura.
+    def fuerzas_parciales(self) -> tuple[float, ...]:
+        """Calcula las fuerzas (presión x área) en cada tramo entre alturas.
 
         Returns:
             Los valores de fuerza.
         """
-        return self.valores[1:] * self.areas_parciales
+        return tuple(
+            presion * area
+            for presion, area in zip(
+                self.valores[1:], self.areas_parciales, strict=True
+            )
+        )
 
     @cached_property
     def filas(self) -> tuple[FilaCartel, ...]:
@@ -102,33 +110,24 @@ class Cartel(PresionesBase):
         """
         cf = float(self.cf())
         factor_rafaga = float(self.factor_rafaga)
-        filas = []
-        for indice, (altura, kz, kzt, q, presion) in enumerate(
-            zip(
-                np.asarray(self.alturas),
-                np.asarray(self.coeficientes_exposicion),
-                np.asarray(self.factor_topografico),
-                np.asarray(self.presiones_velocidad),
-                self.valores,
-                strict=True,
+        return tuple(
+            FilaCartel(
+                q=q,
+                cf=cf,
+                factor_rafaga=factor_rafaga,
+                presion=presion,
+                referencia="Tabla 11",
+                area_parcial=None
+                if indice == 0
+                else float(self.areas_parciales[indice - 1]),
+                fuerza=None
+                if indice == 0
+                else float(self.fuerzas_parciales[indice - 1]),
             )
-        ):
-            filas.append(
-                FilaCartel(
-                    q=PresionVelocidad(float(altura), float(kz), float(kzt), float(q)),
-                    cf=cf,
-                    factor_rafaga=factor_rafaga,
-                    presion=float(presion),
-                    referencia="Tabla 11",
-                    area_parcial=None
-                    if indice == 0
-                    else float(self.areas_parciales[indice - 1]),
-                    fuerza=None
-                    if indice == 0
-                    else float(self.fuerzas_parciales[indice - 1]),
-                )
+            for indice, (q, presion) in enumerate(
+                zip(self.presiones_velocidad, self.valores, strict=True)
             )
-        return tuple(filas)
+        )
 
     @cached_property
     def fuerza_total(self) -> float:
@@ -137,7 +136,7 @@ class Cartel(PresionesBase):
         Returns:
             La fuerza total.
         """
-        return self.fuerzas_parciales.sum()
+        return sum(self.fuerzas_parciales)
 
     @classmethod
     def desde_cartel(
@@ -171,6 +170,3 @@ class Cartel(PresionesBase):
             cf,
             categoria_exp,
         )
-
-    def __call__(self) -> np.ndarray:
-        return self.valores

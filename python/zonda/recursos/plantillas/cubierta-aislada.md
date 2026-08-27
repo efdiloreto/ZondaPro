@@ -87,9 +87,10 @@ tipo=enums.TipoPresionCubiertaAislada.LOCAL, zona=zonas_locales
 
 ### PRESIONES LATERALES
 #### Presiones sobre Cenefas y Tímpanos
+{% set presion_velocidad = estructura.resultados[0].q.valor -%}
 Según el articulo I.5 se deben considerar presiones sobre los tímpanos o cenefas a barlovento y sotavento, en caso de existir,
- de {{ '%.2f'|format(1.3 * estructura.presiones.presiones_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=1.3) y
- {{ '%.2f'|format(0.6 * estructura.presiones.presiones_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=0.6) respectivamente. 
+ de {{ '%.2f'|format(1.3 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=1.3) y
+ {{ '%.2f'|format(0.6 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=0.6) respectivamente. 
 
 #### Fuerzas de fricción
 Según el articulo I.6 de deben considerar fuerzas de friccón que actuarán conjuntamente con las fuerzas normales, en caso

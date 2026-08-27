@@ -134,66 +134,18 @@ class PresionesEdificioBase(PresionesBase):
         self.factores_rafaga = {
             direccion: valor.factor for direccion, valor in rafaga.items()
         }
-        self._bool_indices_altura_media = alturas == altura_media
-
-    @property
-    def coeficiente_exposicion_media(self) -> float:
-        """Obtiene el coeficiente de exposición correspondiente a la altura media.
-
-        Returns:
-            El coeficiente de exposición correspondiente a la altura media.
-        """
-        return self.coeficientes_exposicion[self._bool_indices_altura_media][0]
-
-    @cached_property
-    def factor_topografico_media(self) -> float:
-        """Obtiene el factor topográfico correspondiente a la altura media.
-
-        Returns:
-            El factor topográfico correspondiente a la altura media.
-        """
-        return self.factor_topografico[self._bool_indices_altura_media][0]
-
-    @property
-    def presion_velocidad_media(self) -> float:
-        """Obtiene la presión de velocidad correspondiente a la altura media.
-
-        Returns:
-            La presión de velocidad correspondiente a la altura media.
-        """
-        return self.presiones_velocidad[self._bool_indices_altura_media][0]
 
     @cached_property
     def q_media(self) -> PresionVelocidad:
         """La presión de velocidad a la altura media de cubierta.
 
+        Es la que usan todas las superficies salvo la pared a barlovento, y la
+        que interviene en la presión interna.
+
         Returns:
             La presión de velocidad con los factores que la componen.
         """
-        return PresionVelocidad(
-            float(self.altura_media),
-            float(self.coeficiente_exposicion_media),
-            float(self.factor_topografico_media),
-            float(self.presion_velocidad_media),
-        )
-
-    @cached_property
-    def q_por_altura(self) -> tuple[PresionVelocidad, ...]:
-        """La presión de velocidad de cada altura de la estructura.
-
-        Returns:
-            Una presión de velocidad por altura.
-        """
-        return tuple(
-            PresionVelocidad(float(altura), float(kz), float(kzt), float(valor))
-            for altura, kz, kzt, valor in zip(
-                self.alturas,
-                self.coeficientes_exposicion,
-                self.factor_topografico,
-                self.presiones_velocidad,
-                strict=True,
-            )
-        )
+        return self.presion_velocidad_en(self.altura_media)
 
     @cached_property
     def factor_reduccion_gcpi(self) -> float:
@@ -238,7 +190,7 @@ class PresionesEdificioBase(PresionesBase):
             La fila de resultado.
         """
         externa = q.valor * factor_rafaga * entrada.valor
-        interna = self.presion_velocidad_media * self.gcpi
+        interna = self.q_media.valor * self.gcpi
         pos, neg = externa - interna, externa + interna
         if self.considerar_presion_minima:
             pos, neg = presion_minima(pos), presion_minima(neg)
@@ -396,8 +348,10 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
             direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
             and self.tipo_cubierta != TipoCubierta.UN_AGUA
         ):
-            return tuple(q for q in self.q_por_altura if q.altura <= self.altura_alero)
-        return self.q_por_altura
+            return tuple(
+                q for q in self.presiones_velocidad if q.altura <= self.altura_alero
+            )
+        return self.presiones_velocidad
 
     @cached_property
     def filas(self) -> tuple[FilaEdificio, ...]:
@@ -422,11 +376,14 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
         return tuple(filas)
 
 
-class ComponentesMixin:
+class ComponentesBase(PresionesEdificioBase):
     """Comportamiento común de componentes y revestimientos.
 
     El factor de ráfaga no interviene, se aplica la presión mínima del
     Reglamento y el coeficiente de exposición usa la altura límite del "Caso 1".
+
+    Se combina con la clase del SPRFV de cada superficie, que es la que aporta
+    el constructor.
     """
 
     considerar_presion_minima = True
@@ -447,21 +404,21 @@ class ComponentesMixin:
         )
 
 
-class CubiertaComponentes(ComponentesMixin, CubiertaSprfvMetodoDireccional):
+class CubiertaComponentes(ComponentesBase, CubiertaSprfvMetodoDireccional):
     """CubiertaComponentes.
 
     Determina las presiones para componentes y revestimientos de cubierta.
     """
 
 
-class AleroComponentes(ComponentesMixin, AleroSprfvMetodoDireccional):
+class AleroComponentes(ComponentesBase, AleroSprfvMetodoDireccional):
     """AleroComponentes.
 
     Determina las presiones para componentes y revestimientos del alero.
     """
 
 
-class ParedesComponentes(ComponentesMixin, ParedesSprfvMetodoDireccional):
+class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
     """ParedesComponentes.
 
     Determina las presiones para componentes y revestimientos de paredes.
@@ -470,17 +427,14 @@ class ParedesComponentes(ComponentesMixin, ParedesSprfvMetodoDireccional):
     los de la pared a barlovento se resuelven altura por altura.
     """
 
-    @property
-    def considerar_presion_minima(self) -> bool:
-        """Si corresponde aplicar la presión mínima del Art. 1.4.
-
-        Con la Figura 8 el cálculo no la aplica. Es el único componente que
-        queda afuera y parece un descuido -la rama llamaba a la fórmula con los
-        argumentos corridos y sin pedir la presión mínima-, pero cambiarlo
-        cambia resultados, así que se mantiene hasta verificarlo contra el
-        Reglamento.
-        """
-        return self.cp.referencia != "Figura 8"
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Con la Figura 8 el cálculo no aplica la presión mínima del Art. 1.4.
+        # Es el único componente que queda afuera y parece un descuido -la rama
+        # original llamaba a la fórmula con los argumentos corridos y sin pedir
+        # la presión mínima-, pero cambiarlo cambia resultados, así que se
+        # mantiene hasta verificarlo contra el Reglamento.
+        self.considerar_presion_minima = self.cp.referencia != "Figura 8"
 
     @cached_property
     def filas(self) -> tuple[FilaEdificio, ...]:
@@ -493,7 +447,7 @@ class ParedesComponentes(ComponentesMixin, ParedesSprfvMetodoDireccional):
         filas = []
         for entrada in self.cp.entradas:
             if entrada.pared == ParedEdificioSprfv.BARLOVENTO:
-                filas += [self._fila(entrada, q, 1.0) for q in self.q_por_altura]
+                filas += [self._fila(entrada, q, 1.0) for q in self.presiones_velocidad]
             else:
                 filas.append(self._fila(entrada, self.q_media, 1.0))
         return tuple(filas)

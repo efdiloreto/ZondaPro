@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from zonda.cirsoc.presiones.base import PresionesBase
-from zonda.cirsoc.resultados import FilaCubiertaAislada, PresionVelocidad
+from zonda.cirsoc.resultados import FilaCubiertaAislada
 
 if TYPE_CHECKING:
     from zonda.cirsoc import cp, geometria
@@ -72,7 +72,9 @@ class CubiertaAislada(PresionesBase):
         self.cpn = cpn
         self.altura_media = altura_media
         self.coeficiente_friccion = coeficiente_friccion
-        self._presion_parcial = self.presiones_velocidad * self.rafaga.factor
+        # La cubierta aislada se resuelve a una sola altura.
+        self.q = self.presion_velocidad_en(altura_media)
+        self._presion_parcial = self.q.valor * self.rafaga.factor
 
     @cached_property
     def filas(self) -> tuple[FilaCubiertaAislada, ...]:
@@ -81,12 +83,6 @@ class CubiertaAislada(PresionesBase):
         Returns:
             Una fila por cada combinación de tipo de presión, zona y extremo.
         """
-        q = PresionVelocidad(
-            float(self.altura_media),
-            float(self.coeficientes_exposicion),
-            float(self.factor_topografico),
-            float(self.presiones_velocidad),
-        )
         factor_rafaga = float(self.rafaga.factor)
         filas = []
         for entrada in self.cpn.entradas:
@@ -95,7 +91,7 @@ class CubiertaAislada(PresionesBase):
                 FilaCubiertaAislada(
                     tipo=entrada.tipo,
                     extremo=entrada.extremo,
-                    q=q,
+                    q=self.q,
                     cpn=entrada.valor,
                     factor_rafaga=factor_rafaga,
                     presion=presion,
