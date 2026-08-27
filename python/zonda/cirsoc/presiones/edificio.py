@@ -42,6 +42,8 @@ from zonda.enums import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from zonda.cirsoc import geometria
     from zonda.cirsoc.cp import edificio as clases_cp_edificio
     from zonda.cirsoc.factores import Rafaga
@@ -92,7 +94,7 @@ class PresionesEdificioBase(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp,
         categoria_exp: CategoriaExposicion,
@@ -243,7 +245,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cp,
         categoria_exp: CategoriaExposicion,
     ) -> None:
@@ -287,7 +289,7 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp,
         categoria_exp: CategoriaExposicion,
@@ -466,7 +468,7 @@ class Cubierta:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Cubierta,
         categoria_exp: CategoriaExposicion,
@@ -526,7 +528,7 @@ class Alero:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cp: clases_cp_edificio.Alero,
         categoria_exp: CategoriaExposicion,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
@@ -578,7 +580,7 @@ class Paredes:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Paredes,
         categoria_exp: CategoriaExposicion,
@@ -644,7 +646,7 @@ class Edificio:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Edificio,
         categoria_exp: CategoriaExposicion,
@@ -757,7 +759,7 @@ class Edificio:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         categoria_exp: CategoriaExposicion,
         reducir_gcpi: bool = False,

@@ -50,7 +50,7 @@ Factor de ráfaga: {{ '%.2f'|format(0.85) }}
 {%- endblock %}
 
 {% block k3 -%}
-{{ '%.2f'|format(estructura.topografia.parametros.k3) }}
+{{ '%.2f'|format(estructura.topografia.parametros.k3[0]) }}
 {%- endblock %}
 
 {% block resultados_topografia_pie -%}

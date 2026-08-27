@@ -21,14 +21,8 @@ Los resultados del cálculo se describen en `zonda.cirsoc.resultados`; acá sól
 quedan los alias geométricos y numéricos que se usan en todo el programa.
 """
 
-from typing import TypeVar
-
-import numpy as np
-
 ParNumerico = tuple[float, float]
 
 Punto = tuple[float, float, float]
 
 Punto2D = ParNumerico
-
-EscalarOArray = TypeVar("EscalarOArray", float, np.ndarray)

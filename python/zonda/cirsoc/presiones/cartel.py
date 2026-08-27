@@ -26,6 +26,8 @@ from zonda.cirsoc.presiones.base import PresionesBase
 from zonda.cirsoc.resultados import FilaCartel
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
     from zonda.enums import CategoriaEstructura, CategoriaExposicion
@@ -44,7 +46,7 @@ class Cartel(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
     ) -> None:
@@ -145,7 +147,7 @@ class Cartel(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
     ) -> Cartel:

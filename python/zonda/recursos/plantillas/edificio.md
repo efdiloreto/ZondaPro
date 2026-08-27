@@ -83,7 +83,7 @@ Factor de ráfaga: {{ '%.2f'|format(0.85) }}
 {%- endblock %}
 
 {% block k3 -%}
-{{ '%.2f'|format(estructura.topografia.parametros.k3[estructura.geometria.alturas == estructura.geometria.cubierta.altura_media][0]) }}
+{{ '%.2f'|format(estructura.topografia.k3_en(estructura.geometria.cubierta.altura_media)) }}
 {%- endblock %}
 
 {% block resultados_topografia_pie -%}

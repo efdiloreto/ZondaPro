@@ -24,6 +24,8 @@ from zonda.cirsoc.presiones.base import PresionesBase
 from zonda.cirsoc.resultados import FilaCubiertaAislada
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
     from zonda.enums import (
@@ -44,7 +46,7 @@ class CubiertaAislada(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: float,
+        factor_topografico: Sequence[float],
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
         coeficiente_friccion: float = 0.0,
@@ -109,7 +111,7 @@ class CubiertaAislada(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: float,
+        factor_topografico: Sequence[float],
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
         coeficiente_friccion: float = 0.0,
