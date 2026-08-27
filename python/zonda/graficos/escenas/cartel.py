@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
 from zonda.graficos.colores import TablaColores
 from zonda.graficos.directores import cartel as director_cartel
@@ -57,12 +55,15 @@ class Presiones(PresionesMixin):
         self.escena = escena
         self.unidad_presion = unidad_presion
 
-        self._presiones = cartel.presiones()
-        self._alturas = cartel.geometria.alturas
+        self._presion_por_altura = {
+            fila.q.altura: fila.presion for fila in cartel.resultados
+        }
 
         tabla_colores = TablaColores(
-            convertir_unidad(min(self._presiones), self.unidad_presion),
-            convertir_unidad(max(self._presiones), self.unidad_presion),
+            *(
+                convertir_unidad(presion, self.unidad_presion)
+                for presion in cartel.resultados.min_max()
+            )
         )
 
         self._barra_escala = ActorBarraEscala(
@@ -87,7 +88,7 @@ class Presiones(PresionesMixin):
             altura: La altura a la que actualizar la presión.
         """
 
-        presion = self._presiones[np.where(self._alturas == altura)][0]
+        presion = self._presion_por_altura[altura]
         self._actor.asignar_presion(
             presion, str_extra=f"({altura} m)", unidad=self.unidad_presion
         )

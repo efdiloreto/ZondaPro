@@ -32,6 +32,9 @@ El flujo de dependencias es estrictamente unidireccional:
    - **Sin dependencias de Qt.** Código Python/NumPy puro testeable de forma aislada.
    - `estructuras.py`: Fachada (`Edificio`, `Cartel`, `CubiertaAislada`). Instanciar dispara el cálculo.
    - `geometria/`, `cp/`, `presiones/`, `factores.py`: Lógica del reglamento.
+   - `resultados.py`: **La salida pública del núcleo.** Proyecta los valores a una
+     `Tabla` de filas planas (`FilaEdificio`, `FilaCartel`, `FilaCubiertaAislada`),
+     donde cada fila lleva sus claves y todos sus números. Ver *Tabla de resultados*.
 2. **`zonda/graficos/` (Visualización 3D):**
    - `escena.py` (`Escena3D`), `actores.py` (modelos `QObject` reactivos), `mallas.py` (geometrías Qt Quick 3D), `camara.py`, `colores.py`.
    - `Visor.qml`, `contorno.vert`, `contorno.frag`: Componentes QML y shaders de contorno.
@@ -57,4 +60,14 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
+- **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
+  interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
+  `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras
+  anidadas de `cp/` y `presiones/`, que son detalle interno. Si una fila necesita
+  un dato nuevo, va como campo de la fila, no como una consulta al cálculo desde
+  la vista: cuando la plantilla o la escena le preguntan algo al núcleo (por
+  ejemplo si el ángulo llega a 10°) terminan repitiendo la lógica del Reglamento.
+  El edificio separa SPRFV de componentes porque el Reglamento puede no proveer
+  lineamientos para los segundos, y en ese caso `resultados_componentes` lanza
+  `ErrorLineamientos` mientras el SPRFV sigue siendo válido.
 - **Tests de cálculo:** Los valores numéricos en `tests/test_calculos.py` son referencias reglamentarias fijas. No alterar tolerancias ni valores esperados sin justificación técnica de cálculo.

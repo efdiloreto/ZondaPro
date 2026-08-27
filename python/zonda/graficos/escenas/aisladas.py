@@ -23,9 +23,6 @@ from zonda.enums import ExtremoPresion, TipoPresionCubiertaAislada
 from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
 from zonda.graficos.colores import TablaColores
 from zonda.graficos.directores import aisladas as director_aisladas
-from zonda.graficos.directores.utils_iter import (
-    min_max_valores,
-)
 from zonda.graficos.escenas.base import PresionesMixin
 from zonda.unidades import convertir_unidad
 
@@ -57,14 +54,16 @@ class Presiones(PresionesMixin):
         self.escena = escena
         self.unidad = unidad
 
-        self._presiones = cubierta_aislada.presiones()
+        # La presión de cada actor se busca por su clave; no hay que recorrer
+        # ninguna estructura para encontrarla.
+        self._filas = cubierta_aislada.resultados.indexar("tipo", "zona", "extremo")
 
-        min_max_presiones = (
-            convertir_unidad(p, self.unidad)
-            for p in min_max_valores(presiones=self._presiones)
+        tabla_colores = TablaColores(
+            *(
+                convertir_unidad(presion, self.unidad)
+                for presion in cubierta_aislada.resultados.min_max()
+            )
         )
-
-        tabla_colores = TablaColores(*min_max_presiones)
 
         self._barra_escala = ActorBarraEscala(self.escena, tabla_colores, self.unidad)
 
@@ -77,7 +76,6 @@ class Presiones(PresionesMixin):
         self._extremo_presion_actual = ExtremoPresion.MAX
 
         self._actores_actuales = None
-        self._presiones_actuales = None
 
         self._actores_presion = self.escena.actores_presion
 
@@ -97,7 +95,6 @@ class Presiones(PresionesMixin):
         Args:
             tipo_presion: El tipo de presión a actualizar.
         """
-        self._presiones_actuales = self._presiones[tipo_presion]
         self.director.tipo_presion = tipo_presion
         self._actualizar_cubierta(regenerar_actores=True)
         self._actualizar_titulo()
@@ -115,16 +112,17 @@ class Presiones(PresionesMixin):
             self.ocultar_actores_presion()
             self._actores_actuales = self.director.obtener_actores()
 
-        if self.director.tipo_presion == TipoPresionCubiertaAislada.LOCAL:
+        tipo = self.director.tipo_presion
+        if tipo == TipoPresionCubiertaAislada.LOCAL:
             for zona, actores in self._actores_actuales.items():
-                presion = self._presiones_actuales[zona][self._extremo_presion_actual]
+                presion = self._presion(tipo, zona)
                 try:
                     for actor in actores:
                         actor.asignar_presion(presion=presion, unidad=self.unidad)
                 except TypeError:
                     actores.asignar_presion(presion=presion, unidad=self.unidad)
         else:
-            presion = self._presiones_actuales[self._extremo_presion_actual]
+            presion = self._presion(tipo, None)
             try:
                 for actor in self._actores_actuales:
                     actor.asignar_presion(presion=presion, unidad=self.unidad)
@@ -132,6 +130,18 @@ class Presiones(PresionesMixin):
                 self._actores_actuales.asignar_presion(
                     presion=presion, unidad=self.unidad
                 )
+
+    def _presion(self, tipo, zona) -> float:
+        """La presión de una zona para el extremo actual.
+
+        Args:
+            tipo: El tipo de presión, global o local.
+            zona: La zona de la cubierta, o None para las presiones globales.
+
+        Returns:
+            La presión correspondiente.
+        """
+        return self._filas[(tipo, zona, self._extremo_presion_actual)].unica().presion
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""

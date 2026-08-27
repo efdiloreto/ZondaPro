@@ -68,21 +68,21 @@ Notas:
 Considerar que para las presiones globales, las cubiertas a dos aguas deben ser capaces de resistir las fuerzas 
 considerando un faldón con las presiones máximas o mínimas y el otro descargado.
 
-{{ ma.presiones_cubierta_aislada_globales(
-estructura.presiones.coeficientes_exposicion,
-estructura.presiones.factor_topografico,
-estructura.presiones.presiones_velocidad,
-estructura.cpn()[enums.TipoPresionCubiertaAislada.GLOBAL],
-estructura.presiones()[enums.TipoPresionCubiertaAislada.GLOBAL],
-estructura.cpn.referencia,
+{% set zonas_locales = [
+enums.ZonaPresionCubiertaAislada.A,
+enums.ZonaPresionCubiertaAislada.B,
+enums.ZonaPresionCubiertaAislada.C,
+enums.ZonaPresionCubiertaAislada.D,
+] -%}
+{{ ma.presiones_cubierta_aislada(
+estructura.resultados.filtrar(tipo=enums.TipoPresionCubiertaAislada.GLOBAL),
+"PRESIONES GLOBALES",
 ) }}
-{{ ma.presiones_cubierta_aislada_locales(
-estructura.presiones.coeficientes_exposicion,
-estructura.presiones.factor_topografico,
-estructura.presiones.presiones_velocidad,
-estructura.cpn()[enums.TipoPresionCubiertaAislada.LOCAL],
-estructura.presiones()[enums.TipoPresionCubiertaAislada.LOCAL],
-estructura.cpn.referencia,
+{{ ma.presiones_cubierta_aislada(
+estructura.resultados.filtrar(
+tipo=enums.TipoPresionCubiertaAislada.LOCAL, zona=zonas_locales
+),
+"PRESIONES LOCALES",
 ) }}
 
 ### PRESIONES LATERALES
