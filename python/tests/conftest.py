@@ -105,6 +105,32 @@ def cartel() -> Cartel:
 
 
 @pytest.fixture(scope="session")
+def cartel_con_topografia() -> Cartel:
+    """Cartel con la topografía activada.
+
+    Los parámetros están elegidos para que ``Topografia.topografia_considerada``
+    dé ``True`` (H/Lh ≥ 0.2 y H > 20 m para la categoría de exposición B), así
+    el reporte entra en la rama que muestra los datos del terreno.
+    """
+    return Cartel(
+        profundidad=1,
+        ancho=10,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=30,
+        distancia_cresta=50,
+        distancia_barlovento_sotavento=20,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+    )
+
+
+@pytest.fixture(scope="session")
 def cubierta_aislada() -> CubiertaAislada:
     return CubiertaAislada(
         ancho=10,

@@ -108,9 +108,9 @@ class Cartel:
         self.flexibilidad = flexibilidad
         self.tipo_terreno = tipo_terreno
         self.altura_terreno = altura_terreno
-        self.distancia_cresta: distancia_cresta
-        self.distancia_barlovento_sotavento: distancia_barlovento_sotavento
-        self.direccion: direccion
+        self.distancia_cresta = distancia_cresta
+        self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
+        self.direccion = direccion
 
         self.geometria = geometria.Cartel(
             profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas

@@ -53,6 +53,20 @@ def test_reporte_cartel(cartel):
     assert reporte._texto_md.strip()
 
 
+def test_reporte_cartel_con_topografia(cartel_con_topografia):
+    """El reporte tiene que poder mostrar los datos de topografía del cartel.
+
+    Las tres fixtures originales usaban ``considerar_topografia=False``, así que
+    esta rama de la plantilla nunca se renderizaba y el reporte fallaba con
+    ``UndefinedError``: ``Cartel.__init__`` anotaba ``distancia_cresta``,
+    ``distancia_barlovento_sotavento`` y ``direccion`` en lugar de asignarlas.
+    """
+    texto = Reporte("cartel.md", cartel_con_topografia, UNIDADES)._texto_md
+    assert "Topografía no considerada" not in texto
+    assert "Distancia a la cresta: 50.00 m" in texto
+    assert "Distancia a Barlovento: 20.00 m" in texto
+
+
 def test_reporte_cubierta_aislada(cubierta_aislada):
     reporte = Reporte("cubierta-aislada.md", cubierta_aislada, UNIDADES)
     assert reporte._texto_md.strip()
