@@ -249,16 +249,6 @@ class Escena3D(QObject):
 
     # -- comandos de la barra de herramientas ------------------------------
 
-    @pyqtSlot(float)
-    def escalar_flechas(self, factor: float) -> None:
-        for actor in self.actores_presion:
-            actor.flecha._cambiar_escala(factor)
-
-    @pyqtSlot(float)
-    def escalar_textos(self, factor: float) -> None:
-        for actor in self.actores_presion:
-            actor.flecha._cambiar_tamanio_texto(factor)
-
     def pedir_medicion(self, estado: bool) -> None:
         self.medicionPedida.emit(estado)
 

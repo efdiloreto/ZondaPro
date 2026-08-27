@@ -73,16 +73,6 @@ class WidgetBotonPanel(QtWidgets.QPushButton):
         )
 
 
-class WidgetBotonPanelIcono(QtWidgets.QPushButton):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding
-        )
-
-
 class WidgetPanel(QtWidgets.QWidget):
     def __init__(self, altura_fija: int | None = None) -> None:
         """
@@ -299,38 +289,6 @@ class WidgetLabelLinkInfo(QtWidgets.QLabel):
             QtCore.Qt.TextInteractionFlag.TextBrowserInteraction
         )
         self.setOpenExternalLinks(True)
-
-
-class WidgetLinksInfo(QtWidgets.QWidget):
-    def __init__(
-        self,
-        pagina_web: bool = False,
-        contacto: bool = False,
-        ayuda: bool = False,
-    ):
-        super().__init__()
-
-        layout_principal = QtWidgets.QHBoxLayout()
-        layout_principal.setContentsMargins(0, 20, 0, 0)
-        layout_principal.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        layout_principal.setSpacing(25)
-
-        if pagina_web:
-            layout_principal.addWidget(
-                WidgetLabelLinkInfo("Página Web", __acercade__.__web__)
-            )
-
-        if contacto:
-            layout_principal.addWidget(
-                WidgetLabelLinkInfo("Contacto", __acercade__.__contacto__)
-            )
-
-        if ayuda:
-            layout_principal.addWidget(
-                WidgetLabelLinkInfo("Ayuda", __acercade__.__ayuda__)
-            )
-
-        self.setLayout(layout_principal)
 
 
 class WidgetAcercaDe(QtWidgets.QDialog):

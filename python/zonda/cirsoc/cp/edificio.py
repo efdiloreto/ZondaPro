@@ -195,10 +195,6 @@ class ParedesSprfvMetodoDireccional:
         )
 
 
-class ParedesMetodoEnvolvente:
-    pass
-
-
 class ParedesComponentes:
     """ParedesComponentes.
 
@@ -669,10 +665,6 @@ class CubiertaSprfvMetodoDireccional:
         return min_dimension * dimension_normal
 
 
-class CubiertaMetodoEnvolvente:
-    pass
-
-
 class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
     """AleroSprfvMetodoDireccional.
 
@@ -726,10 +718,6 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
                 for entrada in normal
             ]
         return (*paralelo, *normal)
-
-
-class AleroMetodoEnvolvente:
-    pass
 
 
 class CubiertaComponentes:
