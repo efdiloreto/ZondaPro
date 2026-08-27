@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.resultados import FilaCubiertaAislada, PresionVelocidad
 
 if TYPE_CHECKING:
     from zonda.cirsoc import cp, geometria
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         CategoriaEstructura,
         CategoriaExposicion,
     )
-    from zonda.tipos import ValoresPresionesCubiertaAislada
 
 
 class CubiertaAislada(PresionesBase):
@@ -48,6 +47,7 @@ class CubiertaAislada(PresionesBase):
         factor_topografico: float,
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
+        coeficiente_friccion: float = 0.0,
     ) -> None:
         """
         Args:
@@ -58,6 +58,7 @@ class CubiertaAislada(PresionesBase):
             cpn: Una instancia de CubiertaAislada.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
+            coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
         """
         super().__init__(
             altura_media,
@@ -69,25 +70,41 @@ class CubiertaAislada(PresionesBase):
             categoria_exp,
         )
         self.cpn = cpn
+        self.altura_media = altura_media
+        self.coeficiente_friccion = coeficiente_friccion
         self._presion_parcial = self.presiones_velocidad * self.rafaga.factor
 
     @cached_property
-    def valores(self) -> ValoresPresionesCubiertaAislada:
-        """Calcula los valores de presión sobre la cubierta aislada para cada zona.
+    def filas(self) -> tuple[FilaCubiertaAislada, ...]:
+        """Calcula las presiones sobre la cubierta aislada.
 
         Returns:
-            Los valores de presión.
+            Una fila por cada combinación de tipo de presión, zona y extremo.
         """
-        valores_cpn = self.cpn()
-        valores = defaultdict(lambda: defaultdict(dict))
-        for caso, zonas in valores_cpn.items():
-            for zona, cpn in zonas.items():
-                if isinstance(cpn, dict):
-                    for tipo, valor_cpn in cpn.items():
-                        valores[caso][zona][tipo] = self._presion_parcial * valor_cpn
-                else:
-                    valores[caso][zona] = self._presion_parcial * cpn
-        return valores
+        q = PresionVelocidad(
+            float(self.altura_media),
+            float(self.coeficientes_exposicion),
+            float(self.factor_topografico),
+            float(self.presiones_velocidad),
+        )
+        factor_rafaga = float(self.rafaga.factor)
+        filas = []
+        for entrada in self.cpn.entradas:
+            presion = float(self._presion_parcial * entrada.valor)
+            filas.append(
+                FilaCubiertaAislada(
+                    tipo=entrada.tipo,
+                    extremo=entrada.extremo,
+                    q=q,
+                    cpn=entrada.valor,
+                    factor_rafaga=factor_rafaga,
+                    presion=presion,
+                    presion_friccion=presion * self.coeficiente_friccion,
+                    referencia=entrada.referencia,
+                    zona=entrada.zona,
+                )
+            )
+        return tuple(filas)
 
     @classmethod
     def desde_cubierta(
@@ -99,6 +116,7 @@ class CubiertaAislada(PresionesBase):
         factor_topografico: float,
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
+        coeficiente_friccion: float = 0.0,
     ) -> CubiertaAislada:
         """Crea una instancia a partir de la geometria de una cubierta.
 
@@ -110,6 +128,7 @@ class CubiertaAislada(PresionesBase):
             cpn: Una instancia de CubiertaAislada.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
+            coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
         """
         return cls(
             cubierta.altura_media,
@@ -119,7 +138,5 @@ class CubiertaAislada(PresionesBase):
             factor_topografico,
             cpn,
             categoria_exp,
+            coeficiente_friccion,
         )
-
-    def __call__(self) -> ValoresPresionesCubiertaAislada:
-        return self.valores

@@ -20,11 +20,12 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.resultados import FilaCartel, PresionVelocidad
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
     from zonda.enums import CategoriaEstructura, CategoriaExposicion
@@ -89,6 +90,45 @@ class Cartel(PresionesBase):
             Los valores de fuerza.
         """
         return self.valores[1:] * self.areas_parciales
+
+    @cached_property
+    def filas(self) -> tuple[FilaCartel, ...]:
+        """Calcula las presiones sobre el cartel.
+
+        Returns:
+            Una fila por cada altura. El área parcial y la fuerza corresponden
+            al tramo que arranca en la altura anterior, así que la primera fila
+            no las tiene.
+        """
+        cf = float(self.cf())
+        factor_rafaga = float(self.factor_rafaga)
+        filas = []
+        for indice, (altura, kz, kzt, q, presion) in enumerate(
+            zip(
+                np.asarray(self.alturas),
+                np.asarray(self.coeficientes_exposicion),
+                np.asarray(self.factor_topografico),
+                np.asarray(self.presiones_velocidad),
+                self.valores,
+                strict=True,
+            )
+        ):
+            filas.append(
+                FilaCartel(
+                    q=PresionVelocidad(float(altura), float(kz), float(kzt), float(q)),
+                    cf=cf,
+                    factor_rafaga=factor_rafaga,
+                    presion=float(presion),
+                    referencia="Tabla 11",
+                    area_parcial=None
+                    if indice == 0
+                    else float(self.areas_parciales[indice - 1]),
+                    fuerza=None
+                    if indice == 0
+                    else float(self.fuerzas_parciales[indice - 1]),
+                )
+            )
+        return tuple(filas)
 
     @cached_property
     def fuerza_total(self) -> float:

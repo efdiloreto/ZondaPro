@@ -16,7 +16,7 @@
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
 import itertools
-from collections import defaultdict
+from dataclasses import replace
 from functools import cached_property
 from math import log10
 
@@ -24,6 +24,7 @@ import numpy as np
 
 from zonda import excepciones
 from zonda.cirsoc import geometria
+from zonda.cirsoc.resultados import EntradaCp
 from zonda.enums import (
     DireccionVientoMetodoDireccionalSprfv,
     MetodoSprfv,
@@ -36,18 +37,7 @@ from zonda.enums import (
     ZonaComponenteParedEdificio,
     ZonaEdificio,
 )
-from zonda.tipos import (
-    ParNumerico,
-    ValoresCpAleroEdificioMetodoDireccional,
-    ValoresCpAleroEdificioSprfvMetodoDireccional,
-    ValoresCpCubiertaEdificioComponentes,
-    ValoresCpCubiertaEdificioMetodoDireccional,
-    ValoresCpCubiertaEdificioSprfvMetodoDireccional,
-    ValoresCpEdificioMetodoDireccional,
-    ValoresCpParedesEdificioComponentes,
-    ValoresCpParedesEdificioMetodoDireccional,
-    ValoresCpParedesEdificioSprfvMetodoDireccional,
-)
+from zonda.tipos import ParNumerico
 
 
 # TODO - El type hint deberia aceptar lista o array
@@ -144,28 +134,36 @@ class ParedesSprfvMetodoDireccional:
         self.longitud = longitud
 
     @cached_property
-    def valores(self) -> ValoresCpParedesEdificioSprfvMetodoDireccional:
-        """Calcula los valores de coeficiente de presión.
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión de las paredes.
 
         Returns:
-            Los valores de cp para dirección del viento normal y paralelo a la cumbrero para paredes barlovento, sotavento y lateral.
+            Un coeficiente por cada pared y dirección del viento.
         """
-        pared_sotavento_cp_paralelo = self._cp_pared_sotavento(
-            self.longitud, self.ancho
-        )
-        pared_sotavento_cp_normal = self._cp_pared_sotavento(self.ancho, self.longitud)
-        return {
-            DireccionVientoMetodoDireccionalSprfv.PARALELO: {
-                ParedEdificioSprfv.BARLOVENTO: 0.8,
-                ParedEdificioSprfv.LATERAL: -0.7,
-                ParedEdificioSprfv.SOTAVENTO: pared_sotavento_cp_paralelo,
-            },
-            DireccionVientoMetodoDireccionalSprfv.NORMAL: {
-                ParedEdificioSprfv.BARLOVENTO: 0.8,
-                ParedEdificioSprfv.LATERAL: -0.7,
-                ParedEdificioSprfv.SOTAVENTO: pared_sotavento_cp_normal,
-            },
+        cp_sotavento = {
+            DireccionVientoMetodoDireccionalSprfv.PARALELO: self._cp_pared_sotavento(
+                self.longitud, self.ancho
+            ),
+            DireccionVientoMetodoDireccionalSprfv.NORMAL: self._cp_pared_sotavento(
+                self.ancho, self.longitud
+            ),
         }
+        return tuple(
+            EntradaCp(
+                zona=ZonaEdificio.PAREDES,
+                sistema=SistemaResistente.SPRFV,
+                valor=float(valor),
+                referencia=self.referencia,
+                direccion=direccion,
+                pared=pared,
+            )
+            for direccion, sotavento in cp_sotavento.items()
+            for pared, valor in (
+                (ParedEdificioSprfv.BARLOVENTO, 0.8),
+                (ParedEdificioSprfv.LATERAL, -0.7),
+                (ParedEdificioSprfv.SOTAVENTO, sotavento),
+            )
+        )
 
     @cached_property
     def referencia(self) -> str:
@@ -195,9 +193,6 @@ class ParedesSprfvMetodoDireccional:
             relaciones_paralelo_normal,
             valores_cp,
         )
-
-    def __call__(self) -> ValoresCpParedesEdificioSprfvMetodoDireccional:
-        return self.valores
 
 
 class ParedesMetodoEnvolvente:
@@ -239,14 +234,18 @@ class ParedesComponentes:
             self.referencia = "Figura 8"
 
     @cached_property
-    def valores(self) -> ValoresCpParedesEdificioComponentes | None:
-        """Calcula los valores de coeficiente de presión para Componentes y Revestimientos de paredes.
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión para componentes y revestimientos.
+
+        Con la Figura 8 el resultado se discrimina además por pared, porque la
+        de barlovento se resuelve con la presión de velocidad de cada altura.
 
         Returns:
-            Los valores de coeficiente de presión para cada pared y componente de la misma.
+            Un coeficiente por cada componente y zona, y por pared si la figura
+            del Reglamento lo requiere. Ninguno si no se cargaron componentes.
         """
         if self.componentes is None:
-            return
+            return ()
         valores_zonas_cp = {
             "Figura 5A": {
                 ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
@@ -267,13 +266,26 @@ class ParedesComponentes:
             if self.angulo_cubierta <= 10:
                 factor_reduccion = 0.9
         caso_cp = valores_zonas_cp[self.referencia]
-        valor_cp = defaultdict(dict)
-        for nombre, area_componente in self.componentes.items():
-            for zona, cp in caso_cp.items():
-                valor_cp[nombre][zona] = (
+        paredes = (
+            tuple(ParedEdificioSprfv) if self.referencia == "Figura 8" else (None,)
+        )
+        return tuple(
+            EntradaCp(
+                zona=ZonaEdificio.PAREDES,
+                sistema=SistemaResistente.COMPONENTES,
+                valor=float(
                     calcular_cp_componente(cp, area, area_componente) * factor_reduccion
-                )
-        return valor_cp
+                ),
+                referencia=self.referencia,
+                pared=pared,
+                componente=nombre,
+                zona_componente=zona,
+                distancia_a=self.distancia_a,
+            )
+            for pared in paredes
+            for nombre, area_componente in self.componentes.items()
+            for zona, cp in caso_cp.items()
+        )
 
     @cached_property
     def distancia_a(self) -> float:
@@ -282,9 +294,6 @@ class ParedesComponentes:
             El valor de distancia "a" del edificio.
         """
         return distancia_a(self.ancho, self.longitud, self.altura_media)
-
-    def __call__(self) -> ValoresCpParedesEdificioComponentes:
-        return self.valores
 
 
 class CubiertaSprfvMetodoDireccional:
@@ -314,6 +323,7 @@ class CubiertaSprfvMetodoDireccional:
         self.altura_media = altura_media
         self.angulo = angulo
         self.tipo_cubierta = tipo_cubierta
+        self.zona = ZonaEdificio.CUBIERTA
         self.distancias_codigo = (
             0.0,
             self.altura_media / 2,
@@ -355,51 +365,122 @@ class CubiertaSprfvMetodoDireccional:
         }
 
     @cached_property
-    def valores(self) -> ValoresCpCubiertaEdificioSprfvMetodoDireccional:
-        """Calcula los valores de coeficiente de presión para cubierta para SPRFV.
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión de la cubierta para el SPRFV.
 
         Returns:
-            Los valores de cp para direccion de viento normal y paralelo a la cumbrera para cada zona de la cubierta
-            según corresponda.
+            Un coeficiente por cada zona o posición y dirección del viento.
         """
-        cp_paralelo = self._cp_cubierta_angulo_menor_diez(
-            self.longitud,
-            self.ancho,
-            len(self.zonas[DireccionVientoMetodoDireccionalSprfv.PARALELO]),
+        return self._entradas_cubierta()
+
+    def _entradas_cubierta(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión de la superficie de cubierta.
+
+        Con el viento paralelo a la cumbrera -y con el viento normal cuando el
+        ángulo no llega a 10°- la superficie se divide en zonas y cada una tiene
+        su coeficiente. Si no, se resuelve por posición respecto al viento, con
+        dos casos de presión a barlovento.
+
+        Returns:
+            Un coeficiente por cada zona o posición y dirección del viento.
+        """
+        entradas = self._entradas_zonificadas(
+            DireccionVientoMetodoDireccionalSprfv.PARALELO, self.longitud, self.ancho
         )
         if self.normal_como_paralelo:
-            zonas = self.zonas[DireccionVientoMetodoDireccionalSprfv.NORMAL]
-            numero_zonas = len(self.zonas[DireccionVientoMetodoDireccionalSprfv.NORMAL])
-            mitad_ancho = self.ancho / 2
-            mitad_ancho_en_distancias_codigo = mitad_ancho in self.distancias_codigo
-            restar_zona_y_sumar_cp = (
-                self.tipo_cubierta == TipoCubierta.DOS_AGUAS
-                and not mitad_ancho_en_distancias_codigo
+            entradas += self._entradas_zonificadas(
+                DireccionVientoMetodoDireccionalSprfv.NORMAL, self.ancho, self.longitud
             )
-            # Al agregar una zona porque las distancias de zonas de viento no coinciden
-            # con la mitad del ancho o el ancho, se debe agregar el cp correspondiente a esa
-            # distancia que se suma
-            if restar_zona_y_sumar_cp:
-                numero_zonas -= 1
-            cp_normal = self._cp_cubierta_angulo_menor_diez(
-                self.ancho, self.longitud, numero_zonas
-            )
-            if restar_zona_y_sumar_cp:
-                indice = next(
-                    i for i, (inicio, fin) in enumerate(zonas) if fin == mitad_ancho
-                )
-                cp_normal = np.insert(cp_normal, indice + 1, cp_normal[indice])
         else:
-            cp_barlovento = self._cp_cubierta_barlovento()
-            cp_sotavento = self._cp_cubierta_sotavento()
-            cp_normal = {
-                PosicionCubiertaAleroSprfv.BARLOVENTO: cp_barlovento,
-                PosicionCubiertaAleroSprfv.SOTAVENTO: cp_sotavento,
-            }
-        return {
-            DireccionVientoMetodoDireccionalSprfv.PARALELO: cp_paralelo,
-            DireccionVientoMetodoDireccionalSprfv.NORMAL: cp_normal,
-        }
+            entradas += self._entradas_por_posicion()
+        return tuple(entradas)
+
+    def _entrada(self, valor: float, **claves) -> EntradaCp:
+        """Arma una entrada con las claves comunes de la superficie.
+
+        Args:
+            valor: El coeficiente de presión.
+            **claves: Las claves que identifican a la entrada.
+
+        Returns:
+            La entrada.
+        """
+        return EntradaCp(
+            zona=self.zona,
+            sistema=SistemaResistente.SPRFV,
+            valor=float(valor),
+            referencia=self.referencia,
+            **claves,
+        )
+
+    def _entradas_zonificadas(
+        self,
+        direccion: DireccionVientoMetodoDireccionalSprfv,
+        dimension_paralela: float,
+        dimension_normal: float,
+    ) -> list[EntradaCp]:
+        """Calcula los coeficientes de una dirección en la que hay zonas.
+
+        Args:
+            direccion: La dirección del viento.
+            dimension_paralela: La longitud de la dimension paralela a la dirección del viento.
+            dimension_normal: La longitud de la dimension normal a la dirección del viento.
+
+        Returns:
+            Una entrada por cada zona.
+        """
+        zonas = self.zonas[direccion]
+        numero_de_zonas = len(zonas)
+        indice_repetido = None
+        if direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL:
+            mitad_ancho = self.ancho / 2
+            if (
+                self.tipo_cubierta == TipoCubierta.DOS_AGUAS
+                and mitad_ancho not in self.distancias_codigo
+            ):
+                # Se agrega una zona porque las distancias de zonas de viento no
+                # coinciden con la mitad del ancho: esa zona repite el cp de la
+                # anterior.
+                numero_de_zonas -= 1
+                indice_repetido = next(
+                    i for i, (_inicio, fin) in enumerate(zonas) if fin == mitad_ancho
+                )
+        cps = list(
+            self._cp_cubierta_angulo_menor_diez(
+                dimension_paralela, dimension_normal, numero_de_zonas
+            )
+        )
+        if indice_repetido is not None:
+            cps.insert(indice_repetido + 1, cps[indice_repetido])
+        return [
+            self._entrada(cp, direccion=direccion, rango=(float(inicio), float(fin)))
+            for (inicio, fin), cp in zip(zonas, cps, strict=True)
+        ]
+
+    def _entradas_por_posicion(self) -> list[EntradaCp]:
+        """Calcula los coeficientes con viento normal a la cumbrera y ángulo ≥ 10°.
+
+        Returns:
+            Una entrada por cada caso de presión a barlovento, más la de sotavento.
+        """
+        direccion = DireccionVientoMetodoDireccionalSprfv.NORMAL
+        entradas = [
+            self._entrada(
+                valor,
+                direccion=direccion,
+                posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                caso=caso,
+            )
+            for caso, valor in self._cp_cubierta_barlovento().items()
+        ]
+        entradas.append(
+            self._entrada(
+                self._cp_cubierta_sotavento(),
+                direccion=direccion,
+                posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+            )
+        )
+        return entradas
 
     @cached_property
     def referencia(self) -> str:
@@ -587,9 +668,6 @@ class CubiertaSprfvMetodoDireccional:
         min_dimension = min(altura_media_cubierta / 2, dimension_paralela)
         return min_dimension * dimension_normal
 
-    def __call__(self) -> ValoresCpCubiertaEdificioSprfvMetodoDireccional:
-        return self.valores
-
 
 class CubiertaMetodoEnvolvente:
     pass
@@ -601,38 +679,53 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
     Determina los coeficientes de presión de alero de cubierta de edificio para SPRFV usando el método direccional.
     """
 
-    @cached_property
-    def valores(self) -> ValoresCpAleroEdificioSprfvMetodoDireccional:
-        """
-        Returns:
-            Los valores de cp para direccion de viento normal y paralelo a la cumbrera para cada zona del alero según
-            corresponda.
-        """
-        valores = super().valores
-        if self.normal_como_paralelo:
-            cps = tuple(
-                cp for cp in valores[DireccionVientoMetodoDireccionalSprfv.NORMAL]
-            )
-            cp_barlovento = cps[0] - 0.8
-            cp_sotavento = cps[-1]
-        else:
-            cp_barlovento = {
-                key: valor - 0.8
-                for key, valor in valores[DireccionVientoMetodoDireccionalSprfv.NORMAL][
-                    PosicionCubiertaAleroSprfv.BARLOVENTO
-                ].items()
-            }
-            cp_sotavento = valores[DireccionVientoMetodoDireccionalSprfv.NORMAL][
-                PosicionCubiertaAleroSprfv.SOTAVENTO
-            ]
-        valores[DireccionVientoMetodoDireccionalSprfv.NORMAL] = {
-            PosicionCubiertaAleroSprfv.BARLOVENTO: cp_barlovento,
-            PosicionCubiertaAleroSprfv.SOTAVENTO: cp_sotavento,
-        }
-        return valores
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.zona = ZonaEdificio.ALERO
 
-    def __call__(self) -> ValoresCpAleroEdificioSprfvMetodoDireccional:
-        return self.valores
+    @cached_property
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión del alero para el SPRFV.
+
+        Con el viento paralelo a la cumbrera el alero toma los coeficientes de
+        la cubierta. Con el viento normal no se divide en zonas: a barlovento el
+        coeficiente se reduce en 0.8 y a sotavento se mantiene.
+
+        Returns:
+            Un coeficiente por cada zona o posición y dirección del viento.
+        """
+        entradas = self._entradas_cubierta()
+        paralelo = [
+            entrada
+            for entrada in entradas
+            if entrada.direccion == DireccionVientoMetodoDireccionalSprfv.PARALELO
+        ]
+        normal = [
+            entrada
+            for entrada in entradas
+            if entrada.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
+        ]
+        if self.normal_como_paralelo:
+            normal = [
+                self._entrada(
+                    normal[0].valor - 0.8,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                ),
+                self._entrada(
+                    normal[-1].valor,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+                ),
+            ]
+        else:
+            normal = [
+                replace(entrada, valor=entrada.valor - 0.8)
+                if entrada.posicion == PosicionCubiertaAleroSprfv.BARLOVENTO
+                else entrada
+                for entrada in normal
+            ]
+        return (*paralelo, *normal)
 
 
 class AleroMetodoEnvolvente:
@@ -677,6 +770,7 @@ class CubiertaComponentes:
         self.parapeto = parapeto
         self.es_alero = es_alero
         self.componentes = componentes
+        self.zona = ZonaEdificio.ALERO if es_alero else ZonaEdificio.CUBIERTA
 
     @cached_property
     def distancia_a(self) -> float:
@@ -687,14 +781,15 @@ class CubiertaComponentes:
         return distancia_a(self.ancho, self.longitud, self.altura_media)
 
     @cached_property
-    def valores(self) -> ValoresCpCubiertaEdificioComponentes | None:
-        """Calcula los valores de coeficiente de presión para componentes y revestimientos de cubierta a dos aguas o plana.
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión para componentes y revestimientos.
 
         Returns:
-            Los valores de coeficiente de presión para cada componente y zona.
+            Un coeficiente por cada componente y zona. Ninguno si no se cargaron
+            componentes.
         """
         if self.componentes is None:
-            return
+            return ()
         casos = {
             "Figura 5B": {
                 ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1, -0.9)},
@@ -775,18 +870,28 @@ class CubiertaComponentes:
         else:
             # Areas techo pequeñas alturas -CIRSOC 102 (2005) Fig. 5B)
             area = (1, 10)
-        valor_cp = defaultdict(dict)
+        entradas = []
         for nombre, area_componente in self.componentes.items():
             for zona, cps in caso_cp.items():
-                cp = cps["cp"]
-                areas = cps.get("area", area)
                 cp_filtrado, area_filtrada = seleccionar_cp_area(
-                    cp, areas, area_componente
+                    cps["cp"], cps.get("area", area), area_componente
                 )
-                valor_cp[nombre][zona] = calcular_cp_componente(
-                    cp_filtrado, area_filtrada, area_componente
+                entradas.append(
+                    EntradaCp(
+                        zona=self.zona,
+                        sistema=SistemaResistente.COMPONENTES,
+                        valor=float(
+                            calcular_cp_componente(
+                                cp_filtrado, area_filtrada, area_componente
+                            )
+                        ),
+                        referencia=self.referencia,
+                        componente=nombre,
+                        zona_componente=zona,
+                        distancia_a=self.distancia_a,
+                    )
                 )
-        return valor_cp
+        return tuple(entradas)
 
     @cached_property
     def referencia(self) -> str:
@@ -853,9 +958,6 @@ class CubiertaComponentes:
             " Componentes y Revestimientos de cubiertas a un agua con ángulo > 30°."
         )
 
-    def __call__(self) -> ValoresCpCubiertaEdificioComponentes:
-        return self.valores
-
 
 class Paredes:
     """Paredes.
@@ -892,14 +994,13 @@ class Paredes:
         )
 
     @cached_property
-    def valores(self) -> ValoresCpParedesEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Los coeficientes de presión para el SPRFV y para componentes.
 
-    def __call__(self) -> ValoresCpParedesEdificioMetodoDireccional:
-        return self.valores
+        Returns:
+            Las entradas de ambos sistemas resistentes.
+        """
+        return (*self.sprfv.entradas, *self.componentes.entradas)
 
 
 class Cubierta:
@@ -950,14 +1051,13 @@ class Cubierta:
         )
 
     @cached_property
-    def valores(self) -> ValoresCpCubiertaEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Los coeficientes de presión para el SPRFV y para componentes.
 
-    def __call__(self) -> ValoresCpCubiertaEdificioMetodoDireccional:
-        return self.valores
+        Returns:
+            Las entradas de ambos sistemas resistentes.
+        """
+        return (*self.sprfv.entradas, *self.componentes.entradas)
 
 
 class Alero:
@@ -999,14 +1099,13 @@ class Alero:
         )
 
     @cached_property
-    def valores(self) -> ValoresCpAleroEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Los coeficientes de presión para el SPRFV y para componentes.
 
-    def __call__(self) -> ValoresCpAleroEdificioMetodoDireccional:
-        return self.valores
+        Returns:
+            Las entradas de ambos sistemas resistentes.
+        """
+        return (*self.sprfv.entradas, *self.componentes.entradas)
 
 
 class Edificio:
@@ -1074,15 +1173,17 @@ class Edificio:
             )
 
     @cached_property
-    def valores(self) -> ValoresCpEdificioMetodoDireccional:
-        valores = {
-            ZonaEdificio.PAREDES: self.paredes(),
-            ZonaEdificio.CUBIERTA: self.cubierta(),
-        }
-        alero: Alero = getattr(self, "alero", None)
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Los coeficientes de presión de todo el edificio.
+
+        Returns:
+            Las entradas de paredes, cubierta y alero.
+        """
+        entradas = (*self.paredes.entradas, *self.cubierta.entradas)
+        alero: Alero | None = getattr(self, "alero", None)
         if alero is not None:
-            valores[ZonaEdificio.ALERO] = alero()
-        return valores
+            entradas += alero.entradas
+        return entradas
 
     @classmethod
     def desde_geometria_edifico(
@@ -1116,6 +1217,3 @@ class Edificio:
             componentes_paredes,
             componentes_cubierta,
         )
-
-    def __call__(self) -> ValoresCpEdificioMetodoDireccional:
-        return self.valores

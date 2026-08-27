@@ -31,10 +31,14 @@ El flujo de dependencias es estrictamente unidireccional:
 1. **`zonda/cirsoc/` (Motor de cálculo):**
    - **Sin dependencias de Qt.** Código Python/NumPy puro testeable de forma aislada.
    - `estructuras.py`: Fachada (`Edificio`, `Cartel`, `CubiertaAislada`). Instanciar dispara el cálculo.
-   - `geometria/`, `cp/`, `presiones/`, `factores.py`: Lógica del reglamento.
-   - `resultados.py`: **La salida pública del núcleo.** Proyecta los valores a una
-     `Tabla` de filas planas (`FilaEdificio`, `FilaCartel`, `FilaCubiertaAislada`),
-     donde cada fila lleva sus claves y todos sus números. Ver *Tabla de resultados*.
+   - `geometria/`, `factores.py`: Geometría, factor de ráfaga y factor topográfico.
+   - `cp/`: Selección de figuras y tablas del Reglamento. Devuelve `EntradaCp`
+     (`EntradaCpn` en cubiertas aisladas): el coeficiente con las claves que lo
+     identifican.
+   - `presiones/`: Le agrega a cada entrada la presión de velocidad, el factor de
+     ráfaga y la presión interna, y devuelve filas.
+   - `resultados.py`: **El modelo de la salida.** Define `PresionVelocidad`, las
+     entradas, las filas y `Tabla`; no calcula nada. Ver *Tabla de resultados*.
 2. **`zonda/graficos/` (Visualización 3D):**
    - `escena.py` (`Escena3D`), `actores.py` (modelos `QObject` reactivos), `mallas.py` (geometrías Qt Quick 3D), `camara.py`, `colores.py`.
    - `Visor.qml`, `contorno.vert`, `contorno.frag`: Componentes QML y shaders de contorno.
@@ -43,7 +47,9 @@ El flujo de dependencias es estrictamente unidireccional:
    - `zonda.py` (pantalla de bienvenida / selector de módulo).
    - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
 4. **Módulos transversales (`zonda/`):**
-   - `enums.py` (enumerados del dominio), `tipos.py`, `unidades.py`, `excepciones.py`.
+   - `enums.py` (enumerados del dominio), `tipos.py` (sólo alias geométricos y
+     numéricos; los resultados se describen en `cirsoc/resultados.py`),
+     `unidades.py`, `excepciones.py`.
    - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
    - `reportes.py`: Motor de plantillas Jinja2 y compilación con pandoc.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
@@ -60,6 +66,11 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
+- **Presión mínima (Art. 1.4) pendiente de verificar:** Se aplica a todos los
+  componentes y revestimientos salvo a las paredes bajo la Figura 8, donde el
+  cálculo original no la aplicaba. Se mantiene el comportamiento para no cambiar
+  resultados (ver `ParedesComponentes.considerar_presion_minima`), pero hay que
+  contrastarlo con el Reglamento.
 - **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
   interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
   `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras

@@ -161,7 +161,7 @@ class Cartel:
         Returns:
             Una fila por cada altura considerada.
         """
-        return resultados.tabla_cartel(self)
+        return resultados.Tabla(self.presiones.filas)
 
 
 class CubiertaAislada:
@@ -279,6 +279,7 @@ class CubiertaAislada:
             self.topografia.factor,
             self.cpn,
             categoria_exp,
+            coeficiente_friccion,
         )
 
     @cached_property
@@ -288,7 +289,7 @@ class CubiertaAislada:
         Returns:
             Una fila por cada combinación de tipo de presión, zona y extremo.
         """
-        return resultados.tabla_cubierta_aislada(self)
+        return resultados.Tabla(self.presiones.filas)
 
 
 class Edificio:
@@ -420,7 +421,7 @@ class Edificio:
         Returns:
             Las filas de paredes, cubierta y alero.
         """
-        return resultados.tabla_edificio_sprfv(self)
+        return resultados.Tabla(self.presiones.filas_sprfv)
 
     @cached_property
     def resultados_componentes(self) -> Tabla[FilaEdificio]:
@@ -437,7 +438,7 @@ class Edificio:
             ErrorLineamientos: Cuando la geometría excede el alcance del
                 Reglamento para componentes y revestimientos.
         """
-        return resultados.tabla_edificio_componentes(self)
+        return resultados.Tabla(self.presiones.filas_componentes)
 
     @cached_property
     def resultados(self) -> Tabla[FilaEdificio]:

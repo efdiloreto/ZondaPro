@@ -38,28 +38,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
-
-from zonda.cirsoc.presiones.edificio import PresionesEdificio
 from zonda.enums import (
     DireccionVientoMetodoDireccionalSprfv,
     ExtremoPresion,
     ParedEdificioSprfv,
     SistemaResistente,
-    TipoCubierta,
     TipoPresionCubiertaAislada,
+    ZonaComponenteCubiertaEdificio,
+    ZonaComponenteParedEdificio,
     ZonaEdificio,
+    ZonaPresionCubiertaAislada,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Iterable, Iterator
 
     from zonda.enums import (
         PosicionCubiertaAleroSprfv,
         TipoPresionCubiertaBarloventoSprfv,
-        ZonaComponenteCubiertaEdificio,
-        ZonaComponenteParedEdificio,
-        ZonaPresionCubiertaAislada,
     )
 
 
@@ -125,6 +121,87 @@ class FilaEdificio:
             ambas coinciden.
         """
         return self.neg if indice_gcpi else self.pos
+
+
+@dataclass(frozen=True, slots=True)
+class EntradaCp:
+    """Un coeficiente de presión junto con las claves que lo identifican.
+
+    Es lo que produce ``zonda.cirsoc.cp``: la selección de figuras y tablas del
+    Reglamento, ya resuelta, en la misma forma plana que el resultado final.
+    ``zonda.cirsoc.presiones`` le agrega los números y devuelve una `FilaEdificio`.
+    """
+
+    zona: ZonaEdificio
+    sistema: SistemaResistente
+    valor: float
+    referencia: str
+    direccion: DireccionVientoMetodoDireccionalSprfv | None = None
+    pared: ParedEdificioSprfv | None = None
+    posicion: PosicionCubiertaAleroSprfv | None = None
+    caso: TipoPresionCubiertaBarloventoSprfv | None = None
+    componente: str | None = None
+    zona_componente: (
+        ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio | None
+    ) = None
+    rango: tuple[float, float] | None = None
+    distancia_a: float | None = None
+
+    def fila(
+        self,
+        *,
+        q: PresionVelocidad,
+        factor_rafaga: float,
+        gcpi: float,
+        pos: float,
+        neg: float,
+        con_presion_interna: bool = True,
+    ) -> FilaEdificio:
+        """Combina el coeficiente con los números de presión.
+
+        Args:
+            q: La presión de velocidad con la que se calculó la fila.
+            factor_rafaga: El factor de ráfaga aplicado.
+            gcpi: El coeficiente de presión interna aplicado.
+            pos: La presión con presión interna positiva.
+            neg: La presión con presión interna negativa.
+            con_presion_interna: Si la fila distingue ambos signos de presión
+                interna. El alero es una superficie abierta y no lo hace.
+
+        Returns:
+            La fila de resultado.
+        """
+        return FilaEdificio(
+            zona=self.zona,
+            sistema=self.sistema,
+            q=q,
+            cp=self.valor,
+            factor_rafaga=factor_rafaga,
+            gcpi=gcpi,
+            pos=pos,
+            neg=neg,
+            referencia=self.referencia,
+            con_presion_interna=con_presion_interna,
+            direccion=self.direccion,
+            pared=self.pared,
+            posicion=self.posicion,
+            caso=self.caso,
+            componente=self.componente,
+            zona_componente=self.zona_componente,
+            rango=self.rango,
+            distancia_a=self.distancia_a,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EntradaCpn:
+    """Un coeficiente de presión neta de cubierta aislada, con sus claves."""
+
+    tipo: TipoPresionCubiertaAislada
+    extremo: ExtremoPresion
+    valor: float
+    referencia: str
+    zona: ZonaPresionCubiertaAislada | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,511 +369,3 @@ class Tabla[F]:
         if len(self._filas) != 1:
             raise ValueError(f"Se esperaba una sola fila, hay {len(self._filas)}.")
         return self._filas[0]
-
-
-def _q_media(presiones: Any, altura_media: float) -> PresionVelocidad:
-    """La presión de velocidad a la altura media de cubierta.
-
-    Args:
-        presiones: Una instancia de presiones de edificio.
-        altura_media: La altura media de cubierta.
-
-    Returns:
-        La presión de velocidad con sus factores.
-    """
-    return PresionVelocidad(
-        altura_media,
-        float(presiones.coeficiente_exposicion_media),
-        float(presiones.factor_topografico_media),
-        float(presiones.presion_velocidad_media),
-    )
-
-
-def _q_por_altura(
-    alturas: Sequence[float],
-    kz: Sequence[float],
-    kzt: Sequence[float],
-    valores: Sequence[float],
-) -> tuple[PresionVelocidad, ...]:
-    """Arma una presión de velocidad por cada altura.
-
-    Args:
-        alturas: Las alturas.
-        kz: Los coeficientes de exposición.
-        kzt: Los factores topográficos.
-        valores: Las presiones de velocidad.
-
-    Returns:
-        Una presión de velocidad por altura.
-    """
-    return tuple(
-        PresionVelocidad(float(a), float(k), float(t), float(v))
-        for a, k, t, v in zip(alturas, kz, kzt, valores, strict=True)
-    )
-
-
-def _q_barlovento(
-    edificio: Any,
-    presiones: Any,
-    direccion: DireccionVientoMetodoDireccionalSprfv,
-) -> tuple[PresionVelocidad, ...]:
-    """Las presiones de velocidad de la pared a barlovento.
-
-    Con el viento normal a la cumbrera la presión se toma hasta la altura de
-    alero, salvo en cubiertas a un agua, donde se toma hasta la cumbrera.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-        presiones: Las presiones de paredes para el SPRFV.
-        direccion: La dirección del viento.
-
-    Returns:
-        Una presión de velocidad por cada altura considerada.
-    """
-    geometria = edificio.geometria
-    if (
-        direccion is DireccionVientoMetodoDireccionalSprfv.NORMAL
-        and geometria.tipo_cubierta is not TipoCubierta.UN_AGUA
-    ):
-        return _q_por_altura(
-            geometria.alturas_alero,
-            presiones.coeficientes_exposicion_alero,
-            presiones.factor_topografico_alero,
-            presiones.presion_velocidad_alero,
-        )
-    return _q_por_altura(
-        presiones.alturas,
-        presiones.coeficientes_exposicion,
-        presiones.factor_topografico,
-        presiones.presiones_velocidad,
-    )
-
-
-def _filas_paredes_sprfv(edificio: Any) -> list[FilaEdificio]:
-    """Las filas de paredes para el SPRFV.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-
-    Returns:
-        Una fila por altura en la pared a barlovento y una por cada otra pared.
-    """
-    presiones = edificio.presiones.paredes.sprfv
-    cp_paredes = edificio.cp.paredes.sprfv
-    valores_cp = cp_paredes()
-    valores = presiones()
-    q_media = _q_media(presiones, edificio.geometria.cubierta.altura_media)
-    filas: list[FilaEdificio] = []
-    for direccion, cps in valores_cp.items():
-        factor_rafaga = float(presiones.factores_rafaga[direccion])
-        for pared, cp in cps.items():
-            presion = valores[direccion][pared]
-            comunes = {
-                "zona": ZonaEdificio.PAREDES,
-                "sistema": SistemaResistente.SPRFV,
-                "cp": float(cp),
-                "factor_rafaga": factor_rafaga,
-                "gcpi": float(presiones.gcpi),
-                "referencia": cp_paredes.referencia,
-                "direccion": direccion,
-                "pared": pared,
-            }
-            if pared is ParedEdificioSprfv.BARLOVENTO:
-                for i, q in enumerate(_q_barlovento(edificio, presiones, direccion)):
-                    filas.append(
-                        FilaEdificio(
-                            q=q,
-                            pos=float(presion.pos[i]),
-                            neg=float(presion.neg[i]),
-                            **comunes,
-                        )
-                    )
-            else:
-                filas.append(
-                    FilaEdificio(
-                        q=q_media,
-                        pos=float(presion.pos),
-                        neg=float(presion.neg),
-                        **comunes,
-                    )
-                )
-    return filas
-
-
-def _filas_cubierta_sprfv(
-    edificio: Any, zona: ZonaEdificio = ZonaEdificio.CUBIERTA
-) -> list[FilaEdificio]:
-    """Las filas de cubierta o de alero para el SPRFV.
-
-    La cubierta se divide en zonas cuando el viento actúa paralelo a la
-    cumbrera, o normal con un ángulo menor que 10°; en el resto de los casos se
-    resuelve por posición respecto al viento, y a barlovento con dos casos de
-    presión. Acá esas tres formas se emiten como filas con distintas claves.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-        zona: Si se procesa la cubierta o el alero.
-
-    Returns:
-        Las filas correspondientes.
-    """
-    es_alero = zona is ZonaEdificio.ALERO
-    grupo = edificio.presiones.alero if es_alero else edificio.presiones.cubierta
-    grupo_cp = edificio.cp.alero if es_alero else edificio.cp.cubierta
-    presiones = grupo.sprfv
-    cp_cubierta = grupo_cp.sprfv
-    valores_cp = cp_cubierta()
-    valores = presiones()
-    q_media = _q_media(presiones, edificio.geometria.cubierta.altura_media)
-    comunes = {
-        "zona": zona,
-        "sistema": SistemaResistente.SPRFV,
-        "q": q_media,
-        "gcpi": float(presiones.gcpi),
-        "referencia": cp_cubierta.referencia,
-        "con_presion_interna": not es_alero,
-    }
-    filas: list[FilaEdificio] = []
-    for direccion, cps in valores_cp.items():
-        factor_rafaga = float(presiones.factores_rafaga[direccion])
-        presion_direccion = valores[direccion]
-        if isinstance(cps, np.ndarray):
-            # La superficie está dividida en zonas: una fila por zona.
-            zonas = cp_cubierta.zonas[direccion]
-            presiones_zonas = _desdoblar(presion_direccion)
-            for rango, cp, (pos, neg) in zip(zonas, cps, presiones_zonas, strict=True):
-                filas.append(
-                    FilaEdificio(
-                        cp=float(cp),
-                        factor_rafaga=factor_rafaga,
-                        pos=pos,
-                        neg=neg,
-                        direccion=direccion,
-                        rango=(float(rango[0]), float(rango[1])),
-                        **comunes,
-                    )
-                )
-            continue
-        for posicion, cp in cps.items():
-            if isinstance(cp, dict):
-                # Cubierta a barlovento con ángulo >= 10°: dos casos de presión.
-                for caso, valor_cp in cp.items():
-                    pos, neg = _par_presiones(presion_direccion[posicion][caso])
-                    filas.append(
-                        FilaEdificio(
-                            cp=float(valor_cp),
-                            factor_rafaga=factor_rafaga,
-                            pos=pos,
-                            neg=neg,
-                            direccion=direccion,
-                            posicion=posicion,
-                            caso=caso,
-                            **comunes,
-                        )
-                    )
-                continue
-            pos, neg = _par_presiones(presion_direccion[posicion])
-            filas.append(
-                FilaEdificio(
-                    cp=float(cp),
-                    factor_rafaga=factor_rafaga,
-                    pos=pos,
-                    neg=neg,
-                    direccion=direccion,
-                    posicion=posicion,
-                    **comunes,
-                )
-            )
-    return filas
-
-
-def _par_presiones(presion: Any) -> tuple[float, float]:
-    """Separa una presión en sus valores para presión interna positiva y negativa.
-
-    El alero es una superficie abierta y su presión es un único valor; el resto
-    de las superficies llegan como un par.
-
-    Args:
-        presion: Un par de presiones o un valor único.
-
-    Returns:
-        Las presiones positiva y negativa.
-    """
-    if isinstance(presion, PresionesEdificio):
-        return float(presion.pos), float(presion.neg)
-    return float(presion), float(presion)
-
-
-def _desdoblar(presion: Any) -> tuple[tuple[float, float], ...]:
-    """Convierte las presiones de una superficie zonificada en un par por zona.
-
-    Args:
-        presion: Un par de arrays, o un array cuando no hay presión interna.
-
-    Returns:
-        Un par de presiones por cada zona.
-    """
-    if isinstance(presion, PresionesEdificio):
-        # ``PresionesEdificio`` está declarada con escalares, pero cuando la
-        # superficie se divide en zonas sus campos son arrays.
-        pos: Any = presion.pos
-        neg: Any = presion.neg
-        return tuple(
-            (float(valor_pos), float(valor_neg))
-            for valor_pos, valor_neg in zip(pos, neg, strict=True)
-        )
-    return tuple((float(valor), float(valor)) for valor in presion)
-
-
-def _filas_paredes_componentes(edificio: Any) -> list[FilaEdificio]:
-    """Las filas de componentes y revestimientos de paredes.
-
-    Con la Figura 8 del Reglamento los valores dependen además de la pared, y
-    los de la pared a barlovento varían con la altura.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-
-    Returns:
-        Las filas de componentes de paredes, o ninguna si no se cargaron.
-    """
-    presiones = edificio.presiones.paredes.componentes
-    cp_paredes = edificio.cp.paredes.componentes
-    valores_cp = cp_paredes()
-    if valores_cp is None:
-        return []
-    valores = presiones()
-    comunes = {
-        "zona": ZonaEdificio.PAREDES,
-        "sistema": SistemaResistente.COMPONENTES,
-        "factor_rafaga": 1.0,
-        "gcpi": float(presiones.gcpi),
-        "referencia": cp_paredes.referencia,
-        "distancia_a": float(cp_paredes.distancia_a),
-    }
-    q_media = _q_media(presiones, edificio.geometria.cubierta.altura_media)
-    filas: list[FilaEdificio] = []
-    if cp_paredes.referencia != "Figura 8":
-        for nombre, zonas in valores.items():
-            for zona_componente, presion in zonas.items():
-                filas.append(
-                    FilaEdificio(
-                        q=q_media,
-                        cp=float(valores_cp[nombre][zona_componente]),
-                        pos=float(presion.pos),
-                        neg=float(presion.neg),
-                        componente=nombre,
-                        zona_componente=zona_componente,
-                        **comunes,
-                    )
-                )
-        return filas
-    q_alturas = _q_por_altura(
-        presiones.alturas,
-        presiones.coeficientes_exposicion,
-        presiones.factor_topografico,
-        presiones.presiones_velocidad,
-    )
-    for pared, componentes in valores.items():
-        for nombre, zonas in componentes.items():
-            for zona_componente, presion in zonas.items():
-                cp = float(valores_cp[nombre][zona_componente])
-                if pared is ParedEdificioSprfv.BARLOVENTO:
-                    for i, q in enumerate(q_alturas):
-                        filas.append(
-                            FilaEdificio(
-                                q=q,
-                                cp=cp,
-                                pos=float(presion.pos[i]),
-                                neg=float(presion.neg[i]),
-                                pared=pared,
-                                componente=nombre,
-                                zona_componente=zona_componente,
-                                **comunes,
-                            )
-                        )
-                else:
-                    filas.append(
-                        FilaEdificio(
-                            q=q_media,
-                            cp=cp,
-                            pos=float(presion.pos),
-                            neg=float(presion.neg),
-                            pared=pared,
-                            componente=nombre,
-                            zona_componente=zona_componente,
-                            **comunes,
-                        )
-                    )
-    return filas
-
-
-def _filas_cubierta_componentes(
-    edificio: Any, zona: ZonaEdificio = ZonaEdificio.CUBIERTA
-) -> list[FilaEdificio]:
-    """Las filas de componentes y revestimientos de cubierta o de alero.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-        zona: Si se procesa la cubierta o el alero.
-
-    Returns:
-        Las filas correspondientes, o ninguna si no se cargaron componentes.
-    """
-    es_alero = zona is ZonaEdificio.ALERO
-    grupo = edificio.presiones.alero if es_alero else edificio.presiones.cubierta
-    grupo_cp = edificio.cp.alero if es_alero else edificio.cp.cubierta
-    presiones = grupo.componentes
-    cp_cubierta = grupo_cp.componentes
-    valores_cp = cp_cubierta()
-    if valores_cp is None:
-        return []
-    valores = presiones()
-    q_media = _q_media(presiones, edificio.geometria.cubierta.altura_media)
-    comunes = {
-        "zona": zona,
-        "sistema": SistemaResistente.COMPONENTES,
-        "q": q_media,
-        "factor_rafaga": 1.0,
-        "gcpi": float(presiones.gcpi),
-        "referencia": cp_cubierta.referencia,
-        "distancia_a": float(cp_cubierta.distancia_a),
-        "con_presion_interna": not es_alero,
-    }
-    filas: list[FilaEdificio] = []
-    for nombre, zonas in valores.items():
-        for zona_componente, presion in zonas.items():
-            pos, neg = _par_presiones(presion)
-            filas.append(
-                FilaEdificio(
-                    cp=float(valores_cp[nombre][zona_componente]),
-                    pos=pos,
-                    neg=neg,
-                    componente=nombre,
-                    zona_componente=zona_componente,
-                    **comunes,
-                )
-            )
-    return filas
-
-
-def tabla_edificio_sprfv(edificio: Any) -> Tabla[FilaEdificio]:
-    """Arma la tabla de resultados del SPRFV de un edificio.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-
-    Returns:
-        Las filas de paredes, cubierta y alero.
-    """
-    filas = _filas_paredes_sprfv(edificio) + _filas_cubierta_sprfv(edificio)
-    if hasattr(edificio.presiones, "alero"):
-        filas += _filas_cubierta_sprfv(edificio, ZonaEdificio.ALERO)
-    return Tabla(filas)
-
-
-def tabla_edificio_componentes(edificio: Any) -> Tabla[FilaEdificio]:
-    """Arma la tabla de resultados de componentes y revestimientos de un edificio.
-
-    Args:
-        edificio: La fachada de cálculo del edificio.
-
-    Returns:
-        Las filas de paredes, cubierta y alero.
-
-    Raises:
-        ErrorLineamientos: Cuando la geometría excede el alcance del Reglamento
-            para componentes y revestimientos.
-    """
-    filas = _filas_paredes_componentes(edificio) + _filas_cubierta_componentes(edificio)
-    if hasattr(edificio.presiones, "alero"):
-        filas += _filas_cubierta_componentes(edificio, ZonaEdificio.ALERO)
-    return Tabla(filas)
-
-
-def tabla_cartel(cartel: Any) -> Tabla[FilaCartel]:
-    """Arma la tabla de resultados de un cartel.
-
-    Args:
-        cartel: La fachada de cálculo del cartel.
-
-    Returns:
-        Una fila por cada altura. El área parcial y la fuerza corresponden al
-        tramo que va desde la altura anterior, así que la primera fila no las
-        tiene.
-    """
-    presiones = cartel.presiones
-    q_alturas = _q_por_altura(
-        cartel.geometria.alturas,
-        presiones.coeficientes_exposicion,
-        presiones.factor_topografico,
-        presiones.presiones_velocidad,
-    )
-    valores = presiones()
-    areas = cartel.geometria.areas_parciales
-    fuerzas = presiones.fuerzas_parciales
-    cf = float(cartel.cf())
-    factor_rafaga = float(presiones.factor_rafaga)
-    filas = []
-    for i, q in enumerate(q_alturas):
-        filas.append(
-            FilaCartel(
-                q=q,
-                cf=cf,
-                factor_rafaga=factor_rafaga,
-                presion=float(valores[i]),
-                referencia="Tabla 11",
-                area_parcial=None if i == 0 else float(areas[i - 1]),
-                fuerza=None if i == 0 else float(fuerzas[i - 1]),
-            )
-        )
-    return Tabla(filas)
-
-
-def tabla_cubierta_aislada(cubierta: Any) -> Tabla[FilaCubiertaAislada]:
-    """Arma la tabla de resultados de una cubierta aislada.
-
-    Args:
-        cubierta: La fachada de cálculo de la cubierta aislada.
-
-    Returns:
-        Una fila por cada combinación de tipo de presión, zona y extremo.
-    """
-    presiones = cubierta.presiones
-    q = PresionVelocidad(
-        float(cubierta.geometria.altura_media),
-        float(presiones.coeficientes_exposicion),
-        float(presiones.factor_topografico),
-        float(presiones.presiones_velocidad),
-    )
-    factor_rafaga = float(presiones.rafaga.factor)
-    friccion = cubierta.coeficiente_friccion
-    valores_cpn = cubierta.cpn()
-    valores = presiones()
-    filas = []
-    for tipo, contenido in valores_cpn.items():
-        if tipo is TipoPresionCubiertaAislada.GLOBAL:
-            grupos: Any = ((None, contenido),)
-        else:
-            grupos = tuple(contenido.items())
-        for zona, extremos in grupos:
-            for extremo, cpn in extremos.items():
-                presion = (
-                    valores[tipo][extremo]
-                    if zona is None
-                    else valores[tipo][zona][extremo]
-                )
-                filas.append(
-                    FilaCubiertaAislada(
-                        tipo=tipo,
-                        extremo=extremo,
-                        q=q,
-                        cpn=float(cpn),
-                        factor_rafaga=factor_rafaga,
-                        presion=float(presion),
-                        presion_friccion=float(presion) * friccion,
-                        referencia=cubierta.cpn.referencia,
-                        zona=zona,
-                    )
-                )
-    return Tabla(filas)
