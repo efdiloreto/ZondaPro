@@ -1,0 +1,7 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    // El pyproject.toml vive en python/, no en la raiz del repositorio, asi que
+    // hay que decirselo a la extension para que use las mismas reglas que la
+    // linea de comandos y CI.
+    "ruff.configuration": "python/pyproject.toml"
+}
