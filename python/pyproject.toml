@@ -75,6 +75,11 @@ select = [
 ]
 ignore = [
     "E501",    # el formateador ya controla el largo de linea
+    # Las clases del Reglamento reciben la geometria, el viento, la rafaga y la
+    # topografia de una sola vez: son muchos parametros por naturaleza, no por
+    # descuido.
+    "PLR0913", # demasiados argumentos
+    "PLR0917", # demasiados argumentos posicionales
     "B008",    # llamadas en argumentos por defecto (patron comun en Qt)
     # Agregar strict= a cada zip() cambia el comportamiento ante secuencias de
     # distinto largo: hoy truncan en silencio. Revisarlos requiere criterio de
