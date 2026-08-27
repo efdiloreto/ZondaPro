@@ -100,7 +100,6 @@ class Cartel:
         self.factor_g_simplificado = factor_g_simplificado
         self.considerar_topografia = considerar_topografia
         self.categoria_exp = categoria_exp
-        self.categoria = categoria
         self.es_parapeto = es_parapeto
         self.alturas_personalizadas = alturas_personalizadas
         self.frecuencia = frecuencia
