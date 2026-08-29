@@ -55,12 +55,12 @@ def test_cartel_valores_de_referencia(cartel: Cartel):
     Si numpy o el propio cálculo cambian de resultado, este test lo detecta.
     """
     esperado = [
-        526.61431225,
-        552.85043681,
-        576.04993811,
-        596.93171488,
-        615.97817698,
-        633.53020199,
+        631.41318036,
+        662.87042424,
+        690.68688402,
+        715.72370777,
+        738.56089877,
+        759.60586408,
     ]
     assert np.asarray(cartel.presiones.valores) == pytest.approx(esperado, rel=1e-6)
 

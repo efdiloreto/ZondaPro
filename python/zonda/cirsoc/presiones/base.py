@@ -157,16 +157,5 @@ class PresionesBase:
             El coeficiente de exposición para la presión dinámica.
         """
         constantes = self.rafaga.constantes_exp_terreno
-        return 2.01 * (max(altura, self._altura_limite) / constantes.zg) ** (
-            2 / constantes.alfa
-        )
-
-    @cached_property
-    def _altura_limite(self) -> int:
-        return self._calcular_altura_limite(2)
-
-    def _calcular_altura_limite(self, caso: int) -> int:
-        """Calcula la altura limite inferior para el "Caso 1" en Kz" """
-        if caso == 1 and self.categoria_exp == CategoriaExposicion.B:
-            return 10
-        return 5
+        z = min(max(altura, 5.0), constantes.zg)
+        return float(2.41 * (z / constantes.zg) ** (2 / constantes.alfa))
