@@ -237,6 +237,52 @@ def test_rafaga_estructura_flexible_dinamica():
     assert rafaga.factor == pytest.approx(1.11, abs=0.01)
 
 
+def test_rafaga_ejemplo_guia_edificio_rigido():
+    """Ejemplo reglamentario: Edificio Rígido Exp. B (B=30m, L=30m, h=183m, V=51m/s)."""
+    rafaga = Rafaga(
+        ancho=30.0,
+        longitud=30.0,
+        altura=183.0,
+        altura_rafaga=109.8,  # z_bar = 0.6 * h = 109.8 m
+        velocidad=51.0,
+        frecuencia=1.0,
+        beta=0.01,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    assert rafaga.parametros.z == pytest.approx(109.8, abs=0.01)
+    assert rafaga.parametros.iz == pytest.approx(0.201, abs=0.005)
+    assert rafaga.parametros.lz == pytest.approx(217.8, abs=0.1)
+    assert rafaga.factor_q**2 == pytest.approx(0.616, abs=0.005)
+    assert rafaga.factor_q == pytest.approx(0.785, abs=0.005)
+    assert rafaga.factor == pytest.approx(0.818, abs=0.005)
+
+
+def test_rafaga_ejemplo_guia_edificio_flexible():
+    """Ejemplo reglamentario: Edificio Flexible Exp. B (B=30m, L=30m, h=183m, n1=0.2Hz, beta=0.01, V=51m/s)."""
+    rafaga = Rafaga(
+        ancho=30.0,
+        longitud=30.0,
+        altura=183.0,
+        altura_rafaga=109.8,  # z_bar = 0.6 * h = 109.8 m
+        velocidad=51.0,
+        frecuencia=0.2,
+        beta=0.01,
+        flexibilidad=enums.Flexibilidad.FLEXIBLE,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    assert rafaga.parametros.z == pytest.approx(109.8, abs=0.01)
+    assert rafaga.parametros.iz == pytest.approx(0.201, abs=0.005)
+    assert rafaga.parametros.lz == pytest.approx(217.8, abs=0.1)
+    assert rafaga.factor_q**2 == pytest.approx(0.616, abs=0.005)
+    assert rafaga.parametros.gr == pytest.approx(3.787, abs=0.005)
+    assert rafaga.parametros.r**2 == pytest.approx(1.25, abs=0.02)
+    assert rafaga.parametros.r == pytest.approx(1.12, abs=0.01)
+    assert rafaga.factor == pytest.approx(1.16, abs=0.01)
+
+
 def test_rafaga_factor_rigido_usa_ancho_mas_altura():
     rafaga_1 = Rafaga(
         ancho=15,
