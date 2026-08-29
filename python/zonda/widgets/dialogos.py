@@ -21,7 +21,9 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from zonda import __acercade__, actualizaciones, recursos
 from zonda.actualizaciones import Actualizacion
+from zonda.cirsoc import factores
 from zonda.enums import (
+    CategoriaEstructura,
     CategoriaExposicion,
     DireccionTopografia,
     Flexibilidad,
@@ -49,6 +51,184 @@ class DialogoBase(QtWidgets.QDialog):
         self._botones.rejected.connect(self.reject)
 
 
+CIUDADES_VELOCIDAD: dict[str, dict[CategoriaEstructura, float]] = {
+    "Bahía Blanca": {
+        CategoriaEstructura.I: 62.8,
+        CategoriaEstructura.II: 67.4,
+        CategoriaEstructura.III: 72.2,
+        CategoriaEstructura.IV: 72.2,
+    },
+    "Bariloche": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "Buenos Aires": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Catamarca": {
+        CategoriaEstructura.I: 49.1,
+        CategoriaEstructura.II: 52.7,
+        CategoriaEstructura.III: 56.5,
+        CategoriaEstructura.IV: 56.5,
+    },
+    "Comodoro Rivadavia": {
+        CategoriaEstructura.I: 77.1,
+        CategoriaEstructura.II: 82.7,
+        CategoriaEstructura.III: 88.7,
+        CategoriaEstructura.IV: 88.7,
+    },
+    "Córdoba": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Corrientes": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "Formosa": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "La Plata": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "La Rioja": {
+        CategoriaEstructura.I: 50.3,
+        CategoriaEstructura.II: 53.9,
+        CategoriaEstructura.III: 57.8,
+        CategoriaEstructura.IV: 57.8,
+    },
+    "Mar del Plata": {
+        CategoriaEstructura.I: 58.3,
+        CategoriaEstructura.II: 62.5,
+        CategoriaEstructura.III: 67.0,
+        CategoriaEstructura.IV: 67.0,
+    },
+    "Mendoza": {
+        CategoriaEstructura.I: 44.6,
+        CategoriaEstructura.II: 47.8,
+        CategoriaEstructura.III: 51.2,
+        CategoriaEstructura.IV: 51.2,
+    },
+    "Neuquén": {
+        CategoriaEstructura.I: 54.8,
+        CategoriaEstructura.II: 58.8,
+        CategoriaEstructura.III: 63.0,
+        CategoriaEstructura.IV: 63.0,
+    },
+    "Paraná": {
+        CategoriaEstructura.I: 59.4,
+        CategoriaEstructura.II: 63.7,
+        CategoriaEstructura.III: 68.3,
+        CategoriaEstructura.IV: 68.3,
+    },
+    "Posadas": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Rawson": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Resistencia": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Río Gallegos": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Rosario": {
+        CategoriaEstructura.I: 57.1,
+        CategoriaEstructura.II: 61.2,
+        CategoriaEstructura.III: 65.7,
+        CategoriaEstructura.IV: 65.7,
+    },
+    "Salta": {
+        CategoriaEstructura.I: 40.0,
+        CategoriaEstructura.II: 42.9,
+        CategoriaEstructura.III: 46.0,
+        CategoriaEstructura.IV: 46.0,
+    },
+    "San Juan": {
+        CategoriaEstructura.I: 45.7,
+        CategoriaEstructura.II: 49.0,
+        CategoriaEstructura.III: 52.5,
+        CategoriaEstructura.IV: 52.5,
+    },
+    "San Luis": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "San Miguel de Tucumán": {
+        CategoriaEstructura.I: 45.7,
+        CategoriaEstructura.II: 49.0,
+        CategoriaEstructura.III: 52.5,
+        CategoriaEstructura.IV: 52.5,
+    },
+    "San Salvador de Jujuy": {
+        CategoriaEstructura.I: 38.8,
+        CategoriaEstructura.II: 41.6,
+        CategoriaEstructura.III: 44.7,
+        CategoriaEstructura.IV: 44.7,
+    },
+    "Santa Fe": {
+        CategoriaEstructura.I: 58.3,
+        CategoriaEstructura.II: 62.5,
+        CategoriaEstructura.III: 67.0,
+        CategoriaEstructura.IV: 67.0,
+    },
+    "Santa Rosa": {
+        CategoriaEstructura.I: 57.1,
+        CategoriaEstructura.II: 61.2,
+        CategoriaEstructura.III: 65.7,
+        CategoriaEstructura.IV: 65.7,
+    },
+    "Santiago del Estero": {
+        CategoriaEstructura.I: 49.1,
+        CategoriaEstructura.II: 52.7,
+        CategoriaEstructura.III: 56.5,
+        CategoriaEstructura.IV: 56.5,
+    },
+    "Ushuaia": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Viedma": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+}
+
+
 class DialogoViento(DialogoBase):
     """DialogoViento.
 
@@ -65,6 +245,8 @@ class DialogoViento(DialogoBase):
         ciudad: str,
         factor_g_simplificado: bool,
         editar_velocidad: bool,
+        altitud: float = 0.0,
+        categoria_riesgo_viento: CategoriaEstructura = CategoriaEstructura.II,
     ) -> None:
         """
 
@@ -77,19 +259,39 @@ class DialogoViento(DialogoBase):
             ciudad: La ciudad donde se está calculando el viento.
             factor_g_simplificado: Indica si se debe usar 0.85 como valor del factor de ráfaga.
             editar_velocidad: Indica si el widget velocidad es editable.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            categoria_riesgo_viento: La categoría de riesgo para la selección del mapa.
         """
         super().__init__()
 
         self._parametros = None
 
+        self._combobox_mapa = QtWidgets.QComboBox()
+        self._combobox_mapa.addItem("Cat. II (Figura 1.5-1A)", CategoriaEstructura.II)
+        self._combobox_mapa.addItem(
+            "Cat. III y IV (Figura 1.5-1B)", CategoriaEstructura.III
+        )
+        self._combobox_mapa.addItem("Cat. I (Figura 1.5-1C)", CategoriaEstructura.I)
+        _idx = self._combobox_mapa.findData(categoria_riesgo_viento)
+        if _idx >= 0:
+            self._combobox_mapa.setCurrentIndex(_idx)
+
         self._combobox_exposicion = QtWidgets.QComboBox()
-        for enum in CategoriaExposicion:
-            self._combobox_exposicion.addItem(enum.value, enum)
+        for exp in CategoriaExposicion:
+            self._combobox_exposicion.addItem(exp.value, exp)
         self._combobox_exposicion.setMinimumWidth(50)
         self._combobox_exposicion.setCurrentText(categoria_exp.value)
 
         datos_spinboxs = (
             ("velocidad", 20, 100, " m/s", 2, "Velocidad básica del viento."),
+            (
+                "altitud",
+                0,
+                5000,
+                " m",
+                0,
+                "Altitud del terreno sobre el nivel del mar.",
+            ),
             ("frecuencia", 0.1, 100, " Hz", 2, "Frecuencia natural de la estructura."),
             (
                 "beta",
@@ -111,56 +313,28 @@ class DialogoViento(DialogoBase):
             self._spinboxs[nombre] = spinbox
 
         self._spinboxs["velocidad"].setValue(velocidad)
+        self._spinboxs["altitud"].setValue(altitud)
         self._spinboxs["frecuencia"].setValue(frecuencia)
         self._spinboxs["beta"].setValue(beta)
 
-        self._editar_velocidad = QtWidgets.QCheckBox("Velocidad")
+        self._editar_velocidad = QtWidgets.QCheckBox("Editar velocidad")
         self._editar_velocidad.setChecked(editar_velocidad)
         self._editar_velocidad.stateChanged.connect(
             self._habilitar_deshabilitar_velocidad
         )
 
-        ciudades_velocidad = (
-            ("Bahía Blanca", 55),
-            ("Bariloche", 46),
-            ("Buenos Aires", 45),
-            ("Catamarca", 43),
-            ("Comodoro Rivadavia", 67.5),
-            ("Córdoba", 45),
-            ("Corrientes", 46),
-            ("Formosa", 45),
-            ("La Plata", 46),
-            ("La Rioja", 44),
-            ("Mar del Plata", 51),
-            ("Mendoza", 39),
-            ("Neuquén", 48),
-            ("Paraná", 52),
-            ("Posada", 45),
-            ("Rawson", 60),
-            ("Resistencia", 45),
-            ("Río Gallegos", 60),
-            ("Rosario", 50),
-            ("Salta", 35),
-            ("Santa Fé", 51),
-            ("San Juan", 40),
-            ("San Luis", 45),
-            ("San Miguel de Tucumán", 40),
-            ("San Salvador de Jujuy", 34),
-            ("Santa Rosa", 50),
-            ("Santiago del Estero", 43),
-            ("Ushuaia", 60),
-            ("Viedma", 60),
-        )
-
         self._combobox_ciudades = QtWidgets.QComboBox()
-        for opcion, valor in ciudades_velocidad:
-            self._combobox_ciudades.addItem(opcion, valor)
-        self._combobox_ciudades.setCurrentText(ciudad)
+        for opcion in CIUDADES_VELOCIDAD:
+            self._combobox_ciudades.addItem(opcion)
+        if ciudad in CIUDADES_VELOCIDAD:
+            self._combobox_ciudades.setCurrentText(ciudad)
+        else:
+            self._combobox_ciudades.setCurrentText("Buenos Aires")
+
         self._combobox_ciudades.currentIndexChanged.connect(
-            lambda: self._spinboxs["velocidad"].setValue(
-                self._combobox_ciudades.currentData()
-            )
+            self._actualizar_velocidad_ciudad
         )
+        self._combobox_mapa.currentIndexChanged.connect(self._actualizar_mapa)
 
         self._factor_g_simplificado = QtWidgets.QCheckBox(
             "Considerar Factor de Ráfaga igual a 0.85"
@@ -172,15 +346,16 @@ class DialogoViento(DialogoBase):
         )
 
         self._combobox_flex = QtWidgets.QComboBox()
-        for enum in Flexibilidad:
-            self._combobox_flex.addItem(enum.value.capitalize(), enum)
+        for flex in Flexibilidad:
+            self._combobox_flex.addItem(flex.value.capitalize(), flex)
         self._combobox_flex.setCurrentIndex(self._combobox_flex.findData(flexibilidad))
 
-        imagen = QtWidgets.QLabel()
-        imagen.setToolTip("Figura 1A - CIRSOC 102 2005")
-        imagen.setFrameStyle(QtWidgets.QFrame.Shape.StyledPanel)
-        pixmap = recursos.pixmap("imagenes/mapa-viento.png")
-        imagen.setPixmap(pixmap)
+        self._imagen = QtWidgets.QLabel()
+        self._imagen.setFrameStyle(QtWidgets.QFrame.Shape.StyledPanel)
+
+        self._label_ke = QtWidgets.QLabel()
+        self._spinboxs["altitud"].valueChanged.connect(self._actualizar_ke)
+        self._actualizar_ke()
 
         textos_rafaga = (
             "Flexibilidad",
@@ -190,17 +365,28 @@ class DialogoViento(DialogoBase):
 
         self._grid_layout_viento = QtWidgets.QGridLayout()
         self._grid_layout_viento.addWidget(
-            QtWidgets.QLabel("Ciudad"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
+            QtWidgets.QLabel("Mapa de Viento"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
         )
-        self._grid_layout_viento.addWidget(self._combobox_ciudades, 0, 1)
+        self._grid_layout_viento.addWidget(self._combobox_mapa, 0, 1)
         self._grid_layout_viento.addWidget(
-            self._editar_velocidad, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
+            QtWidgets.QLabel("Ciudad"), 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
         )
-        self._grid_layout_viento.addWidget(self._spinboxs["velocidad"], 1, 1)
+        self._grid_layout_viento.addWidget(self._combobox_ciudades, 1, 1)
+        self._grid_layout_viento.addWidget(
+            self._editar_velocidad, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        self._grid_layout_viento.addWidget(self._spinboxs["velocidad"], 2, 1)
         self._grid_layout_viento.setColumnStretch(2, 1)
 
-        grid_layout_exposicion = QtWidgets.QGridLayout()
+        grid_layout_altitud = QtWidgets.QGridLayout()
+        grid_layout_altitud.addWidget(
+            QtWidgets.QLabel("Altitud (zg)"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        grid_layout_altitud.addWidget(self._spinboxs["altitud"], 0, 1)
+        grid_layout_altitud.addWidget(self._label_ke, 0, 2)
+        grid_layout_altitud.setColumnStretch(3, 1)
 
+        grid_layout_exposicion = QtWidgets.QGridLayout()
         grid_layout_exposicion.addWidget(
             QtWidgets.QLabel("Categoría de Exposición"),
             0,
@@ -219,29 +405,33 @@ class DialogoViento(DialogoBase):
         self._grid_layout_rafaga.addWidget(self._combobox_flex, 1, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["frecuencia"], 2, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["beta"], 3, 1)
-
         self._grid_layout_rafaga.setColumnStretch(2, 1)
 
         # Tiene que instanciarse el atributo del layout de ragafa
         self._factor_g_simplificado.setChecked(factor_g_simplificado)
 
-        box_viento = QtWidgets.QGroupBox("Velocidad básica del viento")
+        box_viento = QtWidgets.QGroupBox("Velocidad básica del viento (Art. 1.5)")
         box_viento.setLayout(self._grid_layout_viento)
 
-        box_exposicion = QtWidgets.QGroupBox("Exposición")
+        box_altitud = QtWidgets.QGroupBox("Factor de altitud Ke (Art. 1.12)")
+        box_altitud.setLayout(grid_layout_altitud)
+
+        box_exposicion = QtWidgets.QGroupBox("Exposición (Art. 1.7)")
         box_exposicion.setLayout(grid_layout_exposicion)
 
-        box_rafaga = QtWidgets.QGroupBox("Factor de Ráfaga")
+        box_rafaga = QtWidgets.QGroupBox("Factor de Ráfaga (Art. 1.9)")
         box_rafaga.setLayout(self._grid_layout_rafaga)
 
-        layout_viento = QtWidgets.QGridLayout()
-        layout_viento.addWidget(box_viento, 0, 0)
-        layout_viento.addWidget(box_exposicion, 1, 0)
-        layout_viento.addWidget(box_rafaga, 2, 0)
-        layout_viento.addWidget(imagen, 0, 1, 4, 1)
-        layout_viento.setRowStretch(3, 1)
-        layout_viento.setRowStretch(4, 2)
-        layout_viento.setColumnStretch(1, 1)
+        layout_izquierda = QtWidgets.QVBoxLayout()
+        layout_izquierda.addWidget(box_viento)
+        layout_izquierda.addWidget(box_altitud)
+        layout_izquierda.addWidget(box_exposicion)
+        layout_izquierda.addWidget(box_rafaga)
+        layout_izquierda.addStretch()
+
+        layout_viento = QtWidgets.QHBoxLayout()
+        layout_viento.addLayout(layout_izquierda)
+        layout_viento.addWidget(self._imagen)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_viento)
@@ -249,11 +439,45 @@ class DialogoViento(DialogoBase):
 
         self.setLayout(layout_principal)
 
+        self._actualizar_mapa()
         self._habilitar_deshabilitar_velocidad()
 
         self.setWindowTitle("Parámetros de Viento")
-
         self.setFixedSize(self.sizeHint())
+
+    def _actualizar_ke(self) -> None:
+        """Actualiza la etiqueta con el valor de Ke correspondiente a la altitud."""
+        altitud = self._spinboxs["altitud"].value()
+        ke = factores.factor_altitud(altitud)
+        self._label_ke.setText(f"<i>K<sub>e</sub></i> = {ke:.3f}")
+
+    def _actualizar_mapa(self) -> None:
+        """Actualiza la imagen del mapa según la categoría de riesgo seleccionada."""
+        cat = self._combobox_mapa.currentData()
+        if cat == CategoriaEstructura.I:
+            clave = "imagenes/figura-1-5-1c.png"
+            tooltip = "Figura 1.5-1C — CIRSOC 102 (Cat. de Riesgo I)"
+        elif cat in (CategoriaEstructura.III, CategoriaEstructura.IV):
+            clave = "imagenes/figura-1-5-1b.png"
+            tooltip = "Figura 1.5-1B — CIRSOC 102 (Cat. de Riesgo III y IV)"
+        else:
+            clave = "imagenes/figura-1-5-1a.png"
+            tooltip = "Figura 1.5-1A — CIRSOC 102 (Cat. de Riesgo II)"
+        pixmap = recursos.pixmap(clave).scaledToHeight(
+            540, QtCore.Qt.TransformationMode.SmoothTransformation
+        )
+        self._imagen.setPixmap(pixmap)
+        self._imagen.setToolTip(tooltip)
+        self._actualizar_velocidad_ciudad()
+
+    def _actualizar_velocidad_ciudad(self) -> None:
+        """Actualiza la velocidad con el valor de la ciudad seleccionada si no está en modo edición."""
+        if not self._editar_velocidad.isChecked():
+            ciudad = self._combobox_ciudades.currentText()
+            cat = self._combobox_mapa.currentData()
+            if ciudad in CIUDADES_VELOCIDAD:
+                velocidad = CIUDADES_VELOCIDAD[ciudad].get(cat, 55.1)
+                self._spinboxs["velocidad"].setValue(velocidad)
 
     def _habilitar_deshabilitar_widgets_rafaga(self, estado: bool) -> None:
         """Habilita o deshabilita los widgets de frecuencia, beta y flexibilidad en base al estado del widget de
@@ -273,12 +497,14 @@ class DialogoViento(DialogoBase):
         """Habilita o deshabilita el widget encargado de setear la velocidad del viendo y su label."""
         estado = self._editar_velocidad.isChecked()
         self._spinboxs["velocidad"].setEnabled(estado)
-        for fila in range(0, 1):
+        for fila in range(1, 2):
             for columna in range(2):
                 widget = utils_qt.widget_de_celda(
                     self._grid_layout_viento, fila, columna
                 )
                 widget.setEnabled(not estado)
+        if not estado:
+            self._actualizar_velocidad_ciudad()
 
     def _validar(self) -> None:
         """Valida los datos ingresados."""
@@ -298,7 +524,18 @@ class DialogoViento(DialogoBase):
 
     def parametros(
         self,
-    ) -> dict[str, float | Flexibilidad | CategoriaExposicion | str] | None:
+    ) -> (
+        dict[
+            str,
+            float
+            | Flexibilidad
+            | CategoriaExposicion
+            | CategoriaEstructura
+            | str
+            | bool,
+        ]
+        | None
+    ):
         """Determina los parámetros de viento.
 
         Returns:
@@ -318,6 +555,7 @@ class DialogoViento(DialogoBase):
                 "flexibilidad": self._combobox_flex.currentData(),
                 "ciudad": self._combobox_ciudades.currentText(),
                 "editar_velocidad": self._editar_velocidad.isChecked(),
+                "categoria_riesgo_viento": self._combobox_mapa.currentData(),
                 **resultados_spinboxs,
             }
             super().accept()

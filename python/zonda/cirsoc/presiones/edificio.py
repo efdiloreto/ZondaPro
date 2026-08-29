@@ -101,6 +101,7 @@ class PresionesEdificioBase(PresionesBase):
         reducir_gcpi: bool = False,
         aberturas_totales: float | None = None,
         volumen_interno: float | None = None,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -117,6 +118,7 @@ class PresionesEdificioBase(PresionesBase):
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
             aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
             alturas,
@@ -126,6 +128,7 @@ class PresionesEdificioBase(PresionesBase):
             factor_topografico,
             0.85,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )
         self.altura_media = altura_media
         self.cerramiento = cerramiento
@@ -248,6 +251,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         factor_topografico: Sequence[float],
         cp,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -260,6 +264,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cp: La clase de coeficientes de presión del alero.
             categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
             alturas,
@@ -271,6 +276,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             Cerramiento.ABIERTO,
             cp,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )
 
 
@@ -296,6 +302,7 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
         reducir_gcpi: bool = False,
         aberturas_totales: float | None = None,
         volumen_interno: float | None = None,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -314,6 +321,7 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
             aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
             alturas,
@@ -328,6 +336,7 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
             reducir_gcpi,
             aberturas_totales,
             volumen_interno,
+            factor_altitud,
         )
         self.altura_alero = altura_alero
         self.tipo_cubierta = tipo_cubierta
@@ -476,6 +485,7 @@ class Cubierta:
         aberturas_totales: float | None = None,
         volumen_interno: float | None = None,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -493,6 +503,7 @@ class Cubierta:
             aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
@@ -505,7 +516,13 @@ class Cubierta:
             factor_topografico,
             cerramiento,
         )
-        finales = (categoria_exp, reducir_gcpi, aberturas_totales, volumen_interno)
+        finales = (
+            categoria_exp,
+            reducir_gcpi,
+            aberturas_totales,
+            volumen_interno,
+            factor_altitud,
+        )
         self.sprfv = CubiertaSprfvMetodoDireccional(*comunes, cp.sprfv, *finales)
         self.componentes = CubiertaComponentes(*comunes, cp.componentes, *finales)
 
@@ -532,6 +549,7 @@ class Alero:
         cp: clases_cp_edificio.Alero,
         categoria_exp: CategoriaExposicion,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -545,6 +563,7 @@ class Alero:
             cp: Un instancia de Alero.
             categoria_exp: La categoría de exposición al viento de la estructura.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
@@ -556,8 +575,12 @@ class Alero:
             rafaga,
             factor_topografico,
         )
-        self.sprfv = AleroSprfvMetodoDireccional(*comunes, cp.sprfv, categoria_exp)
-        self.componentes = AleroComponentes(*comunes, cp.componentes, categoria_exp)
+        self.sprfv = AleroSprfvMetodoDireccional(
+            *comunes, cp.sprfv, categoria_exp, factor_altitud
+        )
+        self.componentes = AleroComponentes(
+            *comunes, cp.componentes, categoria_exp, factor_altitud
+        )
 
     @cached_property
     def filas(self) -> tuple[FilaEdificio, ...]:
@@ -588,6 +611,7 @@ class Paredes:
         aberturas_totales: float | None = None,
         volumen_interno: float | None = None,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -607,6 +631,7 @@ class Paredes:
             aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
@@ -621,7 +646,13 @@ class Paredes:
             factor_topografico,
             cerramiento,
         )
-        finales = (categoria_exp, reducir_gcpi, aberturas_totales, volumen_interno)
+        finales = (
+            categoria_exp,
+            reducir_gcpi,
+            aberturas_totales,
+            volumen_interno,
+            factor_altitud,
+        )
         self.sprfv = ParedesSprfvMetodoDireccional(*comunes, cp.sprfv, *finales)
         self.componentes = ParedesComponentes(*comunes, cp.componentes, *finales)
 
@@ -655,6 +686,7 @@ class Edificio:
         aberturas_totales: float | None = None,
         volumen_interno: float | None = None,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
+        factor_altitud: float = 1.0,
     ):
         """
 
@@ -675,6 +707,7 @@ class Edificio:
             aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         self.cubierta = Cubierta(
             alturas,
@@ -690,6 +723,7 @@ class Edificio:
             aberturas_totales,
             volumen_interno,
             metodo_sprfv,
+            factor_altitud,
         )
         self.paredes = Paredes(
             alturas,
@@ -707,6 +741,7 @@ class Edificio:
             aberturas_totales,
             volumen_interno,
             metodo_sprfv,
+            factor_altitud,
         )
         if alero:
             self.alero = Alero(
@@ -719,6 +754,7 @@ class Edificio:
                 cp.alero,
                 categoria_exp,
                 metodo_sprfv,
+                factor_altitud,
             )
 
     @cached_property
@@ -764,6 +800,7 @@ class Edificio:
         categoria_exp: CategoriaExposicion,
         reducir_gcpi: bool = False,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
+        factor_altitud: float = 1.0,
     ) -> Edificio:
         """Crea una instancia desde la geometria de un edificio.
 
@@ -778,6 +815,7 @@ class Edificio:
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         return cls(
             edificio.alturas,
@@ -796,4 +834,5 @@ class Edificio:
             edificio.abertura_total,
             edificio.volumen_interno,
             metodo_sprfv,
+            factor_altitud,
         )

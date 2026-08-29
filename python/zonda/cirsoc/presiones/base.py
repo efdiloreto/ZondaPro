@@ -32,13 +32,6 @@ if TYPE_CHECKING:
 
     from zonda.cirsoc.factores import Rafaga
 
-FACTORES_IMPORTANCIA = {
-    CategoriaEstructura.I: 0.87,
-    CategoriaEstructura.II: 1.0,
-    CategoriaEstructura.III: 1.15,
-    CategoriaEstructura.IV: 1.15,
-}
-
 
 class PresionesBase:
     """PresionesBase.
@@ -59,6 +52,7 @@ class PresionesBase:
         factor_topografico: float | Sequence[float] | np.ndarray,
         factor_direccionalidad: float,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -70,6 +64,7 @@ class PresionesBase:
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             factor_direccionalidad: El factor de direccionalidad correspondiente para el tipo de estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         self.alturas = tuple(float(altura) for altura in np.atleast_1d(alturas))
         self.factores_topograficos = tuple(
@@ -81,15 +76,7 @@ class PresionesBase:
         self.rafaga = rafaga
         self.factor_direccionalidad = factor_direccionalidad
         self.categoria_exp = categoria_exp
-
-    @cached_property
-    def factor_importancia(self) -> float:
-        """Obtiene el factor de importancia de acuerdo a la categoría de la estructura.
-
-        Returns:
-            El factor de importancia.
-        """
-        return FACTORES_IMPORTANCIA[self.categoria]
+        self.factor_altitud = factor_altitud
 
     @cached_property
     def presiones_velocidad(self) -> tuple[PresionVelocidad, ...]:
@@ -140,11 +127,15 @@ class PresionesBase:
             * self.factor_direccionalidad
             * coeficiente_exposicion
             * factor_topografico
-            * self.factor_importancia
+            * self.factor_altitud
             * self.velocidad**2
         )
         return PresionVelocidad(
-            altura, coeficiente_exposicion, factor_topografico, valor
+            altura,
+            coeficiente_exposicion,
+            factor_topografico,
+            valor,
+            self.factor_altitud,
         )
 
     def _coeficiente_exposicion(self, altura: float) -> float:

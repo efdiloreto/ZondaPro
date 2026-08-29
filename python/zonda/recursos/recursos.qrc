@@ -31,7 +31,9 @@
         <file alias="zonda.ico">iconos/zonda.ico</file>
     </qresource>
     <qresource prefix="imagenes">
-        <file alias="mapa-viento.png">imagenes/mapa-viento.png</file>
+        <file alias="figura-1-5-1a.png">imagenes/figura-1-5-1a.png</file>
+        <file alias="figura-1-5-1b.png">imagenes/figura-1-5-1b.png</file>
+        <file alias="figura-1-5-1c.png">imagenes/figura-1-5-1c.png</file>
         <file alias="escarpa.jpg">imagenes/escarpa.jpg</file>
         <file alias="loma.jpg">imagenes/loma.jpg</file>
         <file alias="logo.png">imagenes/logo.png</file>

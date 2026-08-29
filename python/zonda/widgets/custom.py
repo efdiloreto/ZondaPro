@@ -22,6 +22,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from zonda import __acercade__, recursos
 from zonda.enums import (
+    CategoriaEstructura,
     CategoriaExposicion,
     DireccionTopografia,
     Flexibilidad,
@@ -106,13 +107,15 @@ class WidgetPanelEntrada(WidgetPanel):
 
         self.parametros_viento = {
             "categoria_exp": CategoriaExposicion.B,
-            "velocidad": 45,
+            "velocidad": 55.1,
             "frecuencia": 1,
             "beta": 0.02,
             "flexibilidad": Flexibilidad.RIGIDA,
             "ciudad": "Buenos Aires",
             "factor_g_simplificado": True,
             "editar_velocidad": False,
+            "altitud": 0.0,
+            "categoria_riesgo_viento": CategoriaEstructura.II,
         }
 
         self.parametros_topografia = {
@@ -180,6 +183,10 @@ class WidgetPanelEntrada(WidgetPanel):
     def cargar_estado(self, estado) -> None:
         """Deja el panel como lo dejó ``estado``."""
         self.parametros_viento = dict(estado["viento"])
+        if "altitud" not in self.parametros_viento:
+            self.parametros_viento["altitud"] = 0.0
+        if "categoria_riesgo_viento" not in self.parametros_viento:
+            self.parametros_viento["categoria_riesgo_viento"] = CategoriaEstructura.II
         self.parametros_topografia = dict(estado["topografia"])
         if self._tiene_componentes:
             componentes = estado.get("componentes")

@@ -49,6 +49,7 @@ class Cartel(PresionesBase):
         factor_topografico: Sequence[float],
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
@@ -61,6 +62,7 @@ class Cartel(PresionesBase):
             factor_topografico: Los factores topográficos correspondientes a cada altura de la estructura.
             cf: Una instancia de cartel.
             categoria_exp: La categoría de exposición.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
             alturas,
@@ -70,6 +72,7 @@ class Cartel(PresionesBase):
             factor_topografico,
             0.85,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )
         self.areas_parciales = areas_parciales
         self.cf = cf
@@ -150,6 +153,7 @@ class Cartel(PresionesBase):
         factor_topografico: Sequence[float],
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> Cartel:
         """Crea una instancia a partir de la geometria de un Cartel.
 
@@ -161,6 +165,7 @@ class Cartel(PresionesBase):
             factor_topografico: Los factores topográficos correspondientes a cada altura de la estructura.
             cf: Una instancia de cartel.
             categoria_exp: La categoría de exposición.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         return cls(
             cartel.alturas,
@@ -171,4 +176,5 @@ class Cartel(PresionesBase):
             factor_topografico,
             cf,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )

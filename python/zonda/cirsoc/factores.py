@@ -399,3 +399,17 @@ class Topografia:
             if considerada == altura:
                 return k3
         raise ValueError(f"No hay factor topográfico calculado para {altura} m.")
+
+
+def factor_altitud(altitud: float = 0.0) -> float:
+    """Calcula el factor de altitud del terreno Ke (CIRSOC 102 Art. 1.12).
+
+    Args:
+        altitud: Altitud del terreno sobre el nivel del mar en metros (zg).
+
+    Returns:
+        El factor de altitud Ke.
+    """
+    if altitud <= 0.0:
+        return 1.0
+    return float(math.exp(-0.000119 * altitud))

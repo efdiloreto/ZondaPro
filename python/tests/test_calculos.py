@@ -22,7 +22,7 @@ import pytest
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
-from zonda.cirsoc.factores import Rafaga, Topografia
+from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
 from zonda.excepciones import ErrorLineamientos
 
 
@@ -42,6 +42,81 @@ def test_edificio_alturas_son_crecientes(edificio: Edificio):
     alturas = np.asarray(edificio.geometria.alturas)
     assert np.all(np.diff(alturas) > 0)
     assert alturas[-1] == pytest.approx(8)
+
+
+def test_factor_altitud():
+    assert factor_altitud(0) == 1.0
+    assert factor_altitud(-10) == 1.0
+    assert factor_altitud(600) == pytest.approx(0.931, abs=0.01)
+    assert factor_altitud(1500) == pytest.approx(0.836, abs=0.01)
+
+
+def test_edificio_factor_altitud(edificio: Edificio):
+    edificio_altitud = Edificio(
+        ancho=edificio.ancho,
+        longitud=edificio.longitud,
+        elevacion=edificio.elevacion,
+        altura_alero=edificio.altura_alero,
+        altura_cumbrera=edificio.altura_cumbrera,
+        tipo_cubierta=edificio.tipo_cubierta,
+        cerramiento=edificio.cerramiento,
+        categoria=edificio.categoria,
+        velocidad=edificio.velocidad,
+        factor_g_simplificado=edificio.factor_g_simplificado,
+        categoria_exp=edificio.categoria_exp,
+        considerar_topografia=edificio.considerar_topografia,
+        altitud=1000,
+    )
+    ke = factor_altitud(1000)
+    assert edificio_altitud.factor_altitud == pytest.approx(ke)
+    assert edificio_altitud.resultados[0].q.ke == pytest.approx(ke)
+    assert edificio_altitud.resultados[0].q.valor == pytest.approx(
+        edificio.resultados[0].q.valor * ke
+    )
+
+
+def test_presion_dinamica_benchmark_calcpad():
+    """Valida los valores calculados de Kz y qz contra el script de Calcpad.
+
+    Parámetros de entrada:
+    - V = 55.1 m/s, Kd = 0.85, Altitud ze = 600 m (Ke = 0.931084...)
+    - Exposición B (alfa = 7.5, zg = 1000 m), Kzt = 1.0
+    """
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=20,
+        altura_cumbrera=20,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=55.1,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        altitud=600,
+        alturas_personalizadas=[0, 5, 8, 10, 15, 20],
+    )
+    # Valores esperados según Calcpad
+    # Altura z: (Kz, qz)
+    referencias = {
+        0.0: (0.587, 864.14),
+        5.0: (0.587, 864.14),
+        8.0: (0.665, 979.52),
+        10.0: (0.706, 1039.58),
+        15.0: (0.787, 1158.28),
+        20.0: (0.849, 1250.64),
+    }
+    ke_esperado = 0.931084
+    assert edificio.factor_altitud == pytest.approx(ke_esperado, abs=1e-4)
+
+    presiones = edificio.presiones.paredes.sprfv.presiones_velocidad
+    for p in presiones:
+        if p.altura in referencias:
+            kz_esp, qz_esp = referencias[p.altura]
+            assert p.kz == pytest.approx(kz_esp, abs=0.001)
+            assert p.valor == pytest.approx(qz_esp, abs=0.1)
 
 
 def test_cartel_calcula(cartel: Cartel):

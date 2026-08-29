@@ -50,6 +50,7 @@ class CubiertaAislada(PresionesBase):
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
         coeficiente_friccion: float = 0.0,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
         Args:
@@ -61,6 +62,7 @@ class CubiertaAislada(PresionesBase):
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
             coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
             altura_media,
@@ -70,6 +72,7 @@ class CubiertaAislada(PresionesBase):
             factor_topografico,
             0.85,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )
         self.cpn = cpn
         self.altura_media = altura_media
@@ -115,6 +118,7 @@ class CubiertaAislada(PresionesBase):
         cpn: cp.CubiertaAislada,
         categoria_exp: CategoriaExposicion,
         coeficiente_friccion: float = 0.0,
+        factor_altitud: float = 1.0,
     ) -> CubiertaAislada:
         """Crea una instancia a partir de la geometria de una cubierta.
 
@@ -127,6 +131,7 @@ class CubiertaAislada(PresionesBase):
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
             coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         return cls(
             cubierta.altura_media,
@@ -137,4 +142,5 @@ class CubiertaAislada(PresionesBase):
             cpn,
             categoria_exp,
             coeficiente_friccion,
+            factor_altitud=factor_altitud,
         )

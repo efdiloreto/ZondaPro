@@ -23,6 +23,14 @@ Velocidad básica: {{ '%.2f'|format(estructura.velocidad) }} m/s
 
 Categoría de exposición: {{ estructura.categoria_exp.value }}
 
+{% if estructura.altitud -%}
+Altitud sobre el nivel del mar: {{ '%.2f'|format(estructura.altitud) }} m
+
+Factor de altitud, K~e~: {{ '%.3f'|format(estructura.factor_altitud) }}
+{% else -%}
+Factor de altitud, K~e~: {{ '%.2f'|format(estructura.factor_altitud) }}
+{% endif %}
+
 ### FACTOR DE RÁFAGA
 {% block datos_rafaga -%}
 {%- endblock %}

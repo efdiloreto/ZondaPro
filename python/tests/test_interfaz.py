@@ -512,3 +512,35 @@ def test_widget_cerramiento_edificio(qapp):
     )
     assert widget.windowTitle() == "Verificación de cerramiento"
     widget.close()
+
+
+def test_dialogo_viento(qapp):
+    from zonda.enums import CategoriaEstructura, CategoriaExposicion, Flexibilidad
+    from zonda.widgets.dialogos import DialogoViento
+
+    dialogo = DialogoViento(
+        categoria_exp=CategoriaExposicion.B,
+        velocidad=55.1,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=Flexibilidad.RIGIDA,
+        ciudad="Buenos Aires",
+        factor_g_simplificado=True,
+        editar_velocidad=False,
+        altitud=500.0,
+        categoria_riesgo_viento=CategoriaEstructura.II,
+    )
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(55.1)
+    assert dialogo._spinboxs["altitud"].value() == 500.0
+
+    # Cambiar ciudad actualiza velocidad
+    dialogo._combobox_ciudades.setCurrentText("Rosario")
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(61.2)
+
+    # Cambiar mapa a Cat I actualiza velocidad para Rosario
+    dialogo._combobox_mapa.setCurrentIndex(
+        dialogo._combobox_mapa.findData(CategoriaEstructura.I)
+    )
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(57.1)
+
+    dialogo.close()

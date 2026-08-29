@@ -460,7 +460,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         edificio = Edificio(
             **self._widget_estructura.parametros(),
@@ -495,7 +495,13 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad", "factor_g_simplificado")
+            if key
+            not in (
+                "ciudad",
+                "editar_velocidad",
+                "factor_g_simplificado",
+                "categoria_riesgo_viento",
+            )
         }
         cubierta_aislada = CubiertaAislada(
             **self._widget_estructura.parametros(),
@@ -517,7 +523,7 @@ class WidgetModuloCartel(WidgetModuloCubiertaAislada):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         cartel = Cartel(
             **self._widget_estructura.parametros(),

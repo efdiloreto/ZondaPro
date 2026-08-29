@@ -12,7 +12,7 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 - **Cálculo reglamentario (CIRSOC 102-2005):**
   - Determinación de presiones dinámicas $q_z$ y $q_h$.
-  - Factores de ráfaga ($G$), direccionalidad ($K_d$), importancia ($I$) y efecto topográfico ($K_{zt}$).
+  - Factores de ráfaga ($G$), direccionalidad ($K_d$), altitud ($K_e$) y efecto topográfico ($K_{zt}$).
   - Coeficientes de presión externa ($C_p$) e interna ($GC_{pi}$).
   - Cargas en el Sistema Principal Resistente a la Fuerza del Viento (SPRFV) y en Componentes y Revestimientos (C&R).
 - **Tipologías estructurales:**

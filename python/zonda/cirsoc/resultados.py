@@ -72,6 +72,7 @@ class PresionVelocidad:
     kz: float
     kzt: float
     valor: float
+    ke: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)

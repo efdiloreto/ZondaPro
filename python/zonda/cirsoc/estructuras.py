@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from zonda.cirsoc import cp, geometria, presiones, resultados
+from zonda.cirsoc import cp, factores, geometria, presiones, resultados
 from zonda.cirsoc.factores import Rafaga, Topografia
 from zonda.enums import (
     DireccionTopografia,
@@ -74,6 +74,8 @@ class Cartel:
         distancia_cresta: float = 50,
         distancia_barlovento_sotavento: float = 50,
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
     ) -> None:
         """
 
@@ -97,6 +99,8 @@ class Cartel:
             distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
             distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            factor_altitud: Factor de altitud Ke explícito. Si es None, se calcula a partir de altitud.
         """
         self.profundidad = profundidad
         self.ancho = ancho
@@ -117,6 +121,12 @@ class Cartel:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
 
         self.geometria = geometria.Cartel(
             profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas
@@ -152,6 +162,7 @@ class Cartel:
             self.topografia.factor,
             self.cf,
             categoria_exp,
+            factor_altitud=self.factor_altitud,
         )
 
     @cached_property
@@ -193,6 +204,8 @@ class CubiertaAislada:
         distancia_cresta: float = 50,
         distancia_barlovento_sotavento: float = 50,
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
     ) -> None:
         """
 
@@ -218,6 +231,8 @@ class CubiertaAislada:
             distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
             distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            factor_altitud: Factor de altitud Ke explícito. Si es None, se calcula a partir de altitud.
         """
         self.ancho = ancho
         self.longitud = longitud
@@ -239,6 +254,12 @@ class CubiertaAislada:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
         self.geometria = geometria.Cubierta(
             ancho,
             longitud,
@@ -280,6 +301,7 @@ class CubiertaAislada:
             self.cpn,
             categoria_exp,
             coeficiente_friccion,
+            factor_altitud=self.factor_altitud,
         )
 
     @cached_property
@@ -330,6 +352,8 @@ class Edificio:
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
         componentes_paredes: dict[str, float] | None = None,
         componentes_cubierta: dict[str, float] | None = None,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
     ) -> None:
         self.ancho = ancho
         self.longitud = longitud
@@ -362,6 +386,12 @@ class Edificio:
         self.direccion = direccion
         self.componentes_paredes = componentes_paredes
         self.componentes_cubierta = componentes_cubierta
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
 
         self.geometria = geometria.Edificio(
             ancho,
@@ -412,6 +442,7 @@ class Edificio:
             categoria_exp,
             reducir_gcpi,
             metodo_sprfv,
+            factor_altitud=self.factor_altitud,
         )
 
     @cached_property
