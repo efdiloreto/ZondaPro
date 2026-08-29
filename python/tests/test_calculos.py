@@ -22,6 +22,7 @@ import pytest
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
+from zonda.cirsoc.factores import Rafaga, Topografia
 from zonda.excepciones import ErrorLineamientos
 
 
@@ -49,17 +50,17 @@ def test_cartel_calcula(cartel: Cartel):
 
 
 def test_cartel_valores_de_referencia(cartel: Cartel):
-    """Valores capturados del programa antes de actualizar las dependencias.
+    """Valores de referencia bajo constantes de exposición CIRSOC 102-2025.
 
     Si numpy o el propio cálculo cambian de resultado, este test lo detecta.
     """
     esperado = [
-        634.42926105,
-        668.35379502,
-        698.44799113,
-        725.60990135,
-        750.44385665,
-        773.37793185,
+        526.61431225,
+        552.85043681,
+        576.04993811,
+        596.93171488,
+        615.97817698,
+        633.53020199,
     ]
     assert np.asarray(cartel.presiones.valores) == pytest.approx(esperado, rel=1e-6)
 
@@ -153,3 +154,236 @@ def test_cubierta_aislada_plana_no_tiene_lineamientos():
             categoria_exp=enums.CategoriaExposicion.B,
             considerar_topografia=False,
         )
+
+
+def test_rafaga_factor_simplificado():
+    rafaga = Rafaga(
+        ancho=20,
+        longitud=30,
+        altura=10,
+        altura_rafaga=6,
+        velocidad=45,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    assert rafaga.factor == 0.85
+
+
+def test_rafaga_edificio_rigido_exposicion_b():
+    """Caso 1: Edificio Rígido Exp. B (B=20m, L=30m, h=10m, V=45m/s)."""
+    rafaga = Rafaga(
+        ancho=20.0,
+        longitud=30.0,
+        altura=10.0,
+        altura_rafaga=6.0,  # 0.6 * 10 = 6.0 m < z_min=9.2 m -> z_bar = 9.2 m
+        velocidad=45.0,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    assert rafaga.parametros.z == pytest.approx(9.2, abs=0.01)
+    assert rafaga.parametros.iz == pytest.approx(0.304, abs=0.005)
+    assert rafaga.parametros.lz == pytest.approx(95.31, abs=0.05)
+    assert rafaga.factor_q == pytest.approx(0.876, abs=0.005)
+    assert rafaga.factor == pytest.approx(0.852, abs=0.005)
+
+
+def test_rafaga_edificio_rigido_exposicion_c():
+    """Caso 2: Edificio Rígido Exp. C (B=15m, L=15m, h=25m, V=45m/s)."""
+    rafaga = Rafaga(
+        ancho=15.0,
+        longitud=15.0,
+        altura=25.0,
+        altura_rafaga=15.0,  # 0.6 * 25 = 15.0 m > z_min=4.6 m -> z_bar = 15.0 m
+        velocidad=45.0,
+        frecuencia=1.2,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.C,
+    )
+    assert rafaga.parametros.z == pytest.approx(15.0, abs=0.01)
+    assert rafaga.parametros.iz == pytest.approx(0.187, abs=0.005)
+    assert rafaga.parametros.lz == pytest.approx(164.84, abs=0.05)
+    assert rafaga.factor_q == pytest.approx(0.892, abs=0.005)
+    assert rafaga.factor == pytest.approx(0.873, abs=0.005)
+
+
+def test_rafaga_estructura_flexible_dinamica():
+    """Caso 3: Estructura Flexible Exp. B (B=10m, L=1m, h=40m, n1=0.4Hz, V=45m/s)."""
+    rafaga = Rafaga(
+        ancho=10.0,
+        longitud=1.0,
+        altura=40.0,
+        altura_rafaga=24.0,  # 0.6 * 40 = 24.0 m > z_min=9.2 m
+        velocidad=45.0,
+        frecuencia=0.4,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.FLEXIBLE,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    assert rafaga.parametros.z == pytest.approx(24.0, abs=0.01)
+    assert rafaga.parametros.iz == pytest.approx(0.259, abs=0.005)
+    assert rafaga.parametros.lz == pytest.approx(131.21, abs=0.05)
+    assert rafaga.factor_q == pytest.approx(0.863, abs=0.005)
+    assert rafaga.parametros.gr == pytest.approx(3.97, abs=0.01)
+    assert rafaga.parametros.r == pytest.approx(0.88, abs=0.01)
+    assert rafaga.factor == pytest.approx(1.11, abs=0.01)
+
+
+def test_rafaga_factor_rigido_usa_ancho_mas_altura():
+    rafaga_1 = Rafaga(
+        ancho=15,
+        longitud=30,
+        altura=10,
+        altura_rafaga=6,
+        velocidad=45,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    rafaga_2 = Rafaga(
+        ancho=30,
+        longitud=15,
+        altura=10,
+        altura_rafaga=6,
+        velocidad=45,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=enums.Flexibilidad.RIGIDA,
+        factor_g_simplificado=False,
+        categoria_exp=enums.CategoriaExposicion.B,
+    )
+    # Q depende de (ancho + altura) / Lz: a mayor ancho normal al viento, menor Q
+    assert rafaga_1.factor_q > rafaga_2.factor_q
+    assert rafaga_1.factor > 0
+
+
+def test_topografia_umbrales_consideracion():
+    # Exposición B: H >= 20 m y H/Lh >= 0.2
+    topo_b_valida = Topografia(
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=20,
+        distancia_cresta=50,
+        distancia_barlovento_sotavento=0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=10,
+    )
+    assert topo_b_valida.topografia_considerada() is True
+
+    topo_b_baja = Topografia(
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=19.9,
+        distancia_cresta=50,
+        distancia_barlovento_sotavento=0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=10,
+    )
+    assert topo_b_baja.topografia_considerada() is False
+    assert topo_b_baja.factor == (1.0,)
+
+    # Exposición C: H >= 5 m
+    topo_c_valida = Topografia(
+        categoria_exp=enums.CategoriaExposicion.C,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=5.0,
+        distancia_cresta=20,
+        distancia_barlovento_sotavento=0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=5,
+    )
+    assert topo_c_valida.topografia_considerada() is True
+
+
+def test_topografia_loma_2d_caso_1():
+    """Caso 1: Loma 2D, Barlovento, Exp. B (H=30m, Lh=100m, x=0m, z=10m)."""
+    topo = Topografia(
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=30.0,
+        distancia_cresta=100.0,
+        distancia_barlovento_sotavento=0.0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=10.0,
+    )
+    params = topo.parametros
+    assert params.lh == pytest.approx(100.0, abs=0.01)
+    assert params.k1 == pytest.approx(0.39, abs=0.005)
+    assert params.k2 == pytest.approx(1.0, abs=0.005)
+    assert params.k3[0] == pytest.approx(0.741, abs=0.005)
+    assert topo.factor[0] == pytest.approx(1.66, abs=0.01)
+
+
+def test_topografia_pendiente_fuerte_caso_2():
+    """Caso 2: Loma 2D, Pendiente Fuerte H/Lh > 0.5, Exp. C (H=30m, Lh=40m, x=20m, z=12m)."""
+    topo = Topografia(
+        categoria_exp=enums.CategoriaExposicion.C,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=30.0,
+        distancia_cresta=40.0,
+        distancia_barlovento_sotavento=20.0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=12.0,
+    )
+    params = topo.parametros
+    assert params.lh == pytest.approx(60.0, abs=0.01)  # 2*H
+    assert params.k1 == pytest.approx(0.725, abs=0.005)
+    assert params.k2 == pytest.approx(0.778, abs=0.005)
+    assert params.k3[0] == pytest.approx(0.549, abs=0.005)
+    assert topo.factor[0] == pytest.approx(1.71, abs=0.01)
+
+
+def test_topografia_escarpa_sotavento_caso_3():
+    """Caso 3: Escarpa 2D, Sotavento mu=4.0, Exp. B (H=25m, Lh=60m, x=100m, z=8m)."""
+    topo = Topografia(
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.ESCARPA_BIDIMENSIONAL,
+        altura_terreno=25.0,
+        distancia_cresta=60.0,
+        distancia_barlovento_sotavento=100.0,
+        direccion=enums.DireccionTopografia.SOTAVENTO,
+        alturas=8.0,
+    )
+    params = topo.parametros
+    assert params.mu == pytest.approx(4.0, abs=0.01)
+    assert params.lh == pytest.approx(60.0, abs=0.01)
+    assert params.k1 == pytest.approx(0.312, abs=0.005)
+    assert params.k2 == pytest.approx(0.583, abs=0.005)
+    assert params.k3[0] == pytest.approx(0.717, abs=0.005)
+    assert topo.factor[0] == pytest.approx(1.28, abs=0.01)
+
+
+def test_topografia_fuera_de_influencia_caso_4():
+    """Caso 4: Colina 3D, x > mu*Lh, Exp. B (H=20m, Lh=50m, x=120m, z=10m)."""
+    topo = Topografia(
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.COLINA_TRIDIMENSIONAL,
+        altura_terreno=20.0,
+        distancia_cresta=50.0,
+        distancia_barlovento_sotavento=120.0,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
+        alturas=10.0,
+    )
+    params = topo.parametros
+    assert params.lh == pytest.approx(50.0, abs=0.01)
+    assert params.k1 == pytest.approx(0.38, abs=0.005)
+    assert params.k2 == pytest.approx(0.0, abs=0.005)
+    assert params.k3[0] == pytest.approx(0.449, abs=0.005)
+    assert topo.factor[0] == pytest.approx(1.0, abs=0.005)

@@ -131,3 +131,5 @@ obj/
 
 # Lo genera launcher/build.py a partir de recursos.rc.in
 launcher/src/recursos.generado.rc
+
+NOTAS.md

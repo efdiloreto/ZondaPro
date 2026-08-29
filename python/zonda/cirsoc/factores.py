@@ -32,35 +32,32 @@ from zonda.enums import (
 )
 
 _Constantes = namedtuple(
-    "Constantes", "alfa zg a_hat b_hat alpha_bar b_bar c le ep_bar zmin"
+    "_Constantes", "alfa zg a_hat b_hat alpha_bar b_bar c le ep_bar zmin"
 )
 
 
 _ParametrosTopograficos = namedtuple(
-    "ParametrosTopograficos", "factor_k gamma mu lh k1 k2 k3"
+    "_ParametrosTopograficos", "factor_k gamma mu lh k1 k2 k3"
 )
 
 
 _constantes_exposicion = {
-    CategoriaExposicion.A: _Constantes(
-        5, 457, 1 / 5, 0.64, 1 / 3, 0.3, 0.45, 55, 1 / 2, 18.3
-    ),
     CategoriaExposicion.B: _Constantes(
-        7, 366, 1 / 7, 0.84, 1 / 4, 0.45, 0.3, 98, 1 / 3, 9.2
+        7.5, 1000, 1 / 7.5, 0.84, 1 / 4.5, 0.47, 0.30, 98, 1 / 3.0, 9.2
     ),
     CategoriaExposicion.C: _Constantes(
-        9.5, 274, 1 / 9.5, 1, 1 / 6.5, 0.65, 0.2, 152, 1 / 5, 4.6
+        9.8, 750, 1 / 9.8, 1.00, 1 / 6.4, 0.66, 0.20, 152, 1 / 5.0, 4.6
     ),
     CategoriaExposicion.D: _Constantes(
-        11.5, 213, 1 / 11.5, 1.07, 1 / 9, 0.8, 0.15, 198, 1 / 8, 2.1
+        11.5, 590, 1 / 11.5, 1.09, 1 / 8.0, 0.78, 0.15, 198, 1 / 8.0, 2.1
     ),
 }
 
 
 class Rafaga:
-    """Ráfaga.
+    """Ráfaga (CIRSOC 102-2025 Art. 1.9).
 
-    Determina el factor de ráfaga y todos sus parámetros.
+    Determina el factor de efecto de ráfaga y todos sus parámetros.
     """
 
     def __init__(
@@ -77,16 +74,15 @@ class Rafaga:
         categoria_exp: CategoriaExposicion,
     ) -> None:
         """
-
         Args:
-            ancho: El ancho de la estructura medido de forma normal a la dirección del viento.
-            longitud: El ancho de la estructura medido de forma paralelo a la dirección del viento.
-            altura: La altura de la estructura. Para edificios se toma la altura media.
-            altura_rafaga: La altura útil para calcular el factor de ráfaga. Por ejemplo, para edificios es 0.6 * altura media.
-            velocidad: La velocidad del viento en m/s.
-            frecuencia: La frecuencia natural de la estructura en hz.
-            beta: La relación de amortiguamiento crítico.
-            flexibilidad: La flexibilidad de la estructura.
+            ancho: Dimensión horizontal de la estructura medida normal (perpendicular) a la dirección del viento (B).
+            longitud: Dimensión horizontal de la estructura medida paralela a la dirección del viento (L).
+            altura: La altura de la estructura (h). Para edificios se toma la altura media de cubierta.
+            altura_rafaga: La altura útil (z_bar) para calcular el factor de ráfaga (0.6 * h).
+            velocidad: La velocidad básica del viento en m/s (V).
+            frecuencia: La frecuencia natural fundamental de la estructura en Hz (n_1).
+            beta: La relación de amortiguamiento crítico (β).
+            flexibilidad: La flexibilidad de la estructura (rígida o flexible).
             factor_g_simplificado: Indica si se debe usar 0.85 como valor del factor de ráfaga.
             categoria_exp: La categoría de exposición al viento de la estructura.
         """
@@ -104,10 +100,10 @@ class Rafaga:
 
     @cached_property
     def parametros(self):
-        """Calcula los parámetros de factor de ráfaga.
+        """Calcula los parámetros de factor de ráfaga (CIRSOC 102-2025 Tabla 1.9-1 y Ecs. 1.9-7 a 1.9-16).
 
         Returns:
-            Los parámetros de factor de ráfaga.
+            Los parámetros de factor de ráfaga (z, iz, lz, gr, r).
         """
         parametros_rafaga = namedtuple("ParametrosRafaga", "z iz lz gr r")
         z = max(self.altura_rafaga, self.constantes_exp_terreno.zmin)
@@ -140,21 +136,20 @@ class Rafaga:
 
     @cached_property
     def factor_q(self) -> float:
-        """Calcula el factor Q.
+        """Calcula el factor de respuesta de fondo Q (CIRSOC 102-2025 Ec. 1.9-8).
 
         Returns:
             El factor Q.
         """
         return (
-            1
-            / (1 + 0.63 * ((self.longitud + self.altura) / self.parametros.lz) ** 0.63)
+            1 / (1 + 0.63 * ((self.ancho + self.altura) / self.parametros.lz) ** 0.63)
         ) ** 0.5
 
     def _rigida(self) -> float:
-        """Calcula el factor de ráfaga para una estructura rígida.
+        """Calcula el factor de efecto de ráfaga para una estructura rígida (CIRSOC 102-2025 Ec. 1.9-6).
 
         Returns:
-            El factor de ráfaga.
+            El factor de ráfaga G.
         """
         return (
             (1 + 1.7 * 3.4 * self.parametros.iz * self.factor_q)
@@ -162,10 +157,10 @@ class Rafaga:
         ) * 0.925
 
     def _flexible(self) -> float:
-        """Calcula el factor de ráfaga para una estructura flexible.
+        """Calcula el factor de efecto de ráfaga para una estructura flexible (CIRSOC 102-2025 Ec. 1.9-10).
 
         Returns:
-            El factor de ráfaga.
+            El factor de ráfaga Gf.
         """
         return (
             (
@@ -257,9 +252,9 @@ class Rafaga:
 
 
 class Topografia:
-    """Topografia.
+    """Topografía (CIRSOC 102-2025 Art. 1.8).
 
-    Determina el factor topógrafico para las alturas consideradas y todos sus parámetros.
+    Determina el factor topográfico Kzt para las alturas consideradas y todos sus parámetros (K1, K2, K3).
     """
 
     def __init__(
@@ -274,16 +269,15 @@ class Topografia:
         alturas: float | Sequence[float] | np.ndarray,
     ) -> None:
         """
-
         Args:
             categoria_exp: La categoría de exposición al viento de la estructura.
-            considerar_topografia: indica si se tiene que calcular la topografia.
-            tipo_terreno: El tipo de terreno.
-            altura_terreno: La altura de la colina o escarpa.
-            distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
-            distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
-            direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
-            alturas: La altura o las alturas donde calcular la topografía.
+            considerar_topografia: Indica si se tiene que calcular la topografía.
+            tipo_terreno: El tipo de terreno (loma 2D, escarpa 2D o colina 3D).
+            altura_terreno: La altura de la colina o escarpa (H).
+            distancia_cresta: La distancia en la dirección de barlovento desde la cresta hasta la mitad de la altura (L_h).
+            distancia_barlovento_sotavento: Distancia tomada desde la cima a barlovento o sotavento (x).
+            direccion: La dirección para el parámetro `distancia_barlovento_sotavento` (barlovento o sotavento).
+            alturas: La altura o las alturas sobre el terreno donde calcular la topografía (z).
         """
         self.categoria_exp = categoria_exp
         self.considerar_topografia = considerar_topografia
@@ -295,7 +289,7 @@ class Topografia:
         self.alturas = tuple(float(altura) for altura in np.atleast_1d(alturas))
 
     def topografia_considerada(self) -> bool:
-        """Chequea si es necesario considerar la topografia.
+        """Chequea si es necesario considerar la topografía (CIRSOC 102-2025 Art. 1.8.1).
 
         Returns:
             True si es necesario calcular la topografía.
@@ -306,28 +300,27 @@ class Topografia:
             self.altura_terreno / self.distancia_cresta >= 0.2
             and (
                 (
-                    self.categoria_exp in (CategoriaExposicion.A, CategoriaExposicion.B)
-                    and self.altura_terreno > 20
+                    self.categoria_exp == CategoriaExposicion.B
+                    and self.altura_terreno >= 20
                 )
                 or (
                     self.categoria_exp in (CategoriaExposicion.C, CategoriaExposicion.D)
-                    and self.altura_terreno > 5
+                    and self.altura_terreno >= 5
                 )
             )
         )
 
     @cached_property
     def parametros(self):
-        """Calcula los parámetros de factor topográfico.
+        """Calcula los parámetros de factor topográfico (CIRSOC 102-2025 Figura 1.8-1).
 
         Returns:
-            Los parámetros del factor topográfico.
+            Los parámetros del factor topográfico (factor_k, gamma, mu, lh, k1, k2, k3).
         """
-        # Referencia = CIRSOC 102-2005 Fig. 2
+        # CIRSOC 102-2025 Figura 1.8-1
         param_topo_vel = {
             TipoTerrenoTopografia.LOMA_BIDIMENSIONAL: {
                 "factor_k": {
-                    CategoriaExposicion.A: 1.3,
                     CategoriaExposicion.B: 1.3,
                     CategoriaExposicion.C: 1.45,
                     CategoriaExposicion.D: 1.55,
@@ -340,7 +333,6 @@ class Topografia:
             },
             TipoTerrenoTopografia.ESCARPA_BIDIMENSIONAL: {
                 "factor_k": {
-                    CategoriaExposicion.A: 0.75,
                     CategoriaExposicion.B: 0.75,
                     CategoriaExposicion.C: 0.85,
                     CategoriaExposicion.D: 0.95,
@@ -353,7 +345,6 @@ class Topografia:
             },
             TipoTerrenoTopografia.COLINA_TRIDIMENSIONAL: {
                 "factor_k": {
-                    CategoriaExposicion.A: 0.95,
                     CategoriaExposicion.B: 0.95,
                     CategoriaExposicion.C: 1.05,
                     CategoriaExposicion.D: 1.15,
@@ -365,22 +356,25 @@ class Topografia:
                 },
             },
         }
-        # Lh Referencia: CiIRSOC 102 2005 Fig. 2 Nota 2
+        # CIRSOC 102-2025 Art. 1.8.2 / Figura 1.8-1: Para H/Lh > 0.5, adoptar H/Lh = 0.5 y sustituir 2H por Lh en K2 y K3.
         lh = max(self.distancia_cresta, 2 * self.altura_terreno)
         k_factor = param_topo_vel[self.tipo_terreno]["factor_k"][self.categoria_exp]
         gamma = param_topo_vel[self.tipo_terreno]["gamma"]
         mu = param_topo_vel[self.tipo_terreno]["mu"][self.direccion]
-        k1 = k_factor * self.altura_terreno / lh
-        k2 = 1 - self.distancia_barlovento_sotavento / mu / lh
+        # CIRSOC 102-2025 Figura 1.8-1: Si H/Lh < 0.2, K1 = 0
+        h_sobre_lh = self.altura_terreno / self.distancia_cresta
+        k1 = (k_factor * self.altura_terreno / lh) if h_sobre_lh >= 0.2 else 0.0
+        # CIRSOC 102-2025 Figura 1.8-1: K2 = 0 si x > mu * Lh (K1, K2, K3 >= 0)
+        k2 = max(0.0, 1 - self.distancia_barlovento_sotavento / (mu * lh))
         k3 = tuple(np.e ** (-1 * gamma * altura / lh) for altura in self.alturas)
         return _ParametrosTopograficos(k_factor, gamma, mu, lh, k1, k2, k3)
 
     @cached_property
     def factor(self) -> tuple[float, ...]:
-        """Calcula el factor topográfico.
+        """Calcula el factor topográfico Kzt (CIRSOC 102-2025 Expresión 1.8-1).
 
         Returns:
-            El factor topografico de cada altura.
+            El factor topográfico de cada altura.
         """
         if not self.topografia_considerada():
             return (1.0,) * len(self.alturas)

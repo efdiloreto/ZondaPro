@@ -167,9 +167,6 @@ class PresionesBase:
 
     def _calcular_altura_limite(self, caso: int) -> int:
         """Calcula la altura limite inferior para el "Caso 1" en Kz" """
-        if caso == 1:
-            if self.categoria_exp == CategoriaExposicion.A:
-                return 30
-            elif self.categoria_exp == CategoriaExposicion.B:
-                return 10
+        if caso == 1 and self.categoria_exp == CategoriaExposicion.B:
+            return 10
         return 5

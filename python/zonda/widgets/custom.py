@@ -105,7 +105,7 @@ class WidgetPanelEntrada(WidgetPanel):
         self._tiene_componentes = componentes
 
         self.parametros_viento = {
-            "categoria_exp": CategoriaExposicion.A,
+            "categoria_exp": CategoriaExposicion.B,
             "velocidad": 45,
             "frecuencia": 1,
             "beta": 0.02,

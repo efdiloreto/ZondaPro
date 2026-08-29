@@ -75,7 +75,6 @@ class Flexibilidad(Enum):
 
 
 class CategoriaExposicion(Enum):
-    A = "A"
     B = "B"
     C = "C"
     D = "D"

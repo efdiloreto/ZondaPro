@@ -64,7 +64,7 @@ Topografía no considerada.
 {% else -%}
 Factor topográfico, K~zt~: {{'%.2f'|format(1)}}
 {% if estructura.considerar_topografia %}
-No se considera la topografía debido a que no se cumplen todas las condiciones del artículo 5.7.1.
+No se considera la topografía debido a que no se cumplen todas las condiciones del artículo 1.8.1.
 {% endif -%}
 {% endif %}
 
