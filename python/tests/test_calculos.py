@@ -465,3 +465,55 @@ def test_factor_reduccion_gcpi_gran_volumen():
     presiones_cubierta = edificio.presiones.cubierta.sprfv
     assert presiones_cubierta.factor_reduccion_gcpi == pytest.approx(0.978, abs=0.001)
     assert presiones_cubierta.gcpi == pytest.approx(0.538, abs=0.001)
+
+
+def test_cerramiento_condiciones_edificio():
+    """Verifica las condiciones de cerramiento según Tabla 1.11-1 CIRSOC 102-2005."""
+    from zonda.cirsoc import geometria
+
+    # Edificio cerrado estándar (sin aberturas)
+    geom_cerrado = geometria.Edificio(
+        ancho=10,
+        longitud=20,
+        elevacion=0,
+        altura_alero=5,
+        altura_cumbrera=5,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        aberturas=(0.0, 0.0, 0.0, 0.0, 0.0),
+    )
+    assert not any(geom_cerrado.cerramiento_condicion_1)
+    assert not any(geom_cerrado.cerramiento_condicion_2)
+    assert not any(geom_cerrado.cerramiento_condicion_3)
+    assert all(geom_cerrado.cerramiento_condicion_4)
+
+    # Edificio parcialmente cerrado (gran abertura en pared 1)
+    # Pared 1: Area = 50 m2, Abertura = 20 m2
+    # Paredes 2, 3, 4: Aberturas = 1 m2 cada una -> A0i = 3 m2
+    # 20 > 1.10 * 3 = 3.3 (condicion 2 cumple)
+    # 20 > min(0.4, 0.5) = 0.4 (condicion 3 cumple)
+    # A0i / Agi = 3 / (100 + 50 + 100 + 200) = 3 / 450 = 0.0067 <= 0.20 (condicion 4 cumple)
+    geom_parc_cerrado = geometria.Edificio(
+        ancho=10,
+        longitud=20,
+        elevacion=0,
+        altura_alero=5,
+        altura_cumbrera=5,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        aberturas=(20.0, 1.0, 1.0, 1.0, 0.0),
+    )
+    assert not any(geom_parc_cerrado.cerramiento_condicion_1)
+    assert geom_parc_cerrado.cerramiento_condicion_2[0] is True
+    assert geom_parc_cerrado.cerramiento_condicion_3[0] is True
+    assert geom_parc_cerrado.cerramiento_condicion_4[0] is True
+
+    # Edificio abierto (todas las paredes con >= 80% de aberturas)
+    geom_abierto = geometria.Edificio(
+        ancho=10,
+        longitud=20,
+        elevacion=0,
+        altura_alero=5,
+        altura_cumbrera=5,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        aberturas=(45.0, 90.0, 45.0, 90.0, 0.0),
+    )
+    assert all(geom_abierto.cerramiento_condicion_1)

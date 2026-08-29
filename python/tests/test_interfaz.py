@@ -494,3 +494,21 @@ def test_mover_sin_haber_apretado_no_hace_nada(qapp):
     )
 
     assert (ventana.x(), ventana.y()) == (100, 100)
+
+
+def test_widget_cerramiento_edificio(qapp):
+    from zonda import enums
+    from zonda.widgets.entrada import WidgetCerramientoEdificio
+
+    widget = WidgetCerramientoEdificio(
+        parent=None,
+        ancho=10.0,
+        longitud=20.0,
+        elevacion=0.0,
+        altura_alero=5.0,
+        altura_cumbrera=5.0,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        aberturas=(20.0, 1.0, 1.0, 1.0, 0.0),
+    )
+    assert widget.windowTitle() == "Verificación de cerramiento"
+    widget.close()

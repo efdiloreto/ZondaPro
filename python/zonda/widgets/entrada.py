@@ -698,7 +698,7 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
             )
             grid_layout.addWidget(
                 QtWidgets.QLabel(
-                    f"{edificio.aberturas[0]:.2f} m<sup>2</sup> ≥ 0.8 x {edificio.areas[0]:.2f} m<sup>2</sup>"
+                    f"{edificio.aberturas[i]:.2f} m<sup>2</sup> ≥ 0.8 x {edificio.areas[i]:.2f} m<sup>2</sup>"
                 ),
                 1,
                 2,
@@ -717,7 +717,7 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
             )
             grid_layout.addWidget(
                 QtWidgets.QLabel(
-                    f"{edificio.aberturas[0]:.2f} m<sup>2</sup> ≥ 1.10 x {edificio.a0i[0]:.2f} m<sup>2</sup>"
+                    f"{edificio.aberturas[i]:.2f} m<sup>2</sup> > 1.10 x {edificio.a0i[i]:.2f} m<sup>2</sup>"
                 ),
                 2,
                 2,
@@ -738,7 +738,7 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
             )
             grid_layout.addWidget(
                 QtWidgets.QLabel(
-                    f"{edificio.aberturas[0]:.2f} m<sup>2</sup> > {edificio.min_areas[0]:.2f} m<sup>2</sup>"
+                    f"{edificio.aberturas[i]:.2f} m<sup>2</sup> > {edificio.min_areas[i]:.2f} m<sup>2</sup>"
                 ),
                 3,
                 2,
@@ -757,7 +757,7 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
             )
             grid_layout.addWidget(
                 QtWidgets.QLabel(
-                    f"{edificio.a0i[0]:.2f} m<sup>2</sup> / {edificio.agi[0]:.2f} m<sup>2</sup> ≤ 0.2"
+                    f"{edificio.a0i[i]:.2f} m<sup>2</sup> / {edificio.agi[i]:.2f} m<sup>2</sup> ≤ 0.2"
                 ),
                 4,
                 2,
@@ -782,6 +782,8 @@ class WidgetCerramientoEdificio(QtWidgets.QWidget):
                 and edificio.cerramiento_condicion_4[i]
             ):
                 cerramiento = "Edificio Parcialmente Cerrado"
+            elif edificio.cerramiento_condicion_3[i]:
+                cerramiento = "Edificio Parcialmente Abierto"
             else:
                 cerramiento = "Edificio Cerrado"
 
