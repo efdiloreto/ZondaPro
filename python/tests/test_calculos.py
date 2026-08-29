@@ -433,3 +433,35 @@ def test_topografia_fuera_de_influencia_caso_4():
     assert params.k2 == pytest.approx(0.0, abs=0.005)
     assert params.k3[0] == pytest.approx(0.449, abs=0.005)
     assert topo.factor[0] == pytest.approx(1.0, abs=0.005)
+
+
+def test_factor_reduccion_gcpi_gran_volumen():
+    """Verifica el factor de reducción Ri y GCpi reducido según Art. 1.11.1 (CIRSOC 102-2005).
+
+    Caso Calcpad:
+    Vi = 10000 m3
+    Aog = 15 m2 (aberturas totales)
+    GCpi nominal = 0.55 (parcialmente cerrado)
+    Ri = min(1.0, 0.5 * (1 + 1 / sqrt(1 + Vi / (6950 * Aog)))) = 0.978253...
+    GCpi_red = 0.55 * Ri = 0.538039...
+    """
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=8,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.PARCIALMENTE_CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        reducir_gcpi=True,
+        aberturas=(5.0, 5.0, 5.0, 0.0, 0.0),
+        volumen_interno=10000.0,
+    )
+    presiones_cubierta = edificio.presiones.cubierta.sprfv
+    assert presiones_cubierta.factor_reduccion_gcpi == pytest.approx(0.978, abs=0.001)
+    assert presiones_cubierta.gcpi == pytest.approx(0.538, abs=0.001)

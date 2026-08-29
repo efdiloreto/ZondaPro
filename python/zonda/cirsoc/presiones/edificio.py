@@ -164,7 +164,7 @@ class PresionesEdificioBase(PresionesBase):
                 reduccion = 0.5 * (
                     1
                     + 1
-                    / (1 + self.volumen_interno / 6954 / self.aberturas_totales) ** 0.5
+                    / (1 + self.volumen_interno / 6950 / self.aberturas_totales) ** 0.5
                 )
                 return min(reduccion, 1.0)
         return 1.0
