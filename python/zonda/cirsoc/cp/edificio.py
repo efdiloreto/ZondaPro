@@ -200,8 +200,9 @@ class ParedesComponentes:
 
     Determina los coeficientes de presión de paredes de edificio para Componentes y Revestimientos.
 
-    TODO: Las figuras y valores de esta clase (Figura 5A / Figura 8) siguen
-    CIRSOC 102-2005: pendiente de migrar a CIRSOC 102-2025.
+    TODO: La rama de edificios de gran altura (Figura 8) sigue CIRSOC 102-2005:
+    pendiente de migrar a CIRSOC 102-2025. La rama de altura baja ya usa la
+    Tabla C 5.3-1 del 2025.
     """
 
     def __init__(
@@ -228,7 +229,7 @@ class ParedesComponentes:
         self.angulo_cubierta = angulo_cubierta
         self.componentes = componentes
         if self.altura_media <= 20:
-            self.referencia = "Figura 5A"
+            self.referencia = "Tabla C 5.3-1"
         else:
             self.referencia = "Figura 8"
 
@@ -246,7 +247,7 @@ class ParedesComponentes:
         if self.componentes is None:
             return ()
         valores_zonas_cp = {
-            "Figura 5A": {
+            "Tabla C 5.3-1": {
                 ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
                 ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
                 ZonaComponenteParedEdificio.TODAS: (1, 0.7),
@@ -288,11 +289,19 @@ class ParedesComponentes:
 
     @cached_property
     def distancia_a(self) -> float:
-        """
+        """La distancia "a", con la excepción para edificios bajos y planos.
+
+        Excepción del Reglamento (Tabla C 5.3-1): para ángulo de cubierta de
+        0° a 7° y dimensión horizontal mínima mayor que 90 m, la distancia "a"
+        se limita a un máximo de 0,8 veces la altura media.
+
         Returns:
             El valor de distancia "a" del edificio.
         """
-        return distancia_a(self.ancho, self.longitud, self.altura_media)
+        a = distancia_a(self.ancho, self.longitud, self.altura_media)
+        if 0 <= self.angulo_cubierta <= 7 and min(self.ancho, self.longitud) > 90:
+            a = min(a, 0.8 * self.altura_media)
+        return a
 
 
 class CubiertaSprfvMetodoDireccional:

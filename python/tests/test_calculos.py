@@ -22,6 +22,7 @@ import pytest
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
+from zonda.cirsoc.cp.edificio import ParedesComponentes, distancia_a
 from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
 from zonda.excepciones import ErrorLineamientos
 
@@ -606,6 +607,140 @@ def test_topografia_fuera_de_influencia_caso_4():
     assert params.k2 == pytest.approx(0.0, abs=0.005)
     assert params.k3[0] == pytest.approx(0.449, abs=0.005)
     assert topo.factor[0] == pytest.approx(1.0, abs=0.005)
+
+
+def _paredes_componentes(
+    area: float,
+    *,
+    ancho: float = 20,
+    longitud: float = 30,
+    altura_media: float = 8,
+    angulo: float = 5,
+) -> object:
+    """Instancia ParedesComponentes con un solo componente del área dada.
+
+    Args:
+        area: El área tributaria del componente.
+        ancho: El ancho del edificio.
+        longitud: La longitud del edificio.
+        altura_media: La altura media de cubierta.
+        angulo: El ángulo de cubierta.
+
+    Returns:
+        La instancia, para leer ``referencia``, ``distancia_a`` y ``entradas``.
+    """
+    return ParedesComponentes(
+        ancho=ancho,
+        longitud=longitud,
+        altura_media=altura_media,
+        angulo_cubierta=angulo,
+        componentes={"comp": area},
+    )
+
+
+def test_paredes_componentes_referencia_nueva_tabla():
+    """La rama baja usa Tabla C 5.3-1; un edificio alto sigue con Figura 8."""
+    bajo = _paredes_componentes(3)
+    assert bajo.referencia == "Tabla C 5.3-1"
+    alto = _paredes_componentes(3, altura_media=25)
+    assert alto.referencia == "Figura 8"
+
+
+def test_paredes_componentes_valores_tabla_c531():
+    """Valores GCp extremos y de rampa log, por zona y por tramo de área.
+
+    Con ángulo ≤ 10° hay descuento 0.9 sobre todos los GCp (como dice hoy el
+    código; la nota al pie permite reducir solo los positivos). Los valores
+    del tramo log son interpolación logarítmica entre los extremos de la
+    tabla —-1.1→−0.8, −1.4→−0.8 y 1.0→0.7 para A∈[1, 50].
+    """
+    log10 = np.log10
+    factor = 0.9  # ángulo=5 → descuento 0.9 por pendiente ≤ 10°
+
+    def esperado(cps: tuple[float, float], area: float) -> float:
+        primer_cp, ultimo_cp = cps
+        primer_area, ultima_area = 1.0, 50.0
+        if area <= primer_area:
+            return primer_cp * factor
+        if area >= ultima_area:
+            return ultimo_cp * factor
+        g = (ultimo_cp - primer_cp) / log10(ultima_area / primer_area)
+        return (primer_cp + g * log10(area / primer_area)) * factor
+
+    casos = (
+        (0.5, (1.0, 0.7), (-1.1, -0.8), (-1.4, -0.8)),
+        (3.0, (1.0, 0.7), (-1.1, -0.8), (-1.4, -0.8)),
+        (60.0, (1.0, 0.7), (-1.1, -0.8), (-1.4, -0.8)),
+    )
+    for area, pos, n4, n5 in casos:
+        paredes = _paredes_componentes(area, angulo=5)
+        valores_cp = {
+            entrada.zona_componente: entrada.valor for entrada in paredes.entradas
+        }
+        assert len(valores_cp) == 3
+        assert valores_cp[enums.ZonaComponenteParedEdificio.TODAS] == pytest.approx(
+            esperado(pos, area)
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CUATRO] == pytest.approx(
+            esperado(n4, area)
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CINCO] == pytest.approx(
+            esperado(n5, area)
+        )
+
+
+def test_paredes_componentes_benchmark_calcpad():
+    """Valida los valores de GCp contra el script de Calcpad para Tabla C 5.3-1.
+
+    Parámetros de entrada:
+    - θ = 5° (aplica r = 0.9)
+    - Casos de área A ∈ {0.5, 3.0, 10.0, 60.0} m²
+    """
+    # area: (pos_todas, neg_zona4, neg_zona5)
+    referencias_calcpad = {
+        0.5: (0.9, -0.99, -1.26),
+        3.0: (0.8242, -0.9142, -1.1084),
+        10.0: (0.7411, -0.8311, -0.9421),
+        60.0: (0.63, -0.72, -0.72),
+    }
+    for area, (pos_esp, n4_esp, n5_esp) in referencias_calcpad.items():
+        paredes = _paredes_componentes(area, angulo=5)
+        valores_cp = {
+            entrada.zona_componente: entrada.valor for entrada in paredes.entradas
+        }
+        assert valores_cp[enums.ZonaComponenteParedEdificio.TODAS] == pytest.approx(
+            pos_esp, abs=0.001
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CUATRO] == pytest.approx(
+            n4_esp, abs=0.001
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CINCO] == pytest.approx(
+            n5_esp, abs=0.001
+        )
+
+
+def test_paredes_componentes_excepcion_distancia_a():
+    """La excepción limita "a" a 0.8·h para θ ∈ [0°, 7°] y dimensión mínima > 90 m."""
+    # Edificio plano, ancho < 90: la excepción no debe aplicar aunque θ ∈ [0, 7]
+    a_normal = distancia_a(60, 80, 10)
+    edificio_normal = _paredes_componentes(
+        2, ancho=60, longitud=80, altura_media=10, angulo=5
+    )
+    assert edificio_normal.distancia_a == a_normal
+
+    # Edificio plano, dimensión mínima > 90: se limita a 0.8h
+    a_total = distancia_a(95, 120, 10)
+    edificio = _paredes_componentes(
+        2, ancho=95, longitud=120, altura_media=10, angulo=5
+    )
+    assert edificio.distancia_a == min(a_total, 0.8 * 10)
+
+    # θ = 8° (fuera de rango): no se aplica la excepción
+    a_sin_excepcion = distancia_a(95, 120, 10)
+    edificio_8 = _paredes_componentes(
+        2, ancho=95, longitud=120, altura_media=10, angulo=8
+    )
+    assert edificio_8.distancia_a == a_sin_excepcion
 
 
 def test_factor_reduccion_gcpi_gran_volumen():
