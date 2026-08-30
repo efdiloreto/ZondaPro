@@ -68,11 +68,7 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
-- **Presión mínima (Art. 1.4) pendiente de verificar:** Se aplica a todos los
-  componentes y revestimientos salvo a las paredes bajo la Figura 8, donde el
-  cálculo original no la aplicaba. Se mantiene el comportamiento para no cambiar
-  resultados (ver `ParedesComponentes.considerar_presion_minima`), pero hay que
-  contrastarlo con el Reglamento.
+- **Presión mínima (Art. 1.4.2):** Se aplica a todos los componentes y revestimientos ($\pm 500\text{ N/m}^2$), incluyendo las paredes bajo la Figura 8.
 - **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
   interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
   `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras

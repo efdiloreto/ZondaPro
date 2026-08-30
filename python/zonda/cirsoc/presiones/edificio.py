@@ -438,15 +438,6 @@ class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
     los de la pared a barlovento se resuelven altura por altura.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        # Con la Figura 8 el cálculo no aplica la presión mínima del Art. 1.4.
-        # Es el único componente que queda afuera y parece un descuido -la rama
-        # original llamaba a la fórmula con los argumentos corridos y sin pedir
-        # la presión mínima-, pero cambiarlo cambia resultados, así que se
-        # mantiene hasta verificarlo contra el Reglamento.
-        self.considerar_presion_minima = self.cp.referencia != "Figura 8"
-
     @cached_property
     def filas(self) -> tuple[FilaEdificio, ...]:
         """Calcula las presiones sobre los componentes de las paredes.
