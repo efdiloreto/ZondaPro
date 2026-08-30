@@ -316,7 +316,7 @@ class WidgetAcercaDe(QtWidgets.QDialog):
             "Zonda es un software libre y de código abierto destinado a calcular"
             " las cargas de viento sobre las estructuras de acuerdo al Reglamento"
             " Argentino de Acción del Viento sobre las Construcciones"
-            " CIRSOC 102-2005."
+            " CIRSOC 102-2025."
         )
         label_descripcion.setWordWrap(True)
         # El ancho fijo es el que le da altura al texto: con `SetFixedSize` el

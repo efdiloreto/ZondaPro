@@ -1,6 +1,6 @@
 # Guía para agentes — Zonda
 
-Aplicación de escritorio para calcular cargas de viento según **CIRSOC 102-2005** (reglamento argentino).
+Aplicación de escritorio para calcular cargas de viento según **CIRSOC 102-2025** (reglamento argentino).
 Interfaz en **PyQt6**, visualización 3D en **Qt Quick 3D** y reportes técnicos en Markdown vía **Jinja2 + pandoc**.
 
 **Convención de idioma:** Todo el código, nombres de funciones/variables, comentarios y docstrings están en **español**. Mantené esta convención en cualquier cambio o agregado.
@@ -66,7 +66,10 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
-- **Presión mínima (Art. 1.4.2):** Se aplica a todos los componentes y revestimientos ($\pm 500\text{ N/m}^2$), incluyendo las paredes bajo la Figura 8.
+- **Presión mínima:** Hay dos, con distinto alcance:
+  - **Componentes y revestimientos:** ±500 N/m² (Art. 1.4.2, `presiones/edificio.py:presion_minima`), incluyendo las paredes bajo la Figura 8. *Todavía sigue la numeración de CIRSOC 102-2005: pendiente de migrar a 2025.*
+  - **SPRFV:** Cargas de viento de diseño mínimas (Art. 2.1.5), nota agregada en la plantilla del reporte.
+- **Estado de la migración a 102-2025:** Migrados la presión dinámica (Art. 1.13), mapas (Fig. 1.5-1), $K_z$ (Tabla 1.13-1), factor topográfico (Art. 1.8), ráfaga (Art. 1.9), altitud (Art. 1.12) y el SPRFV por método direccional (Fig. 2.4-1). **Pendiente** (marcado con `TODO` en el código): las figuras de componentes (5A/5B/7A/8) y la presión mínima de componentes (Art. 1.4.2), que siguen CIRSOC 102-2005.
 - **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
   interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
   `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras

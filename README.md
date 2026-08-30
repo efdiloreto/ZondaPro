@@ -1,6 +1,6 @@
 ![Zonda](https://imgur.com/WJDyN6A.png)
 
-Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2005**.
+Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2025**.
 
 [![Licencia: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python: >=3.13](https://img.shields.io/badge/Python->=3.13-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -10,7 +10,7 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 ## Características
 
-- **Cálculo reglamentario (CIRSOC 102-2005):**
+- **Cálculo reglamentario (CIRSOC 102-2025):**
   - Determinación de presiones dinámicas $q_z$ y $q_h$.
   - Factores de ráfaga ($G$), direccionalidad ($K_d$), altitud ($K_e$) y efecto topográfico ($K_{zt}$).
   - Coeficientes de presión externa ($C_p$) e interna ($GC_{pi}$).

@@ -3,7 +3,7 @@ linestretch: 1
 lang: es
 table-numbers: false
 title: {% block titulo_encabezado -%}{%- endblock %}
-subtitle: CIRSOC 102-2005
+subtitle: CIRSOC 102-2025
 header-includes:
     - \usepackage[labelformat=empty]{caption}
     - \pagenumbering{gobble}

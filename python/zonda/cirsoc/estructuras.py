@@ -50,7 +50,7 @@ class Cartel:
     """Cartel.
 
     Calcula las presiones sobre un cartel y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
@@ -179,7 +179,7 @@ class CubiertaAislada:
     """CubiertaAislada.
 
     Calcula las presiones sobre una cubierta aislada y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
@@ -318,7 +318,7 @@ class Edificio:
     """Edificio.
 
     Calcula las presiones sobre un edificio y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(

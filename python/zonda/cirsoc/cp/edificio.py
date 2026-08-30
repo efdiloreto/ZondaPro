@@ -199,6 +199,9 @@ class ParedesComponentes:
     """ParedesComponentes.
 
     Determina los coeficientes de presión de paredes de edificio para Componentes y Revestimientos.
+
+    TODO: Las figuras y valores de esta clase (Figura 5A / Figura 8) siguen
+    CIRSOC 102-2005: pendiente de migrar a CIRSOC 102-2025.
     """
 
     def __init__(
@@ -753,6 +756,9 @@ class CubiertaComponentes:
     """CubiertaComponentes.
 
     Determina los coeficientes de presión de cubierta de edificio para Componentes y Revestimientos.
+
+    TODO: Las figuras y valores de esta clase (Figuras 5B, 5B (cont.), 7A,
+    7A (cont.) y 8) siguen CIRSOC 102-2005: pendiente de migrar a CIRSOC 102-2025.
     """
 
     def __init__(

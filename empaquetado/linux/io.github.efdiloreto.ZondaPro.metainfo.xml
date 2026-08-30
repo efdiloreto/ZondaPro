@@ -10,8 +10,8 @@
     <id>io.github.efdiloreto.ZondaPro</id>
 
     <name>Zonda</name>
-    <summary>Cálculo de cargas de viento según CIRSOC 102-2005</summary>
-    <summary xml:lang="es">Cálculo de cargas de viento según CIRSOC 102-2005</summary>
+    <summary>Cálculo de cargas de viento según CIRSOC 102-2025</summary>
+    <summary xml:lang="es">Cálculo de cargas de viento según CIRSOC 102-2025</summary>
 
     <metadata_license>CC0-1.0</metadata_license>
     <project_license>GPL-3.0-or-later</project_license>
@@ -23,7 +23,7 @@
     <description>
         <p>
             Zonda calcula cargas y presiones de viento sobre estructuras según el
-            reglamento argentino CIRSOC 102-2005.
+            reglamento argentino CIRSOC 102-2025.
         </p>
         <p>Incluye:</p>
         <ul>
