@@ -142,61 +142,67 @@ class WidgetResultadosEdificioSprfvMetodoDireccional(QtWidgets.QWidget):
         )
         self._layout_parametros.addWidget(self._combobox_direccion, 1, 1)
 
-        if edificio.geometria.tipo_cubierta in (
-            TipoCubierta.DOS_AGUAS,
-            TipoCubierta.UN_AGUA,
-        ):
-            # La cubierta a barlovento tiene dos casos de presión sólo cuando
-            # el ángulo llega a 10°: las filas lo dicen con su clave de caso.
-            casos_cubierta = edificio.resultados_sprfv.filtrar(
-                zona=ZonaEdificio.CUBIERTA
-            ).valores("caso")
-            if any(casos_cubierta):
-                self._combobox_presion_cubierta_inclinada = QtWidgets.QComboBox()
-                for enum in TipoPresionCubiertaBarloventoSprfv:
-                    self._combobox_presion_cubierta_inclinada.addItem(
-                        enum.value.capitalize(), enum
-                    )
-                self._combobox_presion_cubierta_inclinada.currentTextChanged.connect(
-                    lambda: self.grafico.escena.actualizar_presion_cubierta_inclinada(
-                        self._combobox_presion_cubierta_inclinada.currentData()
-                    )
+        # La cubierta a barlovento tiene dos casos de presión con el viento
+        # normal a la cumbrera: cuando el ángulo llega a 10° y, según el
+        # nuevo Reglamento, también cuando es menor que 10°. Las filas lo
+        # dicen con su clave de caso. Aplica a dos aguas, un agua y plana.
+        casos_cubierta = edificio.resultados_sprfv.filtrar(
+            zona=ZonaEdificio.CUBIERTA
+        ).valores("caso")
+        if any(casos_cubierta):
+            # Con ángulo menor que 10° el caso positivo de la cubierta se
+            # aplica a todo el faldón, sin distinguir posición.
+            self._cubierta_casos_por_zona = any(
+                fila.caso is not None and fila.posicion is None
+                for fila in edificio.resultados_sprfv.filtrar(
+                    zona=ZonaEdificio.CUBIERTA
                 )
-                numero_filas = self._layout_parametros.rowCount()
-                self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Presión Cubierta Barlovento"), numero_filas, 0
+            )
+            self._combobox_presion_cubierta_inclinada = QtWidgets.QComboBox()
+            for enum in TipoPresionCubiertaBarloventoSprfv:
+                self._combobox_presion_cubierta_inclinada.addItem(
+                    enum.value.capitalize(), enum
                 )
-                self._layout_parametros.addWidget(
-                    self._combobox_presion_cubierta_inclinada, numero_filas, 1
+            self._combobox_presion_cubierta_inclinada.currentTextChanged.connect(
+                lambda: self.grafico.escena.actualizar_presion_cubierta_inclinada(
+                    self._combobox_presion_cubierta_inclinada.currentData()
                 )
+            )
+            numero_filas = self._layout_parametros.rowCount()
+            self._layout_parametros.addWidget(
+                QtWidgets.QLabel("Presión Cubierta Barlovento"), numero_filas, 0
+            )
+            self._layout_parametros.addWidget(
+                self._combobox_presion_cubierta_inclinada, numero_filas, 1
+            )
 
-            if edificio.geometria.tipo_cubierta == TipoCubierta.UN_AGUA:
-                self._combobox_posicion_cubierta_un_agua = QtWidgets.QComboBox()
-                for enum in PosicionCubiertaAleroSprfv:
-                    self._combobox_posicion_cubierta_un_agua.addItem(
-                        enum.value.capitalize(), enum
-                    )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    lambda: self.grafico.escena.actualizar_posicion_cubierta_un_agua(
-                        self._combobox_posicion_cubierta_un_agua.currentData()
-                    )
+        if edificio.geometria.tipo_cubierta == TipoCubierta.UN_AGUA:
+            self._combobox_posicion_cubierta_un_agua = QtWidgets.QComboBox()
+            for enum in PosicionCubiertaAleroSprfv:
+                self._combobox_posicion_cubierta_un_agua.addItem(
+                    enum.value.capitalize(), enum
                 )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    self._actualizar_combobox_alturas
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                lambda: self.grafico.escena.actualizar_posicion_cubierta_un_agua(
+                    self._combobox_posicion_cubierta_un_agua.currentData()
                 )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    self._actualizar_direccion_viento
-                )
-                numero_filas = self._layout_parametros.rowCount()
-                self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Posición Cubierta"),
-                    numero_filas,
-                    0,
-                    QtCore.Qt.AlignmentFlag.AlignRight,
-                )
-                self._layout_parametros.addWidget(
-                    self._combobox_posicion_cubierta_un_agua, numero_filas, 1
-                )
+            )
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                self._actualizar_combobox_alturas
+            )
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                self._actualizar_direccion_viento
+            )
+            numero_filas = self._layout_parametros.rowCount()
+            self._layout_parametros.addWidget(
+                QtWidgets.QLabel("Posición Cubierta"),
+                numero_filas,
+                0,
+                QtCore.Qt.AlignmentFlag.AlignRight,
+            )
+            self._layout_parametros.addWidget(
+                self._combobox_posicion_cubierta_un_agua, numero_filas, 1
+            )
 
         self._combobox_alturas_barlovento = QtWidgets.QComboBox()
         self._combobox_alturas_barlovento.currentIndexChanged.connect(
@@ -302,13 +308,16 @@ class WidgetResultadosEdificioSprfvMetodoDireccional(QtWidgets.QWidget):
                     and combobox_posicion_cubierta_un_agua is not None
                     and bool_direccion
                 ):
-                    posicion_cubierta_un_agua = (
-                        combobox_posicion_cubierta_un_agua.currentData()
-                    )
-                    bool_visualizar = (
-                        posicion_cubierta_un_agua
-                        == PosicionCubiertaAleroSprfv.BARLOVENTO
-                    )
+                    if not getattr(self, "_cubierta_casos_por_zona", False):
+                        posicion_cubierta_un_agua = (
+                            combobox_posicion_cubierta_un_agua.currentData()
+                        )
+                        bool_visualizar = (
+                            posicion_cubierta_un_agua
+                            == PosicionCubiertaAleroSprfv.BARLOVENTO
+                        )
+                    else:
+                        bool_visualizar = True
                 else:
                     bool_visualizar = bool_direccion
                 widget.setEnabled(bool_visualizar)

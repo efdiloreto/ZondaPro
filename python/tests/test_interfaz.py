@@ -143,6 +143,45 @@ def test_resultados_edificio(qapp, edificio):
 
 
 @necesita_opengl
+def test_resultados_edificio_plana_tiene_caso_cubierta_barlovento(qapp):
+    """La cubierta plana (ángulo < 10°) muestra el caso de cubierta barlovento.
+
+    El nuevo Reglamento agrega el caso de presión positiva a las cubiertas de
+    ángulo menor que 10° con viento normal a la cumbrera, incluida la plana.
+    """
+    from zonda import enums
+    from zonda.cirsoc import Edificio
+    from zonda.widgets.resultados import WidgetResultadosEdificioSprfvMetodoDireccional
+
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=6,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    widget = WidgetResultadosEdificioSprfvMetodoDireccional(edificio)
+    combobox = widget._combobox_presion_cubierta_inclinada
+    assert combobox is not None
+
+    widget._combobox_direccion.setCurrentIndex(
+        widget._combobox_direccion.findData(
+            enums.DireccionVientoMetodoDireccionalSprfv.NORMAL
+        )
+    )
+    assert combobox.isEnabled()
+    combobox.setCurrentText("Presión positiva")
+    widget.close()
+
+
+@necesita_opengl
 def test_resultados_cartel(qapp, cartel):
     from zonda.widgets.resultados import WidgetResultadosCartel
 

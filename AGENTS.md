@@ -19,8 +19,6 @@ uv run pytest           # Correr suite de tests
 uv run ruff check .     # Linting con Ruff
 uv run ruff format .    # Formateo de código
 uv run mypy zonda       # Chequeo estático de tipos
-
-uv run python -m tests.referencia   # Regenerar los resultados de referencia
 ```
 
 ---
@@ -79,11 +77,4 @@ El flujo de dependencias es estrictamente unidireccional:
   El edificio separa SPRFV de componentes porque el Reglamento puede no proveer
   lineamientos para los segundos, y en ese caso `resultados_componentes` lanza
   `ErrorLineamientos` mientras el SPRFV sigue siendo válido.
-- **Resultados de referencia:** `tests/referencia/*.tsv` guardan todos los números
-  que produce hoy la matriz de casos de `tests/referencia.py`. No afirman que los
-  valores sean correctos según el Reglamento, sino que no cambiaron: si un cambio
-  al núcleo mueve alguno, `test_referencia.py` falla y señala la línea. Cuando el
-  cambio es deliberado se regeneran con `uv run python -m tests.referencia` y
-  **hay que revisar el diff antes de commitear**: es la única revisión que tienen.
-  Si se agrega una rama de cálculo, sumar un caso a la matriz que la recorra.
 - **Tests de cálculo:** Los valores numéricos en `tests/test_calculos.py` son referencias reglamentarias fijas. No alterar tolerancias ni valores esperados sin justificación técnica de cálculo.

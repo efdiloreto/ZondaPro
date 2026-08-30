@@ -177,6 +177,104 @@ def test_edificio_todos_los_tipos_de_cubierta(tipo_cubierta):
     assert edificio.presiones is not None
 
 
+def _edificio_angulo_pequeno(
+    tipo_cubierta=enums.TipoCubierta.DOS_AGUAS, alero: float = 0
+) -> Edificio:
+    """Crea un edificio con ángulo de cubierta menor que 10°.
+
+    Args:
+        tipo_cubierta: El tipo de cubierta.
+        alero: La dimensión del alero.
+
+    Returns:
+        Un edificio con cubierta de pequeña pendiente (≈ 5.7°).
+    """
+    altura_cumbrera = 7 if tipo_cubierta != enums.TipoCubierta.PLANA else 6
+    return Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=altura_cumbrera,
+        tipo_cubierta=tipo_cubierta,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=alero,
+    )
+
+
+@pytest.mark.parametrize("tipo_cubierta", list(enums.TipoCubierta))
+def test_cubierta_barlovento_angulo_menor_diez_tiene_caso_positivo(tipo_cubierta):
+    """Con viento normal, las cubiertas de ángulo < 10° suman el caso positivo.
+
+    El nuevo Reglamento agrega un caso de presión positiva de -0.18 en todas
+    las zonas de la cubierta a barlovento con viento normal a la cumbrera.
+    """
+    edificio = _edificio_angulo_pequeno(tipo_cubierta)
+    cubierta_normal = edificio.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.CUBIERTA,
+        direccion=enums.DireccionVientoMetodoDireccionalSprfv.NORMAL,
+    )
+    positivas = cubierta_normal.filtrar(
+        caso=enums.TipoPresionCubiertaBarloventoSprfv.POSITIVA
+    )
+    negativas = cubierta_normal.filtrar(caso=None)
+    assert positivas
+    assert len(positivas) == len(negativas)
+    for fila in positivas:
+        assert fila.cp == pytest.approx(-0.18)
+        assert fila.rango is not None
+        assert fila.posicion is None
+    assert all(fila.cp < 0 for fila in negativas)
+
+
+@pytest.mark.parametrize("tipo_cubierta", list(enums.TipoCubierta))
+def test_cubierta_barlovento_angulo_menor_diez_presiones_de_los_casos(tipo_cubierta):
+    """Los dos casos conviven y tienen presiones coherentes.
+
+    El caso positivo es más bajo (en valor absoluto) que el negativo por zona,
+    así que su presión es menor.
+    """
+    edificio = _edificio_angulo_pequeno(tipo_cubierta)
+    cubierta_normal = edificio.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.CUBIERTA,
+        direccion=enums.DireccionVientoMetodoDireccionalSprfv.NORMAL,
+    )
+    positivas = cubierta_normal.filtrar(
+        caso=enums.TipoPresionCubiertaBarloventoSprfv.POSITIVA
+    )
+    negativas = cubierta_normal.filtrar(caso=None)
+    for positiva, negativa in zip(positivas, negativas, strict=True):
+        assert abs(positiva.pos) < abs(negativa.pos)
+        assert abs(positiva.neg) < abs(negativa.neg)
+
+
+def test_cubierta_barlovento_angulo_menor_diez_alero():
+    """El alero repite el caso positivo de la cubierta de pequeña pendiente.
+
+    A barlovento el coeficiente es -0.18 - 0.8 y a sotavento se mantiene.
+    """
+    edificio = _edificio_angulo_pequeno(alero=1)
+    alero = edificio.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.ALERO,
+        direccion=enums.DireccionVientoMetodoDireccionalSprfv.NORMAL,
+    )
+    barlovento = alero.filtrar(
+        posicion=enums.PosicionCubiertaAleroSprfv.BARLOVENTO,
+        caso=enums.TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+    ).unica()
+    sotavento = alero.filtrar(
+        posicion=enums.PosicionCubiertaAleroSprfv.SOTAVENTO,
+        caso=enums.TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+    ).unica()
+    assert barlovento.cp == pytest.approx(-0.98)
+    assert sotavento.cp == pytest.approx(-0.18)
+
+
 @pytest.mark.parametrize("categoria_exp", list(enums.CategoriaExposicion))
 def test_cartel_todas_las_categorias_de_exposicion(categoria_exp):
     cartel = Cartel(

@@ -455,6 +455,63 @@ def test_escena_del_edificio_sprfv(qapp, edificio):
     assert "GCpi" in escena.titulo
 
 
+def test_escena_del_edificio_sprfv_angulo_menor_diez(qapp, edificio_angulo_pequeno):
+    """La escena recorre los dos casos de cubierta barlovento con ángulo < 10°."""
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesSprfvMetodoDireccional(
+        escena, edificio_angulo_pequeno, enums.Unidad.N
+    )
+    presiones.actualizar_direccion_viento(
+        enums.DireccionVientoMetodoDireccionalSprfv.NORMAL
+    )
+    for tipo in enums.TipoPresionCubiertaBarloventoSprfv:
+        presiones.actualizar_presion_cubierta_inclinada(tipo)
+
+    assert escena.caras
+    assert escena.presiones
+    assert "GCpi" in escena.titulo
+
+
+def test_titulo_un_agua_angulo_menor_diez_sotavento_muestra_el_caso(qapp):
+    """Con ángulo < 10° el caso aplica a toda la cubierta y va en el título.
+
+    Aunque la cubierta a un agua esté en posición sotavento, el caso de
+    presión de la cubierta sigue siendo visible en la escena (el combobox del
+    widget queda habilitado), así que el título lo muestra.
+    """
+    from zonda.cirsoc import Edificio
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=7,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesSprfvMetodoDireccional(
+        escena, edificio, enums.Unidad.N
+    )
+    presiones.actualizar_direccion_viento(
+        enums.DireccionVientoMetodoDireccionalSprfv.NORMAL
+    )
+    presiones.actualizar_posicion_cubierta_un_agua(
+        enums.PosicionCubiertaAleroSprfv.SOTAVENTO
+    )
+
+    assert "Caso" in escena.titulo
+
+
 def test_escena_del_edificio_componentes(qapp, edificio):
     from zonda.graficos.escenas import edificio as escena_edificio
 

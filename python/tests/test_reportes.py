@@ -48,6 +48,14 @@ def test_reporte_edificio(edificio):
     assert reporte._texto_md.strip()
 
 
+def test_reporte_edificio_angulo_menor_diez_muestra_el_caso_positivo(
+    edificio_angulo_pequeno,
+):
+    """El reporte lista el caso de presión positiva de la cubierta < 10°."""
+    texto = Reporte("edificio.md", edificio_angulo_pequeno, UNIDADES)._texto_md
+    assert "PRESIÓN POSITIVA" in texto
+
+
 def test_reporte_cartel(cartel):
     reporte = Reporte("cartel.md", cartel, UNIDADES)
     assert reporte._texto_md.strip()

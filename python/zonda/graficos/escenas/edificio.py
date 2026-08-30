@@ -146,6 +146,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._tipo_presion_cubierta_barlovento = (
             TipoPresionCubiertaBarloventoSprfv.NEGATIVA
         )
+        self._caso_cubierta_barlovento = any(
+            clave[2] is not None for clave in self._cubierta
+        )
 
         if hasattr(self.director, "posicion_cubierta_un_agua"):
             self._posicion_cubierta_un_agua_actual = (
@@ -282,14 +285,14 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             La fila correspondiente. Si la superficie a barlovento tiene dos
             casos de presión, se devuelve la del caso actual.
         """
-        clave = (self._direccion_actual, posicion, None)
-        if clave not in indice:
-            clave = (
-                self._direccion_actual,
-                posicion,
-                self._tipo_presion_cubierta_barlovento,
-            )
-        return indice[clave].unica()
+        clave = (
+            self._direccion_actual,
+            posicion,
+            self._tipo_presion_cubierta_barlovento,
+        )
+        if clave in indice:
+            return indice[clave].unica()
+        return indice[(self._direccion_actual, posicion, None)].unica()
 
     def _actualizar_paredes_sotavento_lateral(self, regenerar_actores=False) -> None:
         """Actualiza los actores y presiones para las paredes sotavento y laterales.
@@ -331,7 +334,15 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
                 )
             self._actores_actuales_cubierta = self.director.obtener_cubierta()
         if self._esta_zonificada(self._cubierta):
-            filas = self._cubierta[(self._direccion_actual, None, None)]
+            filas = self._cubierta.get(
+                (
+                    self._direccion_actual,
+                    None,
+                    self._tipo_presion_cubierta_barlovento,
+                )
+            )
+            if filas is None:
+                filas = self._cubierta[(self._direccion_actual, None, None)]
             for i, fila in enumerate(filas):
                 presion = fila.presion(self._gcpi_actual)
                 try:
@@ -397,12 +408,13 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             )
             if posicion_cubierta_un_agua is not None:
                 texto += f" - Cubierta a {posicion_cubierta_un_agua.value.capitalize()}"
-            if posicion_cubierta_un_agua != PosicionCubiertaAleroSprfv.SOTAVENTO:
-                caso_cubierta_barlovento = getattr(
-                    self, "_caso_cubierta_barlovento", None
-                )
-                if caso_cubierta_barlovento is not None:
-                    texto += f" - Caso {self._tipo_presion_cubierta_barlovento.value}"
+            # Cuando la cubierta está zonificada (ángulo < 10°) el caso de
+            # presión aplica a toda la superficie, no sólo a barlovento.
+            if (
+                posicion_cubierta_un_agua != PosicionCubiertaAleroSprfv.SOTAVENTO
+                or self._esta_zonificada(self._cubierta)
+            ) and self._caso_cubierta_barlovento:
+                texto += f" - Caso {self._tipo_presion_cubierta_barlovento.value}"
 
         self._titulo.setear_texto(texto)
 

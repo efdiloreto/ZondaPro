@@ -90,6 +90,31 @@ def edificio() -> Edificio:
 
 
 @pytest.fixture(scope="session")
+def edificio_angulo_pequeno() -> Edificio:
+    """Edificio con ángulo de cubierta menor que 10° y alero.
+
+    Altura de alero 6 m y cumbrera a 7 m sobre un ancho de 20 m: el ángulo es
+    de unos 5.7°, así el viento normal a la cumbrera genera los casos de
+    presión de las cubiertas de pequeña pendiente del nuevo Reglamento.
+    """
+    return Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=7,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=1,
+    )
+
+
+@pytest.fixture(scope="session")
 def cartel() -> Cartel:
     return Cartel(
         profundidad=1,

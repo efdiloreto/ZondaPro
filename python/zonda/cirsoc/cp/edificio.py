@@ -171,7 +171,7 @@ class ParedesSprfvMetodoDireccional:
         Returns:
             La referencia de la figura en el código.
         """
-        return "Figura 3 (cont.)"
+        return "Figura 2.4-1 (cont.)"
 
     @staticmethod
     def _cp_pared_sotavento(
@@ -448,10 +448,23 @@ class CubiertaSprfvMetodoDireccional:
         )
         if indice_repetido is not None:
             cps.insert(indice_repetido + 1, cps[indice_repetido])
-        return [
+        entradas = [
             self._entrada(cp, direccion=direccion, rango=(float(inicio), float(fin)))
             for (inicio, fin), cp in zip(zonas, cps, strict=True)
         ]
+        if direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL:
+            # El nuevo Reglamento especifica además un caso de presión positiva
+            # de -0.18 en todas las zonas, con viento normal a la cumbrera y
+            # ángulo menor que 10°.
+            entradas += [
+                replace(
+                    entrada,
+                    valor=-0.18,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+                )
+                for entrada in entradas
+            ]
+        return entradas
 
     def _entradas_por_posicion(self) -> list[EntradaCp]:
         """Calcula los coeficientes con viento normal a la cumbrera y ángulo ≥ 10°.
@@ -484,7 +497,7 @@ class CubiertaSprfvMetodoDireccional:
         Returns:
             La referencia de la figura en el código.
         """
-        return "Figura 3 (cont.)"
+        return "Figura 2.4-1 (cont.)"
 
     def _cp_cubierta_angulo_menor_diez(
         self, dimension_paralela: float, dimension_normal: float, numero_de_zonas: int
@@ -681,7 +694,9 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
 
         Con el viento paralelo a la cumbrera el alero toma los coeficientes de
         la cubierta. Con el viento normal no se divide en zonas: a barlovento el
-        coeficiente se reduce en 0.8 y a sotavento se mantiene.
+        coeficiente se reduce en 0.8 y a sotavento se mantiene. Con el viento
+        normal y ángulo menor que 10° se repite el caso de presión positiva de
+        la cubierta.
 
         Returns:
             Un coeficiente por cada zona o posición y dirección del viento.
@@ -698,16 +713,30 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             if entrada.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
         ]
         if self.normal_como_paralelo:
+            negativa = [entrada for entrada in normal if entrada.caso is None]
+            positiva = [entrada for entrada in normal if entrada.caso is not None]
             normal = [
                 self._entrada(
-                    normal[0].valor - 0.8,
+                    negativa[0].valor - 0.8,
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
                 ),
                 self._entrada(
-                    normal[-1].valor,
+                    negativa[-1].valor,
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+                ),
+                self._entrada(
+                    positiva[0].valor - 0.8,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+                ),
+                self._entrada(
+                    positiva[-1].valor,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
                 ),
             ]
         else:

@@ -127,11 +127,12 @@
 
 {#
   Arma el título de una superficie de cubierta o alero. Cuando la superficie
-  está dividida en zonas no hay posición ni caso, y el título es sólo la base.
+  está dividida en zonas sin posición se muestra igualmente el caso de presión
+  si la fila lo tiene (el caso positivo del nuevo Reglamento con ángulo < 10°).
 #}
 {% macro titulo_superficie(base, clave, sin_posicion=none) -%}
 {%- if clave[0] is none -%}
-{{- sin_posicion or base -}}
+{{- sin_posicion or base }}{% if clave[1] %} - {{ clave[1].value|upper }}{% endif %}
 {%- else -%}
 {{- base }} {{ clave[0].value|upper }}{% if clave[1] %} - {{ clave[1].value|upper }}{% endif %}
 {%- endif -%}
