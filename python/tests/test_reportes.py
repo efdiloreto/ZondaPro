@@ -56,6 +56,19 @@ def test_reporte_edificio_angulo_menor_diez_muestra_el_caso_positivo(
     assert "PRESIÓN POSITIVA" in texto
 
 
+def test_reporte_edificio_con_parapeto_distingue_el_positivo_por_zona(
+    edificio_con_parapeto,
+):
+    """Con parapeto, las Zonas 2 y 3 llevan dos filas y hay que diferenciarlas.
+
+    La Nota 5 de la Figura 5.3-2A les da un positivo propio, así que la tabla
+    de la zona deja de tener una sola fila.
+    """
+    texto = Reporte("edificio.md", edificio_con_parapeto, UNIDADES)._texto_md
+    assert "2 (positiva)" in texto
+    assert "3 (positiva)" in texto
+
+
 def test_reporte_cartel(cartel):
     reporte = Reporte("cartel.md", cartel, UNIDADES)
     assert reporte._texto_md.strip()

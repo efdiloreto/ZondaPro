@@ -65,6 +65,12 @@
 {%- set etiqueta = '%.2f a %.2f'|format(fila.rango[0], fila.rango[1]) -%}
 {%- elif fila.zona_componente -%}
 {%- set etiqueta = fila.zona_componente.value|capitalize -%}
+{#- El positivo suele ser único y viajar en la zona "todas". Cuando el
+    Reglamento lo distingue por zona (Fig. 5.3-2A, Nota 5, con parapeto), la
+    zona aparece con dos filas y hay que decir cuál es cuál. -#}
+{%- if fila.tipo_presion == enums.TipoPresionComponentesParedesCubierta.POSITIVA and fila.zona_componente.name != 'TODAS' -%}
+{%- set etiqueta = '%s (positiva)'|format(etiqueta) -%}
+{%- endif -%}
 {%- else -%}
 {%- set etiqueta = 'Total' -%}
 {%- endif -%}

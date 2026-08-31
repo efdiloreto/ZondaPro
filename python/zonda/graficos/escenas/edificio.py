@@ -25,7 +25,7 @@ las condicionales del Reglamento.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zonda.enums import (
     DireccionVientoMetodoDireccionalSprfv,
@@ -454,13 +454,26 @@ class PresionesComponentes(PresionesMixin):
         # y los de la pared a barlovento varían con la altura.
         self._por_pared = any(fila.pared for fila in filas_paredes)
 
-        self._paredes = filas_paredes.indexar("pared", "componente", "zona_componente")
-        self._cubierta = filas_cubierta.indexar("componente", "zona_componente")
+        # El signo entra en la clave porque una zona puede tener a la vez fila
+        # negativa y positiva (Fig. 5.3-2A, Nota 5, con parapeto).
+        self._paredes = filas_paredes.indexar(
+            "pared", "componente", "zona_componente", "tipo_presion"
+        )
+        self._cubierta = filas_cubierta.indexar(
+            "componente", "zona_componente", "tipo_presion"
+        )
         self._alero = filas_alero.indexar("componente", "zona_componente")
 
         self._barlovento_por_altura = {
-            (componente, zona_componente): {fila.q.altura: fila for fila in filas}
-            for (pared, componente, zona_componente), filas in self._paredes.items()
+            (componente, zona_componente, tipo_presion): {
+                fila.q.altura: fila for fila in filas
+            }
+            for (
+                pared,
+                componente,
+                zona_componente,
+                tipo_presion,
+            ), filas in self._paredes.items()
             if pared is ParedEdificioSprfv.BARLOVENTO
         }
 
@@ -565,8 +578,11 @@ class PresionesComponentes(PresionesMixin):
         """
         pared = self._actores_paredes[ParedEdificioSprfv.BARLOVENTO]
         for zona, actores in pared.items():
-            filas = self._barlovento_por_altura.get(
-                (self._componente_actual_pared, self._zona_pared(zona))
+            filas = self._filas_zona(
+                self._barlovento_por_altura,
+                (self._componente_actual_pared,),
+                zona,
+                ZonaComponenteParedEdificio.TODAS,
             )
             if filas is None:
                 continue
@@ -598,43 +614,36 @@ class PresionesComponentes(PresionesMixin):
             return clave
         return ParedEdificioSprfv.LATERAL
 
-    def _zona_pared(
-        self, zona: ZonaComponenteParedEdificio
-    ) -> ZonaComponenteParedEdificio:
-        """La zona de la que se toma el valor para el tipo de presión actual.
+    def _filas_zona(
+        self,
+        indice: dict,
+        clave_previa: tuple,
+        zona: ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio,
+        zona_todas: ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio,
+    ) -> Any | None:
+        """Las filas de una zona para el tipo de presión actual.
 
-        La presión positiva es la misma para todas las zonas de la pared.
-
-        Args:
-            zona: La zona del actor.
-
-        Returns:
-            La zona de la que se lee el valor.
-        """
-        if (
-            self._tipo_presion_componente_actual
-            is TipoPresionComponentesParedesCubierta.POSITIVA
-        ):
-            return ZonaComponenteParedEdificio.TODAS
-        return zona
-
-    def _zona_cubierta(
-        self, zona: ZonaComponenteCubiertaEdificio
-    ) -> ZonaComponenteCubiertaEdificio:
-        """La zona de la que se toma el valor para el tipo de presión actual.
+        El valor positivo suele ser único para todas las zonas y viajar en la
+        zona "todas", pero puede ser propio de la zona cuando el Reglamento lo
+        distingue (Fig. 5.3-2A, Nota 5, con parapeto), así que se busca primero
+        la zona y después la de respaldo.
 
         Args:
+            indice: El índice de filas de la superficie.
+            clave_previa: Las claves que van antes de la zona.
             zona: La zona del actor.
+            zona_todas: La zona "todas" del enum de la superficie.
 
         Returns:
-            La zona de la que se lee el valor.
+            Lo que guarde el índice para esa clave -una `Tabla` de filas o el
+            diccionario por altura de la pared a barlovento-, o ninguno si la
+            zona no tiene valor para este signo.
         """
-        if (
-            self._tipo_presion_componente_actual
-            is TipoPresionComponentesParedesCubierta.POSITIVA
-        ):
-            return ZonaComponenteCubiertaEdificio.TODAS
-        return zona
+        tipo_presion = self._tipo_presion_componente_actual
+        filas = indice.get((*clave_previa, zona, tipo_presion))
+        if filas is not None:
+            return filas
+        return indice.get((*clave_previa, zona_todas, tipo_presion))
 
     def _actualizar_paredes(self) -> None:
         """Actualiza las presiones de los actores de paredes."""
@@ -644,12 +653,15 @@ class PresionesComponentes(PresionesMixin):
                 # Se actualiza por altura, desde actualizar_altura_pared_barlovento.
                 continue
             for zona, actores in zonas.items():
-                clave = (
-                    pared if self._por_pared else None,
-                    self._componente_actual_pared,
-                    self._zona_pared(zona),
+                filas = self._filas_zona(
+                    self._paredes,
+                    (
+                        pared if self._por_pared else None,
+                        self._componente_actual_pared,
+                    ),
+                    zona,
+                    ZonaComponenteParedEdificio.TODAS,
                 )
-                filas = self._paredes.get(clave)
                 if filas is None:
                     continue
                 presion = filas.unica().presion(self._gcpi_actual)
@@ -662,8 +674,11 @@ class PresionesComponentes(PresionesMixin):
     def _actualizar_cubierta(self) -> None:
         """Actualiza las presiones de los actores de cubierta."""
         for zona, actores in self._actores_cubierta.items():
-            filas = self._cubierta.get(
-                (self._componente_actual_cubierta, self._zona_cubierta(zona))
+            filas = self._filas_zona(
+                self._cubierta,
+                (self._componente_actual_cubierta,),
+                zona,
+                ZonaComponenteCubiertaEdificio.TODAS,
             )
             if filas is None:
                 continue

@@ -115,6 +115,32 @@ def edificio_angulo_pequeno() -> Edificio:
 
 
 @pytest.fixture(scope="session")
+def edificio_con_parapeto() -> Edificio:
+    """Edificio de la Tabla C 5.3-2 con parapeto de 1 m alrededor.
+
+    Con ese parapeto se activa la Nota 5 de la Figura 5.3-2A: la Zona 3
+    negativa iguala a la Zona 2 y las Zonas 2 y 3 reciben el valor positivo de
+    las Zonas de pared 4 y 5.
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=9,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
 def cartel() -> Cartel:
     return Cartel(
         profundidad=1,

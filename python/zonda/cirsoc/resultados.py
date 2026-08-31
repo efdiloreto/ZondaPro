@@ -55,6 +55,7 @@ if TYPE_CHECKING:
 
     from zonda.enums import (
         PosicionCubiertaAleroSprfv,
+        TipoPresionComponentesParedesCubierta,
         TipoPresionCubiertaBarloventoSprfv,
     )
 
@@ -81,6 +82,12 @@ class FilaEdificio:
 
     Los campos opcionales son las claves que no aplican a la fila: una pared a
     sotavento no tiene rango de zona, una zona de cubierta no tiene componente.
+
+    ``tipo_presion`` sólo lo traen las filas de componentes, y distingue el
+    signo del coeficiente externo. Es lo que permite que una zona tenga a la vez
+    una fila negativa y una positiva, como pide la Nota 5 de la Figura 5.3-2A
+    cuando hay parapeto. Cuando el positivo es único para todas las zonas, su
+    fila va con ``zona_componente`` en ``TODAS``.
     """
 
     zona: ZonaEdificio
@@ -103,6 +110,7 @@ class FilaEdificio:
     ) = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
+    tipo_presion: TipoPresionComponentesParedesCubierta | None = None
 
     @property
     def presiones(self) -> tuple[float, ...]:
@@ -147,6 +155,7 @@ class EntradaCp:
     ) = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
+    tipo_presion: TipoPresionComponentesParedesCubierta | None = None
 
     def fila(
         self,
@@ -191,6 +200,7 @@ class EntradaCp:
             zona_componente=self.zona_componente,
             rango=self.rango,
             distancia_a=self.distancia_a,
+            tipo_presion=self.tipo_presion,
         )
 
 

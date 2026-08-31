@@ -32,6 +32,7 @@ from zonda.enums import (
     PosicionCubiertaAleroSprfv,
     SistemaResistente,
     TipoCubierta,
+    TipoPresionComponentesParedesCubierta,
     TipoPresionCubiertaBarloventoSprfv,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
@@ -98,6 +99,37 @@ def calcular_cp_componente(
         return ultimo_cp
     g = (ultimo_cp - primer_cp) / log10(ultima_area / primer_area)
     return primer_cp + g * log10(area_componente / primer_area)
+
+
+# CIRSOC 102-2025 - Tabla C 5.3-1: el GCp positivo de las paredes de C&R, que
+# la Tabla no distingue por zona -es el mismo para las Zonas 4 y 5-, con su
+# rango de áreas.
+CP_POSITIVO_PAREDES = (1.0, 0.7)
+AREAS_COMPONENTES_PAREDES = (1.0, 50.0)
+
+
+def cp_positivo_paredes(area_componente: float, angulo_cubierta: float) -> float:
+    """El GCp positivo de las Zonas de pared 4 y 5 de la Tabla C 5.3-1.
+
+    La Nota 5 de la Figura 5.3-2A se lo presta a las Zonas 2 y 3 de la cubierta
+    cuando hay un parapeto de 1 m o más alrededor del perímetro. Se presta el
+    valor tal como queda para el edificio, o sea con el descuento por cubierta
+    de pendiente baja, que con esa Figura siempre aplica.
+
+    Args:
+        area_componente: Area tributaria del componente.
+        angulo_cubierta: El ángulo de cubierta del edificio.
+
+    Returns:
+        El valor de GCp positivo.
+    """
+    factor_reduccion = 0.9 if angulo_cubierta <= 10 else 1
+    return (
+        calcular_cp_componente(
+            CP_POSITIVO_PAREDES, AREAS_COMPONENTES_PAREDES, area_componente
+        )
+        * factor_reduccion
+    )
 
 
 def distancia_a(ancho: float, longitud: float, altura_media: float) -> float:
@@ -195,6 +227,28 @@ class ParedesSprfvMetodoDireccional:
         )
 
 
+def tipo_presion_componente(
+    zona: ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio,
+) -> TipoPresionComponentesParedesCubierta:
+    """El signo del coeficiente externo de una zona de componentes.
+
+    Las tablas dan un único valor positivo para todas las zonas, que viaja en
+    la zona "todas"; el resto de las zonas son las negativas.
+
+    Args:
+        zona: La zona del componente.
+
+    Returns:
+        El tipo de presión de la zona.
+    """
+    if zona in (
+        ZonaComponenteParedEdificio.TODAS,
+        ZonaComponenteCubiertaEdificio.TODAS,
+    ):
+        return TipoPresionComponentesParedesCubierta.POSITIVA
+    return TipoPresionComponentesParedesCubierta.NEGATIVA
+
+
 class ParedesComponentes:
     """ParedesComponentes.
 
@@ -203,6 +257,11 @@ class ParedesComponentes:
     TODO: La rama de edificios de gran altura (Figura 8) sigue CIRSOC 102-2005:
     pendiente de migrar a CIRSOC 102-2025. La rama de altura baja ya usa la
     Tabla C 5.3-1 del 2025.
+
+    TODO (#9): falta la zona 4+ de la superficie inferior de los edificios
+    separados del suelo (Nota 8 de las figuras de C&R, Figura 5.3-1A). El dato
+    de entrada existe -la elevación del edificio-, y el valor es el positivo de
+    la zona 4, que ya devuelve ``cp_positivo_paredes``.
     """
 
     def __init__(
@@ -250,7 +309,7 @@ class ParedesComponentes:
             "Tabla C 5.3-1": {
                 ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
                 ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
-                ZonaComponenteParedEdificio.TODAS: (1, 0.7),
+                ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES,
             },
             "Figura 8": {
                 ZonaComponenteParedEdificio.CUATRO: (-0.9, -0.7),
@@ -260,9 +319,9 @@ class ParedesComponentes:
         }
         factor_reduccion = 1
         if self.referencia == "Figura 8":
-            area = (2, 50)
+            area = (2.0, 50.0)
         else:
-            area = (1, 50)
+            area = AREAS_COMPONENTES_PAREDES
             if self.angulo_cubierta <= 10:
                 factor_reduccion = 0.9
         caso_cp = valores_zonas_cp[self.referencia]
@@ -281,6 +340,7 @@ class ParedesComponentes:
                 componente=nombre,
                 zona_componente=zona,
                 distancia_a=self.distancia_a,
+                tipo_presion=tipo_presion_componente(zona),
             )
             for pared in paredes
             for nombre, area_componente in self.componentes.items()
@@ -958,10 +1018,8 @@ class CubiertaComponentes:
 
         # CIRSOC 102-2005 (Fig. 5B - Nota de pie 5 y Fig. 8 - Nota de pie 7) y
         # CIRSOC 102-2025 (Fig. 5.3-2A - Nota 5, que pide parapeto de 1 m o más).
-        # TODO: la Nota 5 del 2025 además iguala los valores positivos de las
-        # Zonas 2 y 3 a los de las Zonas de pared 4 y 5 de la Figura 5.3-1, lo
-        # que requiere valores positivos por zona; hoy el positivo es único
-        # (zona "todas") en el cálculo y en la vista 3D.
+        # Acá va la parte negativa de la Nota, que iguala la Zona 3 a la Zona 2;
+        # la positiva la agrega _entradas_positivas_nota_parapeto.
         if self.referencia == "Tabla C 5.3-2":
             aplica_nota_parapeto = self.parapeto >= 1
         else:
@@ -987,21 +1045,89 @@ class CubiertaComponentes:
                     cps["cp"], cps.get("area", area), area_componente
                 )
                 entradas.append(
-                    EntradaCp(
-                        zona=self.zona,
-                        sistema=SistemaResistente.COMPONENTES,
-                        valor=float(
+                    self._entrada(
+                        nombre,
+                        zona,
+                        float(
                             calcular_cp_componente(
                                 cp_filtrado, area_filtrada, area_componente
                             )
                         ),
-                        referencia=self.referencia,
-                        componente=nombre,
-                        zona_componente=zona,
-                        distancia_a=self.distancia_a,
+                        tipo_presion_componente(zona),
                     )
                 )
+            entradas += self._entradas_positivas_nota_parapeto(
+                nombre, area_componente, aplica_nota_parapeto
+            )
         return tuple(entradas)
+
+    def _entrada(
+        self,
+        componente: str,
+        zona: ZonaComponenteCubiertaEdificio,
+        valor: float,
+        tipo_presion: TipoPresionComponentesParedesCubierta,
+    ) -> EntradaCp:
+        """Arma la entrada de una zona.
+
+        Args:
+            componente: El nombre del componente.
+            zona: La zona del Reglamento.
+            valor: El valor de cp.
+            tipo_presion: El signo del coeficiente externo.
+
+        Returns:
+            La entrada de cp.
+        """
+        return EntradaCp(
+            zona=self.zona,
+            sistema=SistemaResistente.COMPONENTES,
+            valor=valor,
+            referencia=self.referencia,
+            componente=componente,
+            zona_componente=zona,
+            distancia_a=self.distancia_a,
+            tipo_presion=tipo_presion,
+        )
+
+    def _entradas_positivas_nota_parapeto(
+        self, componente: str, area_componente: float, aplica_nota_parapeto: bool
+    ) -> list[EntradaCp]:
+        """Los positivos propios de las Zonas 2 y 3 cuando hay parapeto.
+
+        La Nota 5 de la Figura 5.3-2A los iguala a los de las Zonas de pared 4
+        y 5, con lo que el positivo deja de ser único: las Zonas 1' y 1 siguen
+        con el de la zona "todas". La Nota es de la Figura de cubierta y no
+        aplica al alero, que no lleva positivo.
+
+        Args:
+            componente: El nombre del componente.
+            area_componente: Area tributaria del componente.
+            aplica_nota_parapeto: Indica si el parapeto llega a la dimensión
+                que pide la Nota.
+
+        Returns:
+            Una entrada por zona, o ninguna si la Nota no aplica.
+        """
+        if (
+            not aplica_nota_parapeto
+            or self.referencia != "Tabla C 5.3-2"
+            or self.es_alero
+        ):
+            return []
+        valor = cp_positivo_paredes(area_componente, self.angulo)
+        return [
+            self._entrada(
+                componente,
+                zona,
+                valor,
+                TipoPresionComponentesParedesCubierta.POSITIVA,
+            )
+            for zona in (
+                ZonaComponenteCubiertaEdificio.DOS,
+                ZonaComponenteCubiertaEdificio.TRES,
+            )
+        ]
 
     @cached_property
     def referencia(self) -> str:

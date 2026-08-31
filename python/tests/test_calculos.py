@@ -25,6 +25,7 @@ from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 from zonda.cirsoc.cp.edificio import (
     CubiertaComponentes,
     ParedesComponentes,
+    cp_positivo_paredes,
     distancia_a,
 )
 from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
@@ -904,14 +905,77 @@ def test_cubierta_componentes_alero_tabla_c532():
         assert valores_cp == pytest.approx(esperado(area), abs=0.001)
 
 
+def _valores_por_zona_y_signo(cubierta: CubiertaComponentes) -> dict:
+    """Los valores de GCp indexados por zona y signo del coeficiente externo.
+
+    Args:
+        cubierta: La instancia de la que se leen las entradas.
+
+    Returns:
+        El valor de cada zona para cada signo.
+    """
+    return {
+        (entrada.zona_componente, entrada.tipo_presion): entrada.valor
+        for entrada in cubierta.entradas
+    }
+
+
 def test_cubierta_componentes_nota_parapeto_tabla_c532():
     """Nota 5: con parapeto de 1 m o más la Zona 3 negativa iguala a la Zona 2."""
     zonas = enums.ZonaComponenteCubiertaEdificio
-    sin_parapeto = _valores_por_zona(_cubierta_componentes(5))
-    assert sin_parapeto[zonas.TRES] != pytest.approx(sin_parapeto[zonas.DOS])
+    negativa = enums.TipoPresionComponentesParedesCubierta.NEGATIVA
 
-    con_parapeto = _valores_por_zona(_cubierta_componentes(5, parapeto=1))
-    assert con_parapeto[zonas.TRES] == pytest.approx(con_parapeto[zonas.DOS])
+    sin_parapeto = _valores_por_zona_y_signo(_cubierta_componentes(5))
+    assert sin_parapeto[(zonas.TRES, negativa)] != pytest.approx(
+        sin_parapeto[(zonas.DOS, negativa)]
+    )
+
+    con_parapeto = _valores_por_zona_y_signo(_cubierta_componentes(5, parapeto=1))
+    assert con_parapeto[(zonas.TRES, negativa)] == pytest.approx(
+        con_parapeto[(zonas.DOS, negativa)]
+    )
+
+
+def test_cubierta_componentes_nota_parapeto_positivos_tabla_c532():
+    """Nota 5: con parapeto, el positivo de las Zonas 2 y 3 es el de pared.
+
+    La Nota iguala los valores positivos de las Zonas 2 y 3 a los de las Zonas
+    de pared 4 y 5 de la Figura 5.3-1, que la Tabla C 5.3-1 no distingue entre
+    sí. Las Zonas 1' y 1 se quedan con el positivo único de la zona "todas".
+    """
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    positiva = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    area = 5.0
+
+    sin_parapeto = _valores_por_zona_y_signo(_cubierta_componentes(area))
+    assert (zonas.DOS, positiva) not in sin_parapeto
+    assert (zonas.TRES, positiva) not in sin_parapeto
+
+    con_parapeto = _valores_por_zona_y_signo(_cubierta_componentes(area, parapeto=1))
+    esperado = cp_positivo_paredes(area, angulo_cubierta=4)
+    assert con_parapeto[(zonas.DOS, positiva)] == pytest.approx(esperado)
+    assert con_parapeto[(zonas.TRES, positiva)] == pytest.approx(esperado)
+    # El positivo único sigue estando, para las Zonas 1' y 1.
+    assert con_parapeto[(zonas.TODAS, positiva)] == pytest.approx(
+        sin_parapeto[(zonas.TODAS, positiva)]
+    )
+    # Y coincide con el positivo que da la propia clase de paredes.
+    paredes = _paredes_componentes(area, angulo=4)
+    valores_paredes = {
+        entrada.zona_componente: entrada.valor for entrada in paredes.entradas
+    }
+    assert esperado == pytest.approx(
+        valores_paredes[enums.ZonaComponenteParedEdificio.TODAS]
+    )
+
+
+def test_cubierta_componentes_alero_sin_positivos_con_parapeto():
+    """La Nota 5 es de la cubierta: el alero no gana valores positivos."""
+    entradas = _cubierta_componentes(5, parapeto=1, es_alero=True).entradas
+    assert all(
+        entrada.tipo_presion is enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+        for entrada in entradas
+    )
 
 
 def test_cubierta_componentes_benchmark_calcpad():

@@ -630,6 +630,54 @@ def test_zonas_de_componentes_de_la_tabla_c_5_3_2_con_alero(qapp):
     assert sum(areas_alero.values()) == pytest.approx(2 * 1 * 40)
 
 
+def test_la_escena_lee_el_positivo_por_zona_con_parapeto(qapp):
+    """Con parapeto, la Zona 2 pinta su propio positivo y no el de la zona "todas".
+
+    Es el camino que habilita la Nota 5 de la Figura 5.3-2A: la escena busca
+    primero el positivo de la zona y sólo cae en el único si no existe.
+
+    La velocidad es alta a propósito: con una baja, la presión mínima de
+    ±500 N/m² recorta los dos valores y la diferencia no se vería.
+    """
+    from zonda.cirsoc import Edificio
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    edificio = Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=9,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=70,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        componentes_cubierta={"Correa": 5.0},
+    )
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesComponentes(escena, edificio, enums.Unidad.N)
+    presiones.actualizar_componente_cubierta("Correa")
+    presiones.actualizar_tipo_presion(
+        enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    )
+    presiones.actualizar_gcpi(1)
+
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    actores = presiones.director.obtener_cubierta()
+    textos = {
+        zona: actores[zona][0].flecha.texto
+        for zona in (zonas.UNO_PRIMA, zonas.UNO, zonas.DOS, zonas.TRES)
+    }
+    # Las Zonas 1' y 1 comparten el positivo único; las 2 y 3 el de pared.
+    assert textos[zonas.UNO_PRIMA] == textos[zonas.UNO]
+    assert textos[zonas.DOS] == textos[zonas.TRES]
+    assert textos[zonas.DOS] != textos[zonas.UNO]
+
+
 def test_el_volumen_del_edificio_sale_del_area_de_la_pared(qapp):
     """20 x 30 con alero a 6 m y cumbrera a 8 m: (20*6 + 20*2/2) * 30."""
     from zonda.graficos.escenas import geometrias
