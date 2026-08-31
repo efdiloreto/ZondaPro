@@ -63,8 +63,10 @@ GCPI_CERRAMIENTO = {
 def presion_minima(presion: float) -> float:
     """Asigna el valor de presion mínima según CIRSOC 102-2005 Art. 1.4.2.
 
-    TODO: Migrar a CIRSOC 102-2025 (la numeración y los umbrales de este
-    artículo siguen los del reglamento 2005).
+    TODO (#10): Migrar a CIRSOC 102-2025 (la numeración y los umbrales de este
+    artículo siguen los del reglamento 2005). Hay que revisar además cómo se
+    aplica -hoy recorta cada signo del valor neto por separado- y si el mínimo
+    del SPRFV tiene que dejar de ser sólo una nota del reporte.
 
     Args:
         presion: El valor de presión a comparar.
