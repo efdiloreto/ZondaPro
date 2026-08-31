@@ -29,6 +29,7 @@ from zonda.cirsoc.cp.edificio import (
     distancia_a,
 )
 from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
+from zonda.cirsoc.presiones.edificio import presion_minima
 from zonda.excepciones import ErrorLineamientos
 
 
@@ -1034,6 +1035,41 @@ def test_cubierta_componentes_benchmark_calcpad():
                 _cubierta_componentes(area, es_alero=es_alero)
             )
             assert obtenidos == pytest.approx(esperados, abs=0.001)
+
+
+def test_presion_minima_componentes():
+    """Art. 5.2.2: la presión neta de C&R no baja de 0,80 kN/m² en ningún signo.
+
+    El valor del CIRSOC 102-2025 reemplaza a los 500 N/m² del Art. 1.4.2 del
+    reglamento 2005.
+    """
+    assert presion_minima(120) == pytest.approx(800)
+    assert presion_minima(-120) == pytest.approx(-800)
+    # Por encima del mínimo el valor no se toca, y el signo se conserva.
+    assert presion_minima(1500) == pytest.approx(1500)
+    assert presion_minima(-1500) == pytest.approx(-1500)
+
+    # Borde conocido: el signo sale de la propia presión, así que una neta
+    # exactamente nula se queda en cero en vez de subir a ±800. Es inalcanzable
+    # en la práctica -pide que el coeficiente externo iguale al interno- y la
+    # decisión de qué signo darle está en el issue #10.
+    assert presion_minima(0) == 0
+
+
+def test_presion_minima_se_aplica_a_los_componentes(edificio: Edificio):
+    """Ninguna fila de componentes queda por debajo del mínimo, y el SPRFV no lo usa."""
+    filas_componentes = edificio.resultados_componentes
+    assert filas_componentes
+    for fila in filas_componentes:
+        for presion in fila.presiones:
+            assert abs(presion) >= 800 - 1e-9
+
+    # El mínimo es de componentes: el SPRFV tiene el suyo, y es sólo una nota.
+    assert any(
+        abs(presion) < 800
+        for fila in edificio.resultados_sprfv
+        for presion in fila.presiones
+    )
 
 
 def test_factor_reduccion_gcpi_gran_volumen():

@@ -60,13 +60,22 @@ GCPI_CERRAMIENTO = {
 }
 
 
-def presion_minima(presion: float) -> float:
-    """Asigna el valor de presion mínima según CIRSOC 102-2005 Art. 1.4.2.
+#: Presión neta mínima de diseño para componentes y revestimientos, en N/m²
+#: (CIRSOC 102-2025, Art. 5.2.2). Reemplaza a los 500 N/m² del Art. 1.4.2 del
+#: reglamento 2005.
+PRESION_MINIMA_COMPONENTES = 800
 
-    TODO (#10): Migrar a CIRSOC 102-2025 (la numeración y los umbrales de este
-    artículo siguen los del reglamento 2005). Hay que revisar además cómo se
-    aplica -hoy recorta cada signo del valor neto por separado- y si el mínimo
-    del SPRFV tiene que dejar de ser sólo una nota del reporte.
+
+def presion_minima(presion: float) -> float:
+    """Asigna el valor de presión mínima según CIRSOC 102-2025 Art. 5.2.2.
+
+    El Artículo pide que la presión neta no sea menor que 0,80 kN/m² actuando en
+    cualquier dirección normal a la superficie, así que se recorta el módulo de
+    cada signo del valor neto y se le devuelve su signo.
+
+    TODO (#10): Las cargas de viento de diseño mínimas del SPRFV (Art. 2.1.5)
+    siguen siendo sólo una nota del reporte, y ni el cartel ni la cubierta
+    aislada aplican mínimo alguno.
 
     Args:
         presion: El valor de presión a comparar.
@@ -74,7 +83,7 @@ def presion_minima(presion: float) -> float:
     Returns:
         Maximo entre valor de presión minima y el valor de presión.
     """
-    return np.sign(presion) * max(500, abs(presion))
+    return np.sign(presion) * max(PRESION_MINIMA_COMPONENTES, abs(presion))
 
 
 class PresionesEdificioBase(PresionesBase):
@@ -89,7 +98,7 @@ class PresionesEdificioBase(PresionesBase):
     #: una superficie abierta y no lo hace.
     con_presion_interna = True
 
-    #: Si corresponde aplicar la presión mínima del Art. 1.4.
+    #: Si corresponde aplicar la presión mínima del Art. 5.2.2.
     considerar_presion_minima = False
 
     def __init__(

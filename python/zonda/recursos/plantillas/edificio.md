@@ -137,5 +137,8 @@ Notas:
 {%- endif -%}
 {%- endfor -%}
 {% endfor %}
+Notas:
+
+- **Presiones de viento de diseño mínimas (Art. 5.2.2):** La presión de viento de diseño para componentes y revestimientos de edificios y otras estructuras no debe ser menor que una presión neta de 0,80 kN/m^2^ actuando en cualquier dirección normal a la superficie. Los valores de las tablas ya la tienen aplicada.
 {%- endif -%}
 {%- endblock %}
