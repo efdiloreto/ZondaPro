@@ -55,6 +55,26 @@ if TYPE_CHECKING:
     from zonda.graficos.escena import Camara, Escena3D
     from zonda.tipos import Punto2D
 
+# Ancho mínimo de un rectángulo de zona, para descartar los degenerados.
+TOLERANCIA = 1e-9
+
+
+def _rango(
+    opuesto: bool, inicio: float, fin: float, total: float
+) -> tuple[float, float]:
+    """Un rango de distancias al borde, espejado si se mide desde el opuesto.
+
+    Args:
+        opuesto: Indica si las distancias se miden desde el borde opuesto.
+        inicio: La distancia al borde donde empieza el rango.
+        fin: La distancia al borde donde termina el rango.
+        total: La dimensión total sobre la que se espeja.
+
+    Returns:
+        El rango, en coordenadas que crecen desde el origen.
+    """
+    return (total - fin, total - inicio) if opuesto else (inicio, fin)
+
 
 class Geometria:
     """Geometria.
@@ -751,15 +771,19 @@ class PresionesComponentes(Geometria):
         self.tabla_colores = tabla_colores
         self._distancia_a = edificio.cp.paredes.componentes.distancia_a
         self._referencia_cubierta = None
+        self._distancias_zonas_cubierta = None
         try:
             if edificio.componentes_cubierta:
                 self._referencia_cubierta = edificio.cp.cubierta.componentes.referencia
+                self._distancias_zonas_cubierta = (
+                    edificio.cp.cubierta.componentes.distancias_zonas
+                )
         except ErrorLineamientos:
             self._referencia_cubierta = None
         self.inicializar_actores()
 
     def alero(self):
-        coords = self._cubierta_figura_5b()
+        coords = self._seleccionar_cubierta_por_faldon()
         dict_poligonos = aplicar_func_recursivamente(coords, crear_poligono)
         normal_origen = {
             "faldon izq": ((-1, 0, 0), (0, 0, 0)),
@@ -987,9 +1011,21 @@ class PresionesComponentes(Geometria):
             ZonaComponenteParedEdificio.CINCO: zonas_5,
         }
 
+    def _seleccionar_cubierta_por_faldon(self):
+        """Las zonas de cubierta separadas por faldón, para recortar el alero.
+
+        Returns:
+            Las coordenadas de las zonas de la figura o tabla que corresponda.
+        """
+        if self._referencia_cubierta == "Tabla C 5.3-2":
+            return self._cubierta_tabla_c_5_3_2()
+        return self._cubierta_figura_5b()
+
     def _seleccionar_cubierta(self):
         if self._referencia_cubierta is None:
             return super().cubierta.__wrapped__(self, 0, self.longitud)
+        if self._referencia_cubierta == "Tabla C 5.3-2":
+            return self._cubierta_tabla_c_5_3_2()
         if "5B" in self._referencia_cubierta:
             return self._cubierta_figura_5b()
         elif self._referencia_cubierta == "Figura 7A":
@@ -1128,6 +1164,136 @@ class PresionesComponentes(Geometria):
         coords = {"faldon izq": coords_faldon_izq, "faldon der": coords_faldon_der}
 
         return coords
+
+    def _cubierta_tabla_c_5_3_2(self):
+        """Determina las coordenadas de las zonas de la Figura 5.3-2A.
+
+        Las distancias se miden desde el borde de la cubierta -desde el borde
+        exterior del voladizo si existe, Nota 7-: la Zona 3 es una "L" de 0,2h
+        de espesor que corre 0,6h sobre cada borde desde la esquina, la Zona 2
+        el resto de la franja perimetral de 0,6h, la Zona 1 la franja que le
+        sigue (hasta 1,2h) y la Zona 1' el interior. Los rectángulos se arman
+        en planta y después se parten en la cumbrera para proyectarlos sobre
+        cada faldón.
+
+        Returns:
+            Las coordenadas de las zonas de cada faldón.
+        """
+        mitad_ancho = self.ancho / 2
+        punto_mitad = (mitad_ancho, self.altura_cumbrera)
+
+        if self.alero_:
+            punto_alero_inicio = tuple(
+                punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad)
+            )
+            punto_alero_fin = (
+                self.ancho + abs(punto_alero_inicio[0]),
+                punto_alero_inicio[1],
+            )
+        else:
+            punto_alero_inicio = (0, self.altura_alero)
+            punto_alero_fin = (self.ancho, self.altura_alero)
+
+        inicio = punto_alero_inicio[0]
+        ancho_total = punto_alero_fin[0] - inicio
+        profundidad = -self.longitud  # La longitud es negativa.
+
+        # Si el edificio es chico las franjas se solapan, así que se recortan a
+        # la mitad de la menor dimensión en planta.
+        mitad_menor_dimension = min(ancho_total, profundidad) / 2
+        zona_3, zona_2, zona_1 = (
+            min(distancia, mitad_menor_dimension)
+            for distancia in self._distancias_zonas_cubierta
+        )
+
+        # La Zona 3 es una "L" en cada esquina: un brazo de 0.2h de espesor y
+        # 0.6h de largo sobre cada borde. Lo que queda de la esquina, hasta
+        # completar la franja de 0.6h, sigue siendo Zona 2.
+        zona_3_rectangulos = []
+        zona_2_esquinas = []
+        for x_opuesto in (False, True):
+            for z_opuesto in (False, True):
+                zona_3_rectangulos += [
+                    (
+                        _rango(x_opuesto, 0, zona_2, ancho_total),
+                        _rango(z_opuesto, 0, zona_3, profundidad),
+                    ),
+                    (
+                        _rango(x_opuesto, 0, zona_3, ancho_total),
+                        _rango(z_opuesto, zona_3, zona_2, profundidad),
+                    ),
+                ]
+                zona_2_esquinas.append(
+                    (
+                        _rango(x_opuesto, zona_3, zona_2, ancho_total),
+                        _rango(z_opuesto, zona_3, zona_2, profundidad),
+                    )
+                )
+
+        rectangulos_zonas = {
+            ZonaComponenteCubiertaEdificio.TRES: zona_3_rectangulos,
+            ZonaComponenteCubiertaEdificio.DOS: [
+                # La franja perimetral de 0.6h, sin las "L" de las esquinas.
+                ((zona_2, ancho_total - zona_2), (0, zona_2)),
+                ((zona_2, ancho_total - zona_2), (profundidad - zona_2, profundidad)),
+                ((0, zona_2), (zona_2, profundidad - zona_2)),
+                ((ancho_total - zona_2, ancho_total), (zona_2, profundidad - zona_2)),
+                *zona_2_esquinas,
+            ],
+            ZonaComponenteCubiertaEdificio.UNO: [
+                ((zona_2, zona_1), (zona_2, profundidad - zona_2)),
+                (
+                    (ancho_total - zona_1, ancho_total - zona_2),
+                    (zona_2, profundidad - zona_2),
+                ),
+                ((zona_1, ancho_total - zona_1), (zona_2, zona_1)),
+                (
+                    (zona_1, ancho_total - zona_1),
+                    (profundidad - zona_1, profundidad - zona_2),
+                ),
+            ],
+            ZonaComponenteCubiertaEdificio.UNO_PRIMA: [
+                ((zona_1, ancho_total - zona_1), (zona_1, profundidad - zona_1)),
+            ],
+        }
+
+        x_cumbrera = mitad_ancho - inicio
+        coords_faldon_izq = defaultdict(list)
+        coords_faldon_der = defaultdict(list)
+        for zona, rectangulos in rectangulos_zonas.items():
+            for (x_inicio, x_fin), (z_inicio, z_fin) in rectangulos:
+                if x_fin - x_inicio < TOLERANCIA or z_fin - z_inicio < TOLERANCIA:
+                    continue
+                faldones = (
+                    (
+                        coords_faldon_izq,
+                        (x_inicio, min(x_fin, x_cumbrera)),
+                        punto_alero_inicio,
+                        punto_mitad,
+                    ),
+                    (
+                        coords_faldon_der,
+                        (max(x_inicio, x_cumbrera), x_fin),
+                        punto_mitad,
+                        punto_alero_fin,
+                    ),
+                )
+                for coords, (x_faldon_inicio, x_faldon_fin), origen, fin in faldones:
+                    if x_faldon_fin - x_faldon_inicio < TOLERANCIA:
+                        continue
+                    coords[zona].append(
+                        coords_zona_cubierta_desde_proyeccion(
+                            (inicio + x_faldon_inicio, inicio + x_faldon_fin),
+                            origen,
+                            fin,
+                            -z_inicio,
+                            -z_fin,
+                        )
+                    )
+        return {
+            "faldon izq": dict(coords_faldon_izq),
+            "faldon der": dict(coords_faldon_der),
+        }
 
     def _cubierta_figura_7a(self):
         punto_alero_inicio = self._inicio_alero_cubierta_un_agua()

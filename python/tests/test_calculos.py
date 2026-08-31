@@ -22,7 +22,11 @@ import pytest
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
-from zonda.cirsoc.cp.edificio import ParedesComponentes, distancia_a
+from zonda.cirsoc.cp.edificio import (
+    CubiertaComponentes,
+    ParedesComponentes,
+    distancia_a,
+)
 from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
 from zonda.excepciones import ErrorLineamientos
 
@@ -741,6 +745,231 @@ def test_paredes_componentes_excepcion_distancia_a():
         2, ancho=95, longitud=120, altura_media=10, angulo=8
     )
     assert edificio_8.distancia_a == a_sin_excepcion
+
+
+def _cubierta_componentes(
+    area: float,
+    *,
+    ancho: float = 30,
+    longitud: float = 40,
+    altura_media: float = 8,
+    angulo: float = 4,
+    tipo_cubierta: enums.TipoCubierta = enums.TipoCubierta.DOS_AGUAS,
+    parapeto: float = 0,
+    es_alero: bool = False,
+) -> CubiertaComponentes:
+    """Instancia CubiertaComponentes con un solo componente del área dada.
+
+    Args:
+        area: El área tributaria del componente.
+        ancho: El ancho del edificio.
+        longitud: La longitud del edificio.
+        altura_media: La altura media de cubierta.
+        angulo: El ángulo de cubierta.
+        tipo_cubierta: El tipo de cubierta.
+        parapeto: La dimensión del parapeto.
+        es_alero: Indica si los valores son los del alero.
+
+    Returns:
+        La instancia, para leer ``referencia``, ``distancias_zonas`` y
+        ``entradas``.
+    """
+    return CubiertaComponentes(
+        ancho=ancho,
+        longitud=longitud,
+        altura_media=altura_media,
+        angulo=angulo,
+        tipo_cubierta=tipo_cubierta,
+        parapeto=parapeto,
+        es_alero=es_alero,
+        componentes={"comp": area},
+    )
+
+
+def _valores_por_zona(cubierta: CubiertaComponentes) -> dict:
+    """Los valores de GCp indexados por zona.
+
+    Args:
+        cubierta: La instancia de la que se leen las entradas.
+
+    Returns:
+        El valor de cada zona.
+    """
+    return {entrada.zona_componente: entrada.valor for entrada in cubierta.entradas}
+
+
+def test_cubierta_componentes_referencia_tabla_c532():
+    """La cubierta a dos aguas con θ ≤ 7° y h ≤ 20 m usa la Tabla C 5.3-2."""
+    assert _cubierta_componentes(3).referencia == "Tabla C 5.3-2"
+    assert _cubierta_componentes(3, es_alero=True).referencia == "Tabla C 5.3-2"
+    # Fuera del alcance de la tabla: siguen las figuras del 2005.
+    assert _cubierta_componentes(3, angulo=8).referencia == "Figura 5B"
+    assert _cubierta_componentes(3, altura_media=25).referencia == "Figura 8"
+    assert (
+        _cubierta_componentes(3, tipo_cubierta=enums.TipoCubierta.PLANA).referencia
+        == "Figura 5B"
+    )
+    assert (
+        _cubierta_componentes(3, tipo_cubierta=enums.TipoCubierta.UN_AGUA).referencia
+        == "Figura 7A"
+    )
+
+
+def test_cubierta_componentes_distancias_zonas():
+    """Las zonas de la Figura 5.3-2A se miden con h, no con la distancia "a"."""
+    cubierta = _cubierta_componentes(3, altura_media=8)
+    assert cubierta.distancias_zonas == pytest.approx((1.6, 4.8, 9.6))
+    assert _cubierta_componentes(3, angulo=8).distancias_zonas is None
+
+
+def test_cubierta_componentes_valores_tabla_c532():
+    """Los GCp de la Tabla C 5.3-2, cubierta sin voladizo.
+
+    Los esperados salen de las fórmulas de la tabla, que son otra forma de
+    escribir la interpolación logarítmica entre los extremos de cada zona.
+    """
+    log10 = np.log10
+
+    def esperado(area: float) -> dict:
+        if area <= 10:
+            uno_prima = -0.9
+        elif area <= 100:
+            uno_prima = -1.4 + 0.5 * log10(area)
+        else:
+            uno_prima = -0.4
+        negativos = {enums.ZonaComponenteCubiertaEdificio.UNO_PRIMA: uno_prima}
+        pendientes = {
+            enums.ZonaComponenteCubiertaEdificio.UNO: (-1.7, 0.4120, -1.0),
+            enums.ZonaComponenteCubiertaEdificio.DOS: (-2.3, 0.5297, -1.4),
+            enums.ZonaComponenteCubiertaEdificio.TRES: (-3.2, 1.0595, -1.4),
+        }
+        for zona, (cp_minimo, pendiente, cp_maximo) in pendientes.items():
+            if area <= 1:
+                negativos[zona] = cp_minimo
+            elif area <= 50:
+                negativos[zona] = cp_minimo + pendiente * log10(area)
+            else:
+                negativos[zona] = cp_maximo
+        if area <= 1:
+            positivo = 0.3
+        elif area <= 10:
+            positivo = 0.3 - 0.1 * log10(area)
+        else:
+            positivo = 0.2
+        negativos[enums.ZonaComponenteCubiertaEdificio.TODAS] = positivo
+        return negativos
+
+    for area in (0.5, 1.0, 5.0, 10.0, 30.0, 50.0, 120.0):
+        valores_cp = _valores_por_zona(_cubierta_componentes(area))
+        assert valores_cp == pytest.approx(esperado(area), abs=0.001)
+
+
+def test_cubierta_componentes_alero_tabla_c532():
+    """Los GCp de la Tabla C 5.3-2, bloque "Negativo con voladizo".
+
+    Las Zonas 1 y 1' comparten curva y tienen dos tramos log. El alero no
+    lleva valores positivos: la Figura 5.3-2A no los grafica.
+    """
+    log10 = np.log10
+
+    def esperado(area: float) -> dict:
+        if area <= 1:
+            uno = -1.7
+        elif area <= 10:
+            uno = -1.7 + 0.1 * log10(area)
+        elif area <= 50:
+            uno = -2.4584 + 0.8584 * log10(area)
+        else:
+            uno = -1.0
+        valores = {
+            enums.ZonaComponenteCubiertaEdificio.UNO: uno,
+            enums.ZonaComponenteCubiertaEdificio.UNO_PRIMA: uno,
+        }
+        pendientes = {
+            enums.ZonaComponenteCubiertaEdificio.DOS: (-2.3, 0.7063, -1.1),
+            enums.ZonaComponenteCubiertaEdificio.TRES: (-3.2, 1.2360, -1.1),
+        }
+        for zona, (cp_minimo, pendiente, cp_maximo) in pendientes.items():
+            if area <= 1:
+                valores[zona] = cp_minimo
+            elif area <= 50:
+                valores[zona] = cp_minimo + pendiente * log10(area)
+            else:
+                valores[zona] = cp_maximo
+        return valores
+
+    for area in (0.5, 1.0, 5.0, 10.0, 30.0, 50.0, 80.0):
+        valores_cp = _valores_por_zona(_cubierta_componentes(area, es_alero=True))
+        assert enums.ZonaComponenteCubiertaEdificio.TODAS not in valores_cp
+        assert valores_cp == pytest.approx(esperado(area), abs=0.001)
+
+
+def test_cubierta_componentes_nota_parapeto_tabla_c532():
+    """Nota 5: con parapeto de 1 m o más la Zona 3 negativa iguala a la Zona 2."""
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    sin_parapeto = _valores_por_zona(_cubierta_componentes(5))
+    assert sin_parapeto[zonas.TRES] != pytest.approx(sin_parapeto[zonas.DOS])
+
+    con_parapeto = _valores_por_zona(_cubierta_componentes(5, parapeto=1))
+    assert con_parapeto[zonas.TRES] == pytest.approx(con_parapeto[zonas.DOS])
+
+
+def test_cubierta_componentes_benchmark_calcpad():
+    """Valida los valores de GCp contra el script de Calcpad para la Tabla C 5.3-2.
+
+    Parámetros de entrada:
+    - Cubierta a dos aguas, θ = 4°, h = 8 m, sin parapeto
+    - Áreas que barren los tres tramos de cada zona y todos los quiebres de la
+      tabla: los de las Zonas 1, 2 y 3 y del alero (1 y 50 m²), el del positivo
+      (10 m²), los de la Zona 1\' (10 y 100 m²) y el del segundo tramo del
+      alero (10 m²)
+    """
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    # area: (positivo, zona 1', zona 1, zona 2, zona 3)
+    referencias_cubierta = {
+        0.5: (0.3, -0.9, -1.7, -2.3, -3.2),
+        1.0: (0.3, -0.9, -1.7, -2.3, -3.2),
+        5.0: (0.2301, -0.9, -1.412, -1.9298, -2.4594),
+        10.0: (0.2, -0.9, -1.288, -1.7703, -2.1405),
+        20.0: (0.2, -0.74949, -1.164, -1.6108, -1.8216),
+        50.0: (0.2, -0.55051, -1.0, -1.4, -1.4),
+        80.0: (0.2, -0.44846, -1.0, -1.4, -1.4),
+        100.0: (0.2, -0.4, -1.0, -1.4, -1.4),
+        150.0: (0.2, -0.4, -1.0, -1.4, -1.4),
+    }
+    # area: (zonas 1 y 1', zona 2, zona 3). El alero no lleva positivo.
+    referencias_alero = {
+        0.5: (-1.7, -2.3, -3.2),
+        1.0: (-1.7, -2.3, -3.2),
+        5.0: (-1.6301, -1.8063, -2.3361),
+        10.0: (-1.6, -1.5937, -1.964),
+        20.0: (-1.3416, -1.3811, -1.5919),
+        50.0: (-1.0, -1.1, -1.1),
+        80.0: (-1.0, -1.1, -1.1),
+        100.0: (-1.0, -1.1, -1.1),
+        150.0: (-1.0, -1.1, -1.1),
+    }
+    casos = (
+        (
+            referencias_cubierta,
+            False,
+            (zonas.TODAS, zonas.UNO_PRIMA, zonas.UNO, zonas.DOS, zonas.TRES),
+        ),
+        (
+            referencias_alero,
+            True,
+            (zonas.UNO_PRIMA, zonas.DOS, zonas.TRES),
+        ),
+    )
+    for referencias, es_alero, claves in casos:
+        for area, valores_calcpad in referencias.items():
+            esperados = dict(zip(claves, valores_calcpad, strict=True))
+            if es_alero:
+                esperados[zonas.UNO] = esperados[zonas.UNO_PRIMA]
+            obtenidos = _valores_por_zona(
+                _cubierta_componentes(area, es_alero=es_alero)
+            )
+            assert obtenidos == pytest.approx(esperados, abs=0.001)
 
 
 def test_factor_reduccion_gcpi_gran_volumen():

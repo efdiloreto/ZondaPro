@@ -766,8 +766,10 @@ class CubiertaComponentes:
 
     Determina los coeficientes de presión de cubierta de edificio para Componentes y Revestimientos.
 
-    TODO: Las figuras y valores de esta clase (Figuras 5B, 5B (cont.), 7A,
+    TODO: Las figuras y valores de las demás ramas (Figuras 5B, 5B (cont.), 7A,
     7A (cont.) y 8) siguen CIRSOC 102-2005: pendiente de migrar a CIRSOC 102-2025.
+    La cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m ya usa la
+    Tabla C 5.3-2 (Figura 5.3-2A) del 2025.
     """
 
     def __init__(
@@ -811,6 +813,25 @@ class CubiertaComponentes:
             El valor de distancia "a" del edificio.
         """
         return distancia_a(self.ancho, self.longitud, self.altura_media)
+
+    @cached_property
+    def distancias_zonas(self) -> tuple[float, float, float] | None:
+        """Las distancias al borde que delimitan las zonas de la Figura 5.3-2A.
+
+        Se miden desde el borde de la cubierta -desde el borde exterior del
+        voladizo si existe, Nota 7- y no dependen de la distancia "a": la
+        Figura las define en función de la altura del alero "h", que para
+        ángulo <= 10° es la altura media de cubierta.
+
+        Returns:
+            El espesor de la "L" de la Zona 3 (0,2h), el ancho de la franja
+            perimetral que comparten la Zona 3 -es el largo de sus brazos- y la
+            Zona 2 (0,6h), y la distancia al borde donde termina la Zona 1
+            (1,2h). Ninguno si la referencia no es la Tabla C 5.3-2.
+        """
+        if self.referencia != "Tabla C 5.3-2":
+            return None
+        return 0.2 * self.altura_media, 0.6 * self.altura_media, 1.2 * self.altura_media
 
     @cached_property
     def entradas(self) -> tuple[EntradaCp, ...]:
@@ -860,6 +881,30 @@ class CubiertaComponentes:
                 ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.3, -1.6)},
                 ZonaComponenteCubiertaEdificio.TRES: {"cp": (-3.2, -2.3)},
             },
+            # CIRSOC 102-2025 - Tabla C 5.3-2 (Figura 5.3-2A), cubierta sin
+            # voladizo. Cada zona trae el rango de áreas de su tramo log.
+            "Tabla C 5.3-2": {
+                ZonaComponenteCubiertaEdificio.UNO_PRIMA: {
+                    "cp": (-0.9, -0.4),
+                    "area": (10, 100),
+                },
+                ZonaComponenteCubiertaEdificio.UNO: {
+                    "cp": (-1.7, -1),
+                    "area": (1, 50),
+                },
+                ZonaComponenteCubiertaEdificio.DOS: {
+                    "cp": (-2.3, -1.4),
+                    "area": (1, 50),
+                },
+                ZonaComponenteCubiertaEdificio.TRES: {
+                    "cp": (-3.2, -1.4),
+                    "area": (1, 50),
+                },
+                ZonaComponenteCubiertaEdificio.TODAS: {
+                    "cp": (0.3, 0.2),
+                    "area": (1, 10),
+                },
+            },
         }
         if self.es_alero:
             casos_alero = {
@@ -882,6 +927,27 @@ class CubiertaComponentes:
                     ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.0, -1.8)},
                     ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.0, -1.8)},
                 },
+                # Tabla C 5.3-2, bloque "Negativo con voladizo". Las Zonas 1 y
+                # 1' comparten curva y los valores ya incluyen las presiones de
+                # las superficies superior e inferior del voladizo (Nota 6).
+                "Tabla C 5.3-2": {
+                    ZonaComponenteCubiertaEdificio.UNO_PRIMA: {
+                        "cp": ((-1.7, -1.6), (-1.6, -1)),
+                        "area": ((1, 10), (10, 50)),
+                    },
+                    ZonaComponenteCubiertaEdificio.UNO: {
+                        "cp": ((-1.7, -1.6), (-1.6, -1)),
+                        "area": ((1, 10), (10, 50)),
+                    },
+                    ZonaComponenteCubiertaEdificio.DOS: {
+                        "cp": (-2.3, -1.1),
+                        "area": (1, 50),
+                    },
+                    ZonaComponenteCubiertaEdificio.TRES: {
+                        "cp": (-3.2, -1.1),
+                        "area": (1, 50),
+                    },
+                },
             }
             for caso_alero, diccionario in casos_alero.items():
                 casos[caso_alero].update(diccionario)
@@ -890,14 +956,26 @@ class CubiertaComponentes:
         if self.es_alero:
             caso_cp.pop(ZonaComponenteCubiertaEdificio.TODAS, None)
 
-        if self.referencia in ("Figura 5B", "Figura 8") and self.parapeto > 1:
-            # CIRSOC 102 - 2005 (Fig. 5B -Nota de pie 5 y Fig. 8 Nota de pie 7)
+        # CIRSOC 102-2005 (Fig. 5B - Nota de pie 5 y Fig. 8 - Nota de pie 7) y
+        # CIRSOC 102-2025 (Fig. 5.3-2A - Nota 5, que pide parapeto de 1 m o más).
+        # TODO: la Nota 5 del 2025 además iguala los valores positivos de las
+        # Zonas 2 y 3 a los de las Zonas de pared 4 y 5 de la Figura 5.3-1, lo
+        # que requiere valores positivos por zona; hoy el positivo es único
+        # (zona "todas") en el cálculo y en la vista 3D.
+        if self.referencia == "Tabla C 5.3-2":
+            aplica_nota_parapeto = self.parapeto >= 1
+        else:
+            aplica_nota_parapeto = (
+                self.referencia in ("Figura 5B", "Figura 8") and self.parapeto > 1
+            )
+        if aplica_nota_parapeto:
             caso_cp[ZonaComponenteCubiertaEdificio.TRES] = caso_cp[
                 ZonaComponenteCubiertaEdificio.DOS
             ]
         # Se mantiene el if/else para poder citar la figura de cada rama.
-        if self.referencia == "Figura 8":  # noqa: SIM108
-            # Areas techo grandes alturas -CIRSOC 102 (2005) Fig. 8
+        if self.referencia in ("Figura 8", "Tabla C 5.3-2"):  # noqa: SIM108
+            # Areas techo grandes alturas -CIRSOC 102 (2005) Fig. 8. En la
+            # Tabla C 5.3-2 cada zona declara su propio rango de áreas.
             area = (1, 50)
         else:
             # Areas techo pequeñas alturas -CIRSOC 102 (2005) Fig. 5B)
@@ -939,12 +1017,22 @@ class CubiertaComponentes:
     def _referencia_dos_aguas(self) -> str:
         """Determina referencia de la figura en el código para cubiertas a dos aguas o planas.
 
+        La cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m usa la
+        Tabla C 5.3-2 del CIRSOC 102-2025; el resto sigue con las figuras del
+        2005.
+
         Returns:
-            La referencia de la figura en el código.
+            La referencia de la figura o tabla en el código.
 
         Raises:
             ErrorLineamientos cuando la cubierta tiene un angulo > 45°.
         """
+        if (
+            self.tipo_cubierta == TipoCubierta.DOS_AGUAS
+            and self.angulo <= 7
+            and self.altura_media <= 20
+        ):
+            return "Tabla C 5.3-2"
         if self.angulo <= 10 and self.altura_media > 20 and not self.es_alero:
             return "Figura 8"
         elif self.angulo <= 10:

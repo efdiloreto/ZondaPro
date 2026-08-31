@@ -148,6 +148,7 @@ class ZonaComponenteCubiertaEdificio(Enum):
     UNO = "1"
     DOS = "2"
     TRES = "3"
+    UNO_PRIMA = "1'"
     DOS_PRIMA = "2'"
     TRES_PRIMA = "3'"
     TODAS = "todas"
