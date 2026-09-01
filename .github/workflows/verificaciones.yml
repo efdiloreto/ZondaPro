@@ -1,0 +1,32 @@
+name: Verificaciones
+
+# dev es la rama de integracion: todo lo que va a terminar en master pasa
+# primero por aca, asi que es donde conviene que las verificaciones corran
+# seguido y barato. Compilar los tres instaladores no se repite aca: eso corre
+# en el pull request de dev a master, en release.yml.
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+
+# Si llegan varios commits seguidos a la misma rama o al mismo pull request, la
+# corrida anterior se cancela: el resultado de un commit ya superado no lo mira
+# nadie y ocupa un runner.
+concurrency:
+  group: verificaciones-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificaciones:
+    name: Tests y análisis estático
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v5
+
+      - name: Correr verificaciones
+        uses: ./.github/actions/verificaciones

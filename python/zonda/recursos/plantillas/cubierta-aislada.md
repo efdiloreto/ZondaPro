@@ -50,7 +50,7 @@ Factor de ráfaga: {{ '%.2f'|format(0.85) }}
 {%- endblock %}
 
 {% block k3 -%}
-{{ '%.2f'|format(estructura.topografia.parametros.k3) }}
+{{ '%.2f'|format(estructura.topografia.parametros.k3[0]) }}
 {%- endblock %}
 
 {% block resultados_topografia_pie -%}
@@ -65,31 +65,32 @@ Notas:
 
 {% block presiones_sprfv -%}
 ### PRESIONES NORMALES
-Considerar que para las presiones globales, las cubiertas a dos aguas deben ser capaces de resistir las fuerzas 
+Considerar que para las presiones globales, las cubiertas a dos aguas deben ser capaces de resistir las fuerzas
 considerando un faldón con las presiones máximas o mínimas y el otro descargado.
 
-{{ ma.presiones_cubierta_aislada_globales(
-estructura.presiones.coeficientes_exposicion,
-estructura.presiones.factor_topografico,
-estructura.presiones.presiones_velocidad,
-estructura.cpn()[enums.TipoPresionCubiertaAislada.GLOBAL],
-estructura.presiones()[enums.TipoPresionCubiertaAislada.GLOBAL],
-estructura.cpn.referencia,
+{% set zonas_locales = [
+enums.ZonaPresionCubiertaAislada.A,
+enums.ZonaPresionCubiertaAislada.B,
+enums.ZonaPresionCubiertaAislada.C,
+enums.ZonaPresionCubiertaAislada.D,
+] -%}
+{{ ma.presiones_cubierta_aislada(
+estructura.resultados.filtrar(tipo=enums.TipoPresionCubiertaAislada.GLOBAL),
+"PRESIONES GLOBALES",
 ) }}
-{{ ma.presiones_cubierta_aislada_locales(
-estructura.presiones.coeficientes_exposicion,
-estructura.presiones.factor_topografico,
-estructura.presiones.presiones_velocidad,
-estructura.cpn()[enums.TipoPresionCubiertaAislada.LOCAL],
-estructura.presiones()[enums.TipoPresionCubiertaAislada.LOCAL],
-estructura.cpn.referencia,
+{{ ma.presiones_cubierta_aislada(
+estructura.resultados.filtrar(
+tipo=enums.TipoPresionCubiertaAislada.LOCAL, zona=zonas_locales
+),
+"PRESIONES LOCALES",
 ) }}
 
 ### PRESIONES LATERALES
 #### Presiones sobre Cenefas y Tímpanos
+{% set presion_velocidad = estructura.resultados[0].q.valor -%}
 Según el articulo I.5 se deben considerar presiones sobre los tímpanos o cenefas a barlovento y sotavento, en caso de existir,
- de {{ '%.2f'|format(1.3 * estructura.presiones.presiones_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=1.3) y
- {{ '%.2f'|format(0.6 * estructura.presiones.presiones_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=0.6) respectivamente. 
+ de {{ '%.2f'|format(1.3 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=1.3) y
+ {{ '%.2f'|format(0.6 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=0.6) respectivamente.
 
 #### Fuerzas de fricción
 Según el articulo I.6 de deben considerar fuerzas de friccón que actuarán conjuntamente con las fuerzas normales, en caso

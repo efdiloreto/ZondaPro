@@ -32,7 +32,7 @@ def test_edificio_calcula(edificio: Edificio):
 
 
 def test_edificio_presiones_por_zona(edificio: Edificio):
-    zonas = set(edificio.presiones.valores)
+    zonas = set(edificio.resultados.valores("zona"))
     assert enums.ZonaEdificio.PAREDES in zonas
     assert enums.ZonaEdificio.CUBIERTA in zonas
 

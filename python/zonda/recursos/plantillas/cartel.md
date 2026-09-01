@@ -79,17 +79,7 @@ Notas:
 
 {% block presiones_sprfv -%}
 ### PRESIONES
-{{ ma.presiones_cartel(
-estructura.geometria.alturas,
-estructura.presiones.coeficientes_exposicion,
-estructura.presiones.factor_topografico,
-estructura.presiones.presiones_velocidad,
-estructura.cf(),
-estructura.presiones(),
-estructura.geometria.areas_parciales,
-estructura.presiones.fuerzas_parciales,
-estructura.presiones.fuerza_total,
-) }}
+{{ ma.presiones_cartel(estructura.resultados) }}
 
 Fuerza Total = {{ '%.2f'|format(estructura.presiones.fuerza_total|convertir_unidad(unidades.fuerza)) }} {{ unidades.fuerza.value }}
 

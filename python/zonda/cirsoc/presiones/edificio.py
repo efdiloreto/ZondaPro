@@ -15,72 +15,77 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Presiones de viento sobre un edificio.
+
+Cada clase toma los coeficientes de presión que resolvió ``zonda.cirsoc.cp`` y
+les agrega la presión de velocidad, el factor de ráfaga y la presión interna que
+correspondan a su superficie. El resultado son filas planas: una por cada
+coeficiente, salvo en las superficies que se resuelven altura por altura, donde
+hay una fila por altura.
+"""
+
 from __future__ import annotations
 
-from collections import defaultdict
-from collections.abc import Hashable, Sequence
-from functools import cached_property, partial
-from typing import TYPE_CHECKING, NamedTuple
+from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.resultados import PresionVelocidad
 from zonda.enums import (
     Cerramiento,
     DireccionVientoMetodoDireccionalSprfv,
     MetodoSprfv,
     ParedEdificioSprfv,
-    SistemaResistente,
     TipoCubierta,
-    ZonaEdificio,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from zonda.cirsoc import geometria
     from zonda.cirsoc.cp import edificio as clases_cp_edificio
     from zonda.cirsoc.factores import Rafaga
+    from zonda.cirsoc.resultados import EntradaCp, FilaEdificio
     from zonda.enums import (
         CategoriaEstructura,
         CategoriaExposicion,
     )
-    from zonda.tipos import (
-        ValoresPresionesAleroEdificioComponentes,
-        ValoresPresionesAleroEdificioMetodoDireccional,
-        ValoresPresionesAleroEdificioSprfvMetodoDireccional,
-        ValoresPresionesCubiertaEdificioComponentes,
-        ValoresPresionesCubiertaEdificioMetodoDireccional,
-        ValoresPresionesCubiertaEdificioSprfvMetodoDireccional,
-        ValoresPresionesEdificioMetodoDireccional,
-        ValoresPresionesParedesEdificioComponentes,
-        ValoresPresionesParedesEdificioComponentesA,
-        ValoresPresionesParedesEdificioComponentesB,
-        ValoresPresionesParedesEdificioMetodoDireccional,
-        ValoresPresionesParedesEdificioSprfvMetodoDireccional,
-    )
+
+GCPI_CERRAMIENTO = {
+    Cerramiento.CERRADO: 0.18,
+    Cerramiento.PARCIALMENTE_CERRADO: 0.55,
+    Cerramiento.ABIERTO: 0.0,
+}
 
 
-def presion_minima(presion: float):
+def presion_minima(presion: float) -> float:
     """Asigna el valor de presion mínima según CIRSOC 102-05 Art. 1.4.
 
     Args:
         presion: El valor de presión a comparar.
 
-    Returns: Maximo entre valor de presión minima y el valor de presión.
-
+    Returns:
+        Maximo entre valor de presión minima y el valor de presión.
     """
     return np.sign(presion) * max(500, abs(presion))
 
 
-class PresionesEdificio(NamedTuple):
-    pos: float
-    neg: float
+class PresionesEdificioBase(PresionesBase):
+    """Comportamiento común a todas las superficies de un edificio.
 
-
-class CubiertaSprfvMetodoDireccional(PresionesBase):
-    """CubiertaSprfvMetodoDireccional.
-
-    Determina las presiones de cubierta para SPRFV usando el método direccional.
+    Reúne la presión de velocidad a la altura media, la presión de velocidad de
+    cada altura, el coeficiente de presión interna y la fórmula que combina todo
+    con un coeficiente de presión.
     """
+
+    #: Si la superficie distingue los dos signos de presión interna. El alero es
+    #: una superficie abierta y no lo hace.
+    con_presion_interna = True
+
+    #: Si corresponde aplicar la presión mínima del Art. 1.4.
+    considerar_presion_minima = False
 
     def __init__(
         self,
@@ -89,9 +94,9 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
-        cp: clases_cp_edificio.CubiertaSprfvMetodoDireccional,
+        cp,
         categoria_exp: CategoriaExposicion,
         reducir_gcpi: bool = False,
         aberturas_totales: float | None = None,
@@ -100,17 +105,17 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
-            cp: Un instancia de CubiertaMetodoDireccional.
+            cp: La clase de coeficientes de presión de la superficie.
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
+            aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
         """
         super().__init__(
@@ -122,46 +127,27 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
             0.85,
             categoria_exp,
         )
+        self.altura_media = altura_media
         self.cerramiento = cerramiento
         self.cp = cp
         self.reducir_gcpi = reducir_gcpi
         self.aberturas_totales = aberturas_totales
         self.volumen_interno = volumen_interno
-        self.factores_rafaga = {key: value.factor for key, value in rafaga.items()}
-        self._bool_indices_altura_media = alturas == altura_media
-        self._presion_media_parcial = partial(
-            self._presiones,
-            presion_velocidad=self.presion_velocidad_media,
-            gcpi=self.gcpi,
-            presion_velocidad_media=self.presion_velocidad_media,
-        )
-
-    @property
-    def coeficiente_exposicion_media(self) -> float:
-        """Obtiene el coeficiente de exposición correspondiente a la altura media.
-
-        Returns:
-            El coeficiente de exposición correspondiente a la altura media.
-        """
-        return self.coeficientes_exposicion[self._bool_indices_altura_media][0]
+        self.factores_rafaga = {
+            direccion: valor.factor for direccion, valor in rafaga.items()
+        }
 
     @cached_property
-    def factor_topografico_media(self) -> float:
-        """Obtiene el factor topográfico correspondiente a la altura media.
+    def q_media(self) -> PresionVelocidad:
+        """La presión de velocidad a la altura media de cubierta.
+
+        Es la que usan todas las superficies salvo la pared a barlovento, y la
+        que interviene en la presión interna.
 
         Returns:
-            El factor topográfico correspondiente a la altura media.
+            La presión de velocidad con los factores que la componen.
         """
-        return self.factor_topografico[self._bool_indices_altura_media][0]
-
-    @property
-    def presion_velocidad_media(self) -> float:
-        """Obtiene la presión de velocidad correspondiente a la altura media.
-
-        Returns:
-            La presión de velocidad correspondiente a la altura media.
-        """
-        return self.presiones_velocidad[self._bool_indices_altura_media][0]
+        return self.presion_velocidad_en(self.altura_media)
 
     @cached_property
     def factor_reduccion_gcpi(self) -> float:
@@ -190,120 +176,89 @@ class CubiertaSprfvMetodoDireccional(PresionesBase):
         Returns:
             El coeficiente de presión interna.
         """
-        cerramiento_gcpi = {
-            Cerramiento.CERRADO: 0.18,
-            Cerramiento.PARCIALMENTE_CERRADO: 0.55,
-            Cerramiento.ABIERTO: 0.0,
-        }
-        return cerramiento_gcpi[self.cerramiento] * self.factor_reduccion_gcpi
+        return GCPI_CERRAMIENTO[self.cerramiento] * self.factor_reduccion_gcpi
+
+    def _fila(
+        self, entrada: EntradaCp, q: PresionVelocidad, factor_rafaga: float
+    ) -> FilaEdificio:
+        """Combina un coeficiente de presión con su presión de velocidad.
+
+        Args:
+            entrada: El coeficiente de presión con sus claves.
+            q: La presión de velocidad a la que se calcula la fila.
+            factor_rafaga: El factor de ráfaga.
+
+        Returns:
+            La fila de resultado.
+        """
+        externa = q.valor * factor_rafaga * entrada.valor
+        interna = self.q_media.valor * self.gcpi
+        pos, neg = externa - interna, externa + interna
+        if self.considerar_presion_minima:
+            pos, neg = presion_minima(pos), presion_minima(neg)
+        return entrada.fila(
+            q=q,
+            factor_rafaga=factor_rafaga,
+            gcpi=self.gcpi,
+            pos=float(pos),
+            neg=float(neg),
+            con_presion_interna=self.con_presion_interna,
+        )
+
+
+class CubiertaSprfvMetodoDireccional(PresionesEdificioBase):
+    """CubiertaSprfvMetodoDireccional.
+
+    Determina las presiones de cubierta para SPRFV usando el método direccional.
+    """
 
     @cached_property
-    def valores(self) -> ValoresPresionesCubiertaEdificioSprfvMetodoDireccional:
-        """Calcula los valores de presión para la cubierta.
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones de la cubierta.
+
+        Todas se resuelven con la presión de velocidad a la altura media.
 
         Returns:
-            Los valores de presión correspondientes a cada cp para presión interna negativa y presión externa positiva.
+            Una fila por cada coeficiente de presión.
         """
-        valores_cp = self.cp()
-        valores = {}
-        for direccion, cp in valores_cp.items():
-            valores[direccion] = self._calcular_presiones(
-                cp, self.factores_rafaga[direccion], self._presion_media_parcial
-            )
-        return valores
-
-    def _calcular_presiones(
-        self,
-        cp: [dict[Hashable, float], Sequence[float]],
-        factor_rafaga: float,
-        func: partial,
-    ):
-        """
-
-        Args:
-            cp: Los valores de coeficiente de presión.
-            factor_rafaga: El factor de ráfaga.
-            func: La función que calcula las presiones. En este caso se utiliza una función parcial que solo hay que
-            pasarle el valor de cp y de rafaga. Ver el método "valores".
-
-        Returns:
-            Las presiones para cada cp.
-        """
-        presiones = {}
-        if not isinstance(cp, dict):
-            return func(cp=cp, factor_rafaga=factor_rafaga)
-        for key, valor in cp.items():
-            if isinstance(valor, dict):
-                presiones[key] = self._calcular_presiones(valor, factor_rafaga, func)
-            else:
-                presiones[key] = func(cp=valor, factor_rafaga=factor_rafaga)
-        return presiones
-
-    def __call__(self) -> ValoresPresionesCubiertaEdificioSprfvMetodoDireccional:
-        return self.valores
-
-    @staticmethod
-    def _presiones(
-        presion_velocidad: float,
-        cp: float,
-        factor_rafaga: float,
-        presion_velocidad_media: float,
-        gcpi: float = 0.0,
-        considerar_presion_minima: bool = False,
-    ) -> PresionesEdificio:
-        """
-
-        Args:
-            presion_velocidad: La presión de velocidad.
-            cp: El valor de cp.
-            factor_rafaga: El valor de factor de ráfaga.
-            presion_velocidad_media: La presión a la altura media de la estructura.
-            gcpi: El coeficiente de presión interna.
-            considerar_presion_minima: Determina si se debe considerar la presión mínima del reglamento.
-
-        Returns:
-            Los valores de presión para presión interna positiva y negativa.
-        """
-        q1 = presion_velocidad * factor_rafaga * cp
-        q2 = presion_velocidad_media * gcpi
-        q_pos = q1 - q2
-        q_neg = q1 + q2
-        if considerar_presion_minima:
-            q_pos = presion_minima(q_pos)
-            q_neg = presion_minima(q_neg)
-        return PresionesEdificio(q_pos, q_neg)
-
-
-class CubiertaSprfvMetodoEnvolvente(PresionesBase):
-    pass
+        return tuple(
+            self._fila(entrada, self.q_media, self.factores_rafaga[entrada.direccion])
+            for entrada in self.cp.entradas
+        )
 
 
 class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
     """AleroSprfvMetodoDireccional.
 
     Determina las presiones del alero para SPRFV usando el método direccional.
+
+    El alero es una superficie abierta: se construye siempre como tal, de modo
+    que el coeficiente de presión interna es cero y ambos signos coinciden.
     """
+
+    con_presion_interna = False
 
     def __init__(
         self,
-        alturas: np.ndarray,  # TODO - Ver si es necesario
+        alturas: np.ndarray,
         altura_media: float,
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
-        cp: clases_cp_edificio.AleroSprfvMetodoDireccional,
+        factor_topografico: Sequence[float],
+        cp,
         categoria_exp: CategoriaExposicion,
     ) -> None:
         """
+
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
-            cp: Un instancia de AleroSprfvMetodoDireccional.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
+            cp: La clase de coeficientes de presión del alero.
             categoria_exp: La categoría de exposición al viento de la estructura.
         """
         super().__init__(
@@ -317,64 +272,13 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             cp,
             categoria_exp,
         )
-        self._presion_media_parcial = partial(
-            self._presiones, presion_velocidad=self.presion_velocidad_media
-        )
-
-    @cached_property
-    def valores(self) -> ValoresPresionesAleroEdificioSprfvMetodoDireccional:
-        """Calcula los valores de presión para el alero.
-
-        Returns:
-            Los valores de presión correspondientes a cada cp.
-        """
-        valores_cp = self.cp()
-        valores = {}
-        for direccion, cp in valores_cp.items():
-            valores[direccion] = self._calcular_presiones(
-                cp, self.factores_rafaga[direccion], self._presion_media_parcial
-            )
-        return valores
-
-    @staticmethod
-    def _presiones(
-        presion_velocidad: float,
-        cp: float,
-        factor_rafaga: float,
-        considerar_presion_minima: bool = False,
-    ) -> float:
-        """
-        Args:
-            presion_velocidad: La presión de velocidad determinada a la altura requerida.
-            cp: El coeficiente de presión cp.
-            factor_rafaga: El factor de ráfaga.
-            considerar_presion_minima: Determina si se debe considerar la presión mínima del reglamento.
-
-        Returns:
-            La presión correspondiente.
-        """
-
-        presion = presion_velocidad * factor_rafaga * cp
-        if considerar_presion_minima:
-            return presion_minima(presion)
-        return presion
-
-    def __call__(self) -> ValoresPresionesAleroEdificioSprfvMetodoDireccional:
-        return self.valores
 
 
-class AleroSprfvMetodoEnvolvente:
-    pass
-
-
-class ParedesSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
+class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
     """ParedesSprfvMetodoDireccional.
 
     Determina las presiones de paredes para SPRFV usando el método direccional.
     """
-
-    # https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    cp: clases_cp_edificio.ParedesSprfvMetodoDireccional
 
     def __init__(
         self,
@@ -385,7 +289,7 @@ class ParedesSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp,
         categoria_exp: CategoriaExposicion,
@@ -396,19 +300,19 @@ class ParedesSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
-            cp: Un instancia de ParedesSprfvMetodoDireccional.
+            cp: La clase de coeficientes de presión de las paredes.
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
+            aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
         """
         super().__init__(
@@ -425,304 +329,130 @@ class ParedesSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             aberturas_totales,
             volumen_interno,
         )
+        self.altura_alero = altura_alero
         self.tipo_cubierta = tipo_cubierta
-        self._bool_indices_alero = alturas <= altura_alero
 
-    @property
-    def coeficientes_exposicion_alero(
-        self,
-    ) -> np.ndarray:  # TODO - Averiguar si se puede hacer -> np.ndarray[float]
-        """Obtiene el coeficiente de exposición correspondiente a la altura de alero.
+    def _q_barlovento(
+        self, direccion: DireccionVientoMetodoDireccionalSprfv
+    ) -> tuple[PresionVelocidad, ...]:
+        """Las presiones de velocidad de la pared a barlovento.
 
-        Returns:
-            El coeficiente de exposición correspondiente a la altura de alero.
-        """
-        return self.coeficientes_exposicion[self._bool_indices_alero]
-
-    @cached_property
-    def factor_topografico_alero(self) -> np.ndarray:
-        """Factor topográfico calculado hasta la altura de alero.
-
-        Returns:
-            El factor topográfico correspondiente a la altura de alero.
-        """
-        return self.factor_topografico[self._bool_indices_alero]
-
-    @property
-    def presion_velocidad_alero(self) -> np.ndarray:
-        """Obtiene la presión de velocidad correspondiente a la altura de alero.
-
-        Returns:
-            La presión de velocidad correspondiente a la altura de alero.
-        """
-        return self.presiones_velocidad[self._bool_indices_alero]
-
-    @cached_property
-    def valores(self) -> ValoresPresionesParedesEdificioSprfvMetodoDireccional:
-        """Calcula los valores de presión para las paredes.
-
-        Returns:
-            Los valores de presión correspondientes a cada cp para presión interna negativa y presión externa positiva.
-        """
-        valores_cp = self.cp()
-        presiones_paredes = defaultdict(dict)
-        for direccion, diccionario in valores_cp.items():
-            for pared, cp in diccionario.items():
-                if pared == ParedEdificioSprfv.BARLOVENTO:
-                    if (
-                        direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
-                        and self.tipo_cubierta != TipoCubierta.UN_AGUA
-                    ):
-                        qi = self.presion_velocidad_alero
-                    else:
-                        qi = self.presiones_velocidad
-                else:
-                    qi = self.presion_velocidad_media
-                presiones_paredes[direccion][pared] = self._presiones(
-                    qi,
-                    cp,
-                    self.factores_rafaga[direccion],
-                    self.gcpi,
-                    self.presion_velocidad_media,
-                )
-        return presiones_paredes
-
-    def __call__(self) -> ValoresPresionesParedesEdificioSprfvMetodoDireccional:
-        return self.valores
-
-
-class ParedesSprfvMetodoEnvolvente:
-    pass
-
-
-class MixinCr:
-    """MixinCr.
-
-    Extendiende la funcionalidad para componentes. No debe ser usada por si sola.
-    """
-
-    def _presiones_componentes(
-        self,
-    ) -> (
-        ValoresPresionesParedesEdificioComponentesA
-        | ValoresPresionesCubiertaEdificioComponentes
-        | ValoresPresionesAleroEdificioComponentes
-        | None
-    ):
-        """Calcula las presiones para componentes y revestimientos.
-
-        Returns:
-            Las presiones correspondientes a cada cp.
-        """
-        valores_cp = self.cp()
-        if valores_cp is None:
-            return
-        presiones = defaultdict(dict)
-        for nombre, zonas in valores_cp.items():
-            for zona, valor_cp in zonas.items():
-                presiones[nombre][zona] = self._presion_media_parcial(
-                    cp=valor_cp, factor_rafaga=1, considerar_presion_minima=True
-                )
-        return presiones
-
-
-class CubiertaComponentes(CubiertaSprfvMetodoDireccional, MixinCr):
-    """CubiertaComponentes.
-
-    Determina las presiones para componentes y revestimiento para cubierta.
-    """
-
-    cp: clases_cp_edificio.CubiertaComponentes
-
-    def __init__(
-        self,
-        alturas: np.ndarray,
-        altura_media: float,
-        categoria: CategoriaEstructura,
-        velocidad: float,
-        rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
-        cerramiento: Cerramiento,
-        cp,
-        categoria_exp: CategoriaExposicion,
-        reducir_gcpi: bool = False,
-        aberturas_totales: float | None = None,
-        volumen_interno: float | None = None,
-    ) -> None:
-        """
+        Con el viento normal a la cumbrera la presión se toma hasta la altura de
+        alero, salvo en cubiertas a un agua, donde se toma hasta la cumbrera.
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
-            altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
-            velocidad: La velocidad del viento en m/s.
-            rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
-            cerramiento: El tipo de cerramiento del edificio.
-            cp: Un instancia de CubiertaMetodoDireccional.
-            categoria_exp: La categoría de exposición al viento de la estructura.
-            reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
-            volumen_interno: El volumen interno no dividido del edificio.
+            direccion: La dirección del viento.
+
+        Returns:
+            Una presión de velocidad por cada altura considerada.
         """
-        super().__init__(
-            alturas,
-            altura_media,
-            categoria,
-            velocidad,
-            rafaga,
-            factor_topografico,
-            cerramiento,
-            cp,
-            categoria_exp,
-            reducir_gcpi=reducir_gcpi,
-            aberturas_totales=aberturas_totales,
-            volumen_interno=volumen_interno,
+        if (
+            direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
+            and self.tipo_cubierta != TipoCubierta.UN_AGUA
+        ):
+            return tuple(
+                q for q in self.presiones_velocidad if q.altura <= self.altura_alero
+            )
+        return self.presiones_velocidad
+
+    @cached_property
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones de las paredes.
+
+        La pared a barlovento recibe la presión de velocidad de cada altura; las
+        demás, la de la altura media de cubierta.
+
+        Returns:
+            Las filas de todas las paredes.
+        """
+        filas = []
+        for entrada in self.cp.entradas:
+            factor_rafaga = self.factores_rafaga[entrada.direccion]
+            if entrada.pared == ParedEdificioSprfv.BARLOVENTO:
+                filas += [
+                    self._fila(entrada, q, factor_rafaga)
+                    for q in self._q_barlovento(entrada.direccion)
+                ]
+            else:
+                filas.append(self._fila(entrada, self.q_media, factor_rafaga))
+        return tuple(filas)
+
+
+class ComponentesBase(PresionesEdificioBase):
+    """Comportamiento común de componentes y revestimientos.
+
+    El factor de ráfaga no interviene, se aplica la presión mínima del
+    Reglamento y el coeficiente de exposición usa la altura límite del "Caso 1".
+
+    Se combina con la clase del SPRFV de cada superficie, que es la que aporta
+    el constructor.
+    """
+
+    considerar_presion_minima = True
+
+    @cached_property
+    def _altura_limite(self):
+        return self._calcular_altura_limite(1)
+
+    @cached_property
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones sobre los componentes.
+
+        Returns:
+            Una fila por cada coeficiente de presión.
+        """
+        return tuple(
+            self._fila(entrada, self.q_media, 1.0) for entrada in self.cp.entradas
         )
 
+
+class CubiertaComponentes(ComponentesBase, CubiertaSprfvMetodoDireccional):
+    """CubiertaComponentes.
+
+    Determina las presiones para componentes y revestimientos de cubierta.
+    """
+
+
+class AleroComponentes(ComponentesBase, AleroSprfvMetodoDireccional):
+    """AleroComponentes.
+
+    Determina las presiones para componentes y revestimientos del alero.
+    """
+
+
+class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
+    """ParedesComponentes.
+
+    Determina las presiones para componentes y revestimientos de paredes.
+
+    Con la Figura 8 del Reglamento los coeficientes se discriminan por pared, y
+    los de la pared a barlovento se resuelven altura por altura.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Con la Figura 8 el cálculo no aplica la presión mínima del Art. 1.4.
+        # Es el único componente que queda afuera y parece un descuido -la rama
+        # original llamaba a la fórmula con los argumentos corridos y sin pedir
+        # la presión mínima-, pero cambiarlo cambia resultados, así que se
+        # mantiene hasta verificarlo contra el Reglamento.
+        self.considerar_presion_minima = self.cp.referencia != "Figura 8"
+
     @cached_property
-    def valores(self) -> ValoresPresionesCubiertaEdificioComponentes:
-        """Calcula los valores de presión para los componentes.
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones sobre los componentes de las paredes.
 
         Returns:
-            Los valores de presión correspondientes a cada cp para presión interna negativa y presión externa positiva.
+            Una fila por cada coeficiente, o una por altura en la pared a
+            barlovento cuando la figura del Reglamento la discrimina.
         """
-        return self._presiones_componentes()
-
-    @cached_property
-    def _altura_limite(self):
-        return self._calcular_altura_limite(1)
-
-    def __call__(self) -> ValoresPresionesCubiertaEdificioComponentes:
-        return self.valores
-
-
-class AleroComponentes(AleroSprfvMetodoDireccional, MixinCr):
-    @cached_property
-    def valores(self) -> ValoresPresionesAleroEdificioComponentes:
-        """Calcula los valores de presión para los componentes.
-
-        Returns:
-            Los valores de presión correspondientes a cada cp para presión interna negativa y presión externa positiva.
-        """
-        return self._presiones_componentes()
-
-    @cached_property
-    def _altura_limite(self):
-        return self._calcular_altura_limite(1)
-
-    def __call__(self) -> ValoresPresionesAleroEdificioComponentes:
-        return self.valores
-
-
-class ParedesComponentes(ParedesSprfvMetodoDireccional, MixinCr):
-    # """ParedesComponentes.
-    #
-    # Determina las presiones para componentes y revestimiento para paredes.
-    # """
-    #
-    # cp: clases_cp_edificio.ParedesComponentes
-    #
-    # def __init__(
-    #     self,
-    #     alturas: np.ndarray,
-    #     altura_media: float,
-    #     altura_alero: float,
-    #     tipo_cubierta: TipoCubierta,
-    #     categoria: CategoriaEstructura,
-    #     velocidad: float,
-    #     rafaga: Dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-    #     factor_topografico: np.ndarray,
-    #     cerramiento: Cerramiento,
-    #     cp,
-    #     categoria_exp: CategoriaExposicion,
-    #     reducir_gcpi: bool = False,
-    #     aberturas_totales: Optional[float] = None,
-    #     volumen_interno: Optional[float] = None,
-    # ) -> None:
-    #     """
-    #
-    #     Args:
-    #         alturas: Las alturas o altura de la estructura donde calcular las presiones.
-    #         altura_media: La altura media de la cubierta.
-    #         altura_alero: La altura de alero del edificio.
-    #         tipo_cubierta: El tipo de cubierta.
-    #         categoria: La categoría de la estructura.
-    #         velocidad: La velocidad del viento en m/s.
-    #         rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-    #         factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
-    #         cerramiento: El tipo de cerramiento del edificio.
-    #         cp: Un instancia de ParedesComponentes.
-    #         categoria_exp: La categoría de exposición al viento de la estructura.
-    #         reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-    #         aberturas_totales: Las valor total de aberturas totales del edificio.
-    #         volumen_interno: El volumen interno no dividido del edificio.
-    #     """
-    #     super().__init__(
-    #         alturas,
-    #         altura_media,
-    #         altura_alero,
-    #         tipo_cubierta,
-    #         categoria,
-    #         velocidad,
-    #         rafaga,
-    #         factor_topografico,
-    #         cerramiento,
-    #         cp,
-    #         categoria_exp,
-    #         reducir_gcpi,
-    #         aberturas_totales,
-    #         volumen_interno,
-    #     )
-    #     self._altura_limite = self._calcular_altura_limite(1)
-
-    @cached_property
-    def _altura_limite(self):
-        return self._calcular_altura_limite(1)
-
-    def _presiones_cr_caso_b(
-        self,
-    ) -> ValoresPresionesParedesEdificioComponentesB | None:
-        """Calcula las presiones sobre los componentes de pared cuando hay que
-        utilizar la Figura 8 del Reglamento CIRSOC 102-05.
-
-        :returns: ``dict`` con las presiones para cada componente.
-        :rtype: dict
-        """
-        valores_cp = self.cp()
-        if valores_cp is None:
-            return
-        presiones = defaultdict(lambda: defaultdict(dict))
-        for pared in ParedEdificioSprfv:
-            if pared == ParedEdificioSprfv.BARLOVENTO:
-                qi = self.presiones_velocidad
+        filas = []
+        for entrada in self.cp.entradas:
+            if entrada.pared == ParedEdificioSprfv.BARLOVENTO:
+                filas += [self._fila(entrada, q, 1.0) for q in self.presiones_velocidad]
             else:
-                qi = self.presion_velocidad_media
-            for nombre, zonas in valores_cp.items():
-                for zona, valor_gcp in zonas.items():
-                    presiones[pared][nombre][zona] = self._presiones(
-                        qi, valor_gcp, 1, self.gcpi, self.presion_velocidad_media
-                    )
-        return presiones
-
-    @cached_property
-    def valores(
-        self,
-    ) -> (
-        ValoresPresionesParedesEdificioComponentesB
-        | ValoresPresionesParedesEdificioComponentesA
-    ):
-        """Calcula los valores de presión dependiendo la referencia del Reglamento.
-
-        Returns:
-            Los valores de presión.
-        """
-        if self.cp.referencia == "Figura 8":
-            return self._presiones_cr_caso_b()
-        return self._presiones_componentes()
-
-    def __call__(self) -> ValoresPresionesParedesEdificioComponentes:
-        return self.valores
+                filas.append(self._fila(entrada, self.q_media, 1.0))
+        return tuple(filas)
 
 
 class Cubierta:
@@ -738,7 +468,7 @@ class Cubierta:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Cubierta,
         categoria_exp: CategoriaExposicion,
@@ -750,38 +480,23 @@ class Cubierta:
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
             cp: Un instancia de Cubierta.
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
+            aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
         """
-        if metodo_sprfv == MetodoSprfv.DIRECCIONAL:
-            self.sprfv = CubiertaSprfvMetodoDireccional(
-                alturas,
-                altura_media,
-                categoria,
-                velocidad,
-                rafaga,
-                factor_topografico,
-                cerramiento,
-                cp.sprfv,
-                categoria_exp,
-                reducir_gcpi,
-                aberturas_totales,
-                volumen_interno,
-            )
-        else:
+        if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
-        self.componentes = CubiertaComponentes(
+        comunes = (
             alturas,
             altura_media,
             categoria,
@@ -789,22 +504,15 @@ class Cubierta:
             rafaga,
             factor_topografico,
             cerramiento,
-            cp.componentes,
-            categoria_exp,
-            reducir_gcpi,
-            aberturas_totales,
-            volumen_interno,
         )
+        finales = (categoria_exp, reducir_gcpi, aberturas_totales, volumen_interno)
+        self.sprfv = CubiertaSprfvMetodoDireccional(*comunes, cp.sprfv, *finales)
+        self.componentes = CubiertaComponentes(*comunes, cp.componentes, *finales)
 
     @cached_property
-    def valores(self) -> ValoresPresionesCubiertaEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
-
-    def __call__(self) -> ValoresPresionesCubiertaEdificioMetodoDireccional:
-        return self.valores
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones del SPRFV seguidas por las de componentes."""
+        return (*self.sprfv.filas, *self.componentes.filas)
 
 
 class Alero:
@@ -820,7 +528,7 @@ class Alero:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cp: clases_cp_edificio.Alero,
         categoria_exp: CategoriaExposicion,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
@@ -828,49 +536,33 @@ class Alero:
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
-            cp: Un instancia de AleroSprfvMetodoDireccional.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
+            cp: Un instancia de Alero.
             categoria_exp: La categoría de exposición al viento de la estructura.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
         """
-        if metodo_sprfv == MetodoSprfv.DIRECCIONAL:
-            self.sprfv = AleroSprfvMetodoDireccional(
-                alturas,
-                altura_media,
-                categoria,
-                velocidad,
-                rafaga,
-                factor_topografico,
-                cp.sprfv,
-                categoria_exp,
-            )
-        else:
+        if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
-        self.componentes = AleroComponentes(
+        comunes = (
             alturas,
             altura_media,
             categoria,
             velocidad,
             rafaga,
             factor_topografico,
-            cp.componentes,
-            categoria_exp,
         )
+        self.sprfv = AleroSprfvMetodoDireccional(*comunes, cp.sprfv, categoria_exp)
+        self.componentes = AleroComponentes(*comunes, cp.componentes, categoria_exp)
 
     @cached_property
-    def valores(self) -> ValoresPresionesAleroEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
-
-    def __call__(self) -> ValoresPresionesAleroEdificioMetodoDireccional:
-        return self.valores
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones del SPRFV seguidas por las de componentes."""
+        return (*self.sprfv.filas, *self.componentes.filas)
 
 
 class Paredes:
@@ -888,7 +580,7 @@ class Paredes:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Paredes,
         categoria_exp: CategoriaExposicion,
@@ -900,42 +592,25 @@ class Paredes:
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
             cp: Un instancia de Paredes.
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
+            aberturas_totales: El valor total de aberturas del edificio.
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
         """
-        if metodo_sprfv == MetodoSprfv.DIRECCIONAL:
-            self.sprfv = ParedesSprfvMetodoDireccional(
-                alturas,
-                altura_media,
-                altura_alero,
-                tipo_cubierta,
-                categoria,
-                velocidad,
-                rafaga,
-                factor_topografico,
-                cerramiento,
-                cp.sprfv,
-                categoria_exp,
-                reducir_gcpi,
-                aberturas_totales,
-                volumen_interno,
-            )
-        else:
+        if metodo_sprfv != MetodoSprfv.DIRECCIONAL:
             raise NotImplementedError("El método envolvente no esta implementado aún.")
-        self.componentes = ParedesComponentes(
+        comunes = (
             alturas,
             altura_media,
             altura_alero,
@@ -945,22 +620,15 @@ class Paredes:
             rafaga,
             factor_topografico,
             cerramiento,
-            cp.componentes,
-            categoria_exp,
-            reducir_gcpi,
-            aberturas_totales,
-            volumen_interno,
         )
+        finales = (categoria_exp, reducir_gcpi, aberturas_totales, volumen_interno)
+        self.sprfv = ParedesSprfvMetodoDireccional(*comunes, cp.sprfv, *finales)
+        self.componentes = ParedesComponentes(*comunes, cp.componentes, *finales)
 
     @cached_property
-    def valores(self) -> ValoresPresionesParedesEdificioMetodoDireccional:
-        return {
-            SistemaResistente.SPRFV: self.sprfv(),
-            SistemaResistente.COMPONENTES: self.componentes(),
-        }
-
-    def __call__(self) -> ValoresPresionesParedesEdificioMetodoDireccional:
-        return self.valores
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones del SPRFV seguidas por las de componentes."""
+        return (*self.sprfv.filas, *self.componentes.filas)
 
 
 class Edificio:
@@ -978,7 +646,7 @@ class Edificio:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         cp: clases_cp_edificio.Edificio,
         categoria_exp: CategoriaExposicion,
@@ -991,21 +659,21 @@ class Edificio:
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
             cp: Un instancia de Edificio.
             categoria_exp: La categoría de exposición al viento de la estructura.
-            reducir_gcpi: Indica si hay que reducir el valor de gcpi.
-            aberturas_totales: Las valor total de aberturas totales del edificio.
-            volumen_interno: El volumen interno no dividido del edificio.
             alero: La dimensión del alero.
+            reducir_gcpi: Indica si hay que reducir el valor de gcpi.
+            aberturas_totales: El valor total de aberturas del edificio.
+            volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
         """
         self.cubierta = Cubierta(
@@ -1054,15 +722,34 @@ class Edificio:
             )
 
     @cached_property
-    def valores(self) -> ValoresPresionesEdificioMetodoDireccional:
-        valores = {
-            ZonaEdificio.PAREDES: self.paredes(),
-            ZonaEdificio.CUBIERTA: self.cubierta(),
-        }
-        alero = getattr(self, "alero", None)
+    def filas_sprfv(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones del sistema principal resistente a la fuerza del viento.
+
+        Returns:
+            Las filas de paredes, cubierta y alero.
+        """
+        filas = (*self.paredes.sprfv.filas, *self.cubierta.sprfv.filas)
+        alero: Alero | None = getattr(self, "alero", None)
         if alero is not None:
-            valores[ZonaEdificio.ALERO] = alero()
-        return valores
+            filas += alero.sprfv.filas
+        return filas
+
+    @cached_property
+    def filas_componentes(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones sobre componentes y revestimientos.
+
+        Returns:
+            Las filas de paredes, cubierta y alero.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                Reglamento para componentes y revestimientos.
+        """
+        filas = (*self.paredes.componentes.filas, *self.cubierta.componentes.filas)
+        alero: Alero | None = getattr(self, "alero", None)
+        if alero is not None:
+            filas += alero.componentes.filas
+        return filas
 
     @classmethod
     def desde_edificio(
@@ -1072,7 +759,7 @@ class Edificio:
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
-        factor_topografico: np.ndarray,
+        factor_topografico: Sequence[float],
         cerramiento: Cerramiento,
         categoria_exp: CategoriaExposicion,
         reducir_gcpi: bool = False,
@@ -1086,7 +773,7 @@ class Edificio:
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
-            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
             cerramiento: El tipo de cerramiento del edificio.
             categoria_exp: La categoría de exposición al viento de la estructura.
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
@@ -1110,6 +797,3 @@ class Edificio:
             edificio.volumen_interno,
             metodo_sprfv,
         )
-
-    def __call__(self) -> ValoresPresionesEdificioMetodoDireccional:
-        return self.valores

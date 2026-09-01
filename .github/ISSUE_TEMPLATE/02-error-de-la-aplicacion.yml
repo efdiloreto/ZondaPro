@@ -1,0 +1,104 @@
+name: Error de la aplicación
+description: La aplicación se cierra, se traba, no dibuja o el reporte sale mal.
+title: 'Error: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Si lo que no cuadra es un **número del cálculo**, usá la plantilla
+        "Resultado de cálculo dudoso": necesita otros datos.
+
+  - type: checkboxes
+    id: requisitos
+    attributes:
+      label: Antes de reportar
+      options:
+        - label: Busqué en los [issues existentes](https://github.com/efdiloreto/ZondaPro/issues?q=is%3Aissue) y no encontré uno igual.
+          required: true
+        - label: Estoy usando la [última versión publicada](https://github.com/efdiloreto/ZondaPro/releases/latest), o aclaro abajo por qué no.
+          required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión de Zonda
+      description: Está en el menú "Acerca de".
+      placeholder: '1.0.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: instalacion
+    attributes:
+      label: ¿Cómo la instalaste?
+      options:
+        - Instalador .msi (Windows)
+        - Imagen .dmg (macOS)
+        - Paquete .flatpak (Linux)
+        - Desde el código fuente (uv run zonda)
+    validations:
+      required: true
+
+  - type: input
+    id: sistema
+    attributes:
+      label: Sistema operativo y versión
+      placeholder: 'Windows 11 24H2 / macOS 15.3 / Ubuntu 24.04'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modulo
+    attributes:
+      label: ¿En qué parte pasa?
+      options:
+        - Pantalla de inicio / selección de módulo
+        - Módulo Edificios
+        - Módulo Carteles y muros
+        - Módulo Cubiertas aisladas
+        - Vista 3D
+        - Memoria de cálculo o exportación (PDF/DOCX/ODT)
+        - Guardar o abrir un archivo .zda
+        - Otro / no sé
+    validations:
+      required: true
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Qué pasa
+      description: Qué esperabas que pasara y qué pasó en cambio.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduccion
+    attributes:
+      label: Cómo reproducirlo
+      description: >
+        Los pasos exactos. Sin esto es muy difícil arreglar cualquier cosa.
+      placeholder: |
+        1. Abrir el módulo Edificios.
+        2. Cargar la geometría con altura de cumbrera menor que la de alero.
+        3. Ir a la pestaña de resultados.
+        4. La aplicación se cierra.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Mensaje de error o traceback
+      description: >
+        Si corrés desde el código fuente, pegá la salida completa de la
+        consola. Si es un instalador, pegá el texto del cuadro de error.
+      render: text
+
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Archivo del proyecto y capturas
+      description: >
+        Si el error depende de un proyecto en particular, arrastrá el `.zda`
+        (renombralo a `.txt` si GitHub no te lo deja subir).

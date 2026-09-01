@@ -34,6 +34,7 @@ from zonda.enums import (
     TipoPresionComponentesParedesCubierta,
     TipoPresionCubiertaAislada,
     TipoPresionCubiertaBarloventoSprfv,
+    ZonaEdificio,
 )
 from zonda.excepciones import ErrorLineamientos
 from zonda.sistema import guardar_archivo_temporal
@@ -145,7 +146,12 @@ class WidgetResultadosEdificioSprfvMetodoDireccional(QtWidgets.QWidget):
             TipoCubierta.DOS_AGUAS,
             TipoCubierta.UN_AGUA,
         ):
-            if not edificio.cp.cubierta.sprfv.normal_como_paralelo:
+            # La cubierta a barlovento tiene dos casos de presión sólo cuando
+            # el ángulo llega a 10°: las filas lo dicen con su clave de caso.
+            casos_cubierta = edificio.resultados_sprfv.filtrar(
+                zona=ZonaEdificio.CUBIERTA
+            ).valores("caso")
+            if any(casos_cubierta):
                 self._combobox_presion_cubierta_inclinada = QtWidgets.QComboBox()
                 for enum in TipoPresionCubiertaBarloventoSprfv:
                     self._combobox_presion_cubierta_inclinada.addItem(
@@ -398,7 +404,14 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
                 self._combobox_componentes_paredes, numero_filas, 1
             )
 
-            if edificio.cp.paredes.componentes.referencia == "Figura 8":
+            # Con la Figura 8 los valores dependen de la pared y varían con la
+            # altura en la pared a barlovento.
+            if any(
+                fila.pared
+                for fila in edificio.resultados_componentes.filtrar(
+                    zona=ZonaEdificio.PAREDES
+                )
+            ):
                 self._combobox_alturas_barlovento = QtWidgets.QComboBox()
                 for altura in edificio.geometria.alturas:
                     self._combobox_alturas_barlovento.addItem(f"{altura} m", altura)

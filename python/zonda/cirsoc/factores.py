@@ -17,6 +17,7 @@
 
 import math
 from collections import namedtuple
+from collections.abc import Sequence
 from functools import cached_property
 
 import numpy as np
@@ -29,7 +30,6 @@ from zonda.enums import (
     Flexibilidad,
     TipoTerrenoTopografia,
 )
-from zonda.tipos import EscalarOArray
 
 _Constantes = namedtuple(
     "Constantes", "alfa zg a_hat b_hat alpha_bar b_bar c le ep_bar zmin"
@@ -271,7 +271,7 @@ class Topografia:
         distancia_cresta: float,
         distancia_barlovento_sotavento: float,
         direccion: DireccionTopografia,
-        alturas: EscalarOArray,
+        alturas: float | Sequence[float] | np.ndarray,
     ) -> None:
         """
 
@@ -283,7 +283,7 @@ class Topografia:
             distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
             distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
-            alturas: Las alturas donde calcular la topografía.
+            alturas: La altura o las alturas donde calcular la topografía.
         """
         self.categoria_exp = categoria_exp
         self.considerar_topografia = considerar_topografia
@@ -292,7 +292,7 @@ class Topografia:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
-        self.alturas = alturas
+        self.alturas = tuple(float(altura) for altura in np.atleast_1d(alturas))
 
     def topografia_considerada(self) -> bool:
         """Chequea si es necesario considerar la topografia.
@@ -372,20 +372,36 @@ class Topografia:
         mu = param_topo_vel[self.tipo_terreno]["mu"][self.direccion]
         k1 = k_factor * self.altura_terreno / lh
         k2 = 1 - self.distancia_barlovento_sotavento / mu / lh
-        k3 = np.e ** (-1 * gamma * self.alturas / lh)
+        k3 = tuple(np.e ** (-1 * gamma * altura / lh) for altura in self.alturas)
         return _ParametrosTopograficos(k_factor, gamma, mu, lh, k1, k2, k3)
 
     @cached_property
-    def factor(self) -> EscalarOArray:
+    def factor(self) -> tuple[float, ...]:
         """Calcula el factor topográfico.
 
         Returns:
-            El factor topografico para cada altura.
+            El factor topografico de cada altura.
         """
         if not self.topografia_considerada():
-            try:
-                kzt = np.fromiter((1 for i in range(len(self.alturas))), float)
-            except TypeError:
-                kzt = 1.00
-            return kzt
-        return (1 + self.parametros.k1 * self.parametros.k2 * self.parametros.k3) ** 2
+            return (1.0,) * len(self.alturas)
+        parametros = self.parametros
+        return tuple(
+            (1 + parametros.k1 * parametros.k2 * k3) ** 2 for k3 in parametros.k3
+        )
+
+    def k3_en(self, altura: float) -> float:
+        """Obtiene el factor K3 correspondiente a una de las alturas consideradas.
+
+        Args:
+            altura: La altura buscada.
+
+        Returns:
+            El factor K3 de esa altura.
+
+        Raises:
+            ValueError: Cuando la altura no es una de las consideradas.
+        """
+        for considerada, k3 in zip(self.alturas, self.parametros.k3, strict=True):
+            if considerada == altura:
+                return k3
+        raise ValueError(f"No hay factor topográfico calculado para {altura} m.")

@@ -109,8 +109,10 @@ ENV/
 # Kubuntu
 .directory
 
-# VsCode
-.vscode
+# VsCode: se versiona settings.json para que el editor use la misma
+# configuracion de ruff que la linea de comandos.
+.vscode/*
+!.vscode/settings.json
 
 # Pytest
 .pytest_cache/
@@ -129,3 +131,6 @@ obj/
 
 # Lo genera launcher/build.py a partir de recursos.rc.in
 launcher/src/recursos.generado.rc
+
+# Notas de trabajo personales, no forman parte del proyecto
+NOTAS.md

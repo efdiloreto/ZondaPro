@@ -208,7 +208,7 @@ def test_abre_el_modulo_del_archivo_salteando_la_bienvenida(
 ):
     bienvenida = WidgetBienvenida()
 
-    assert arranque.abrir_proyecto(bienvenida, archivo_cartel)
+    assert bienvenida.abrir_proyecto(archivo_cartel)
 
     modulo = bienvenida.modulo
     assert modulo is not None
@@ -228,7 +228,7 @@ def test_un_archivo_roto_no_abre_ningun_modulo(qapp, tmp_path, sin_dialogos):
     roto.write_text("esto no es json {", encoding="utf-8")
     bienvenida = WidgetBienvenida()
 
-    assert not arranque.abrir_proyecto(bienvenida, roto)
+    assert not bienvenida.abrir_proyecto(roto)
 
     assert bienvenida.modulo is None
     assert [tipo for tipo, _ in sin_dialogos] == ["critical"]
@@ -242,7 +242,7 @@ def test_un_archivo_de_otro_modulo_no_pisa_el_abierto(
     bienvenida = WidgetBienvenida()
     modulo = bienvenida.abrir_modulo(Estructura.EDIFICIO)
 
-    assert arranque.abrir_proyecto(bienvenida, archivo_cartel)
+    assert bienvenida.abrir_proyecto(archivo_cartel)
 
     assert bienvenida.modulo is modulo
     assert [tipo for tipo, _ in sin_dialogos] == ["warning"]

@@ -1,0 +1,110 @@
+name: Resultado de cálculo dudoso
+description: Un valor que devuelve Zonda no coincide con lo que da el Reglamento.
+title: 'Cálculo: '
+labels: ['cálculo', 'bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por tomarte el trabajo de verificar los números: es el reporte
+        más valioso que puede recibir este proyecto.
+
+        Para poder reproducirlo hace falta bastante detalle. Si algún dato no lo
+        tenés a mano, mandalo igual: es mejor un reporte incompleto que ninguno.
+
+  - type: checkboxes
+    id: requisitos
+    attributes:
+      label: Antes de reportar
+      options:
+        - label: Busqué en los [issues existentes](https://github.com/efdiloreto/ZondaPro/issues?q=is%3Aissue) y no encontré uno igual.
+          required: true
+        - label: Verifiqué el cálculo a mano contra el Reglamento (no es una duda de uso).
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión de Zonda
+      description: Está en el menú "Acerca de".
+      placeholder: '1.0.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tipologia
+    attributes:
+      label: Tipología
+      options:
+        - Edificio
+        - Cartel o muro
+        - Cubierta aislada
+        - Varias / no aplica
+    validations:
+      required: true
+
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: ¿Dónde aparece el valor?
+      options:
+        - SPRFV
+        - Componentes y Revestimientos (C&R)
+        - Presión de velocidad (qz / qh)
+        - Factores (G, Kd, Kzt, I)
+        - Memoria de cálculo (reporte)
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: datos
+    attributes:
+      label: Datos de entrada
+      description: >
+        Geometría y parámetros de viento con los que se reproduce. Cuanto más
+        completo, mejor.
+      placeholder: |
+        Geometría: ancho 20 m, largo 30 m, altura de alero 8 m, altura de cumbrera 11 m,
+        cubierta a dos aguas, sin parapetos, cerrado.
+        Viento: velocidad 45 m/s, categoría de exposición B, categoría II,
+        factor de direccionalidad 0,85, sin efecto topográfico.
+    validations:
+      required: true
+
+  - type: textarea
+    id: valores
+    attributes:
+      label: Valor que devuelve Zonda y valor esperado
+      placeholder: |
+        Zonda devuelve: Cp = -0,90 en la zona 2 de barlovento.
+        Debería devolver: Cp = -0,70.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reglamento
+    attributes:
+      label: Referencia reglamentaria
+      description: >
+        De dónde sale el valor esperado: artículo, tabla, figura y nota del
+        CIRSOC 102-2005. Es lo que permite decidir quién tiene razón.
+      placeholder: |
+        Figura 5.3-2A, Nota 5. Art. 5.11.2.
+    validations:
+      required: true
+
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Archivo del proyecto y capturas
+      description: >
+        Si podés, arrastrá acá el `.zda` que reproduce el caso (renombralo a
+        `.txt` si GitHub no te lo deja subir) y capturas de la pantalla de
+        resultados o del reporte.
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Cualquier otra cosa que ayude, incluida una solución propuesta.

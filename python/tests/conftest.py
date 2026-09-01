@@ -56,6 +56,25 @@ from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 
 
+@pytest.fixture(autouse=True)
+def settings_aislados(tmp_path_factory):
+    """Ningún test escribe en la configuración real de quien lo corre.
+
+    Varias piezas del programa guardan estado en ``QSettings`` —la geometría de
+    la bienvenida, las unidades, los proyectos recientes, la versión que se
+    pidió no volver a avisar— y sin esto los tests se lo pisarían a quien los
+    corra, además de arrastrar entre sí lo que fue dejando cada uno.
+
+    Se redirige el formato ini a una carpeta temporal por test: ``QSettings()``
+    se construye en el momento de usarse, así que alcanza con cambiar el
+    destino antes.
+    """
+    carpeta = tmp_path_factory.mktemp("settings")
+    formato = QtCore.QSettings.Format.IniFormat
+    QtCore.QSettings.setDefaultFormat(formato)
+    QtCore.QSettings.setPath(formato, QtCore.QSettings.Scope.UserScope, str(carpeta))
+
+
 @pytest.fixture(scope="session")
 def qapp_cls():
     """Los tests usan la QApplication real del programa.
@@ -101,6 +120,32 @@ def cartel() -> Cartel:
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,
+    )
+
+
+@pytest.fixture(scope="session")
+def cartel_con_topografia() -> Cartel:
+    """Cartel con la topografía activada.
+
+    Los parámetros están elegidos para que ``Topografia.topografia_considerada``
+    dé ``True`` (H/Lh ≥ 0.2 y H > 20 m para la categoría de exposición B), así
+    el reporte entra en la rama que muestra los datos del terreno.
+    """
+    return Cartel(
+        profundidad=1,
+        ancho=10,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=True,
+        tipo_terreno=enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        altura_terreno=30,
+        distancia_cresta=50,
+        distancia_barlovento_sotavento=20,
+        direccion=enums.DireccionTopografia.BARLOVENTO,
     )
 
 

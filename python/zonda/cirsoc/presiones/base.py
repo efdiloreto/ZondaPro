@@ -15,40 +15,55 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Presión de velocidad, común a todas las estructuras."""
+
 from __future__ import annotations
 
-from functools import cached_property, partial
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
 
+from zonda.cirsoc.resultados import PresionVelocidad
 from zonda.enums import CategoriaEstructura, CategoriaExposicion
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from zonda.cirsoc.factores import Rafaga
-    from zonda.tipos import EscalarOArray
+
+FACTORES_IMPORTANCIA = {
+    CategoriaEstructura.I: 0.87,
+    CategoriaEstructura.II: 1.0,
+    CategoriaEstructura.III: 1.15,
+    CategoriaEstructura.IV: 1.15,
+}
 
 
 class PresionesBase:
     """PresionesBase.
 
-    Clase que contiene métodos comunes para determinar las presiones sobre diferentes tipos de estructuras.
+    Calcula la presión de velocidad de cada altura de la estructura. Las
+    alturas y sus factores topográficos llegan como arrays desde la geometría y
+    la topografía, y se normalizan a secuencias de escalares: de acá en adelante
+    cada altura es un valor con su coeficiente de exposición, su factor
+    topográfico y su presión.
     """
 
     def __init__(
         self,
-        alturas: EscalarOArray,
+        alturas: float | Sequence[float] | np.ndarray,
         categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: EscalarOArray,
+        factor_topografico: float | Sequence[float] | np.ndarray,
         factor_direccionalidad: float,
         categoria_exp: CategoriaExposicion,
     ) -> None:
         """
 
         Args:
-            alturas: Las alturas o altura de la estructura donde calcular las presiones.
+            alturas: La altura o las alturas de la estructura donde calcular las presiones.
             categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de la clase Ráfaga.
@@ -56,66 +71,98 @@ class PresionesBase:
             factor_direccionalidad: El factor de direccionalidad correspondiente para el tipo de estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
         """
-        self.alturas = alturas
+        self.alturas = tuple(float(altura) for altura in np.atleast_1d(alturas))
+        self.factores_topograficos = tuple(
+            float(factor)
+            for factor in np.broadcast_to(factor_topografico, len(self.alturas))
+        )
         self.categoria = categoria
         self.velocidad = velocidad
         self.rafaga = rafaga
-        self.factor_topografico = factor_topografico
         self.factor_direccionalidad = factor_direccionalidad
         self.categoria_exp = categoria_exp
 
     @cached_property
     def factor_importancia(self) -> float:
-        """Calcula el factor de importancia de acuerdo a la categoría de la estructura.
+        """Obtiene el factor de importancia de acuerdo a la categoría de la estructura.
 
         Returns:
             El factor de importancia.
         """
-        factores = {
-            CategoriaEstructura.I: 0.87,
-            CategoriaEstructura.II: 1.0,
-            CategoriaEstructura.III: 1.15,
-            CategoriaEstructura.IV: 1.15,
-        }
-        return factores[self.categoria]
+        return FACTORES_IMPORTANCIA[self.categoria]
 
-    @property
-    def coeficientes_exposicion(self) -> EscalarOArray:
-        """Calcula el coeficiente de exposición para la presión dinámica, Kz.
+    @cached_property
+    def presiones_velocidad(self) -> tuple[PresionVelocidad, ...]:
+        """Calcula la presión de velocidad de cada altura.
 
         Returns:
-            Coeficiente de exposición para la presión dinámica.
+            Una presión de velocidad por altura, con los factores que la componen.
         """
-        kz_parcial_func = partial(
-            self._kz,
-            altura_limite=self._altura_limite,
-            alfa=self.rafaga.constantes_exp_terreno.alfa,
-            zg=self.rafaga.constantes_exp_terreno.zg,
+        return tuple(
+            self._presion_velocidad(altura, factor)
+            for altura, factor in zip(
+                self.alturas, self.factores_topograficos, strict=True
+            )
         )
-        try:
-            zg_iter = (kz_parcial_func(height) for height in self.alturas)
-            return np.fromiter(zg_iter, float)
-        except TypeError:
-            return kz_parcial_func(self.alturas)
 
-    @property
-    def presiones_velocidad(self) -> EscalarOArray:
-        """Calcula las presiones de velocidad.
+    def presion_velocidad_en(self, altura: float) -> PresionVelocidad:
+        """Obtiene la presión de velocidad de una de las alturas de la estructura.
+
+        Args:
+            altura: La altura buscada.
 
         Returns:
-            Presiones de velocidad.
+            La presión de velocidad de esa altura.
+
+        Raises:
+            ValueError: Cuando la altura no es una de las de la estructura.
         """
-        return (
+        for presion in self.presiones_velocidad:
+            if presion.altura == altura:
+                return presion
+        raise ValueError(f"No hay presión de velocidad calculada para {altura} m.")
+
+    def _presion_velocidad(
+        self, altura: float, factor_topografico: float
+    ) -> PresionVelocidad:
+        """Calcula la presión de velocidad a una altura.
+
+        Args:
+            altura: La altura a la que se calcula la presión.
+            factor_topografico: El factor topográfico correspondiente a esa altura.
+
+        Returns:
+            La presión de velocidad con los factores que la componen.
+        """
+        coeficiente_exposicion = self._coeficiente_exposicion(altura)
+        valor = (
             0.613
             * self.factor_direccionalidad
-            * self.coeficientes_exposicion
-            * self.factor_topografico
+            * coeficiente_exposicion
+            * factor_topografico
             * self.factor_importancia
             * self.velocidad**2
         )
+        return PresionVelocidad(
+            altura, coeficiente_exposicion, factor_topografico, valor
+        )
+
+    def _coeficiente_exposicion(self, altura: float) -> float:
+        """Calcula el coeficiente de exposición para la presión dinámica, Kz.
+
+        Args:
+            altura: La altura a la que se calcula el coeficiente.
+
+        Returns:
+            El coeficiente de exposición para la presión dinámica.
+        """
+        constantes = self.rafaga.constantes_exp_terreno
+        return 2.01 * (max(altura, self._altura_limite) / constantes.zg) ** (
+            2 / constantes.alfa
+        )
 
     @cached_property
-    def _altura_limite(self):
+    def _altura_limite(self) -> int:
         return self._calcular_altura_limite(2)
 
     def _calcular_altura_limite(self, caso: int) -> int:
@@ -126,20 +173,3 @@ class PresionesBase:
             elif self.categoria_exp == CategoriaExposicion.B:
                 return 10
         return 5
-
-    @staticmethod
-    def _kz(altura: float, altura_limite: float, alfa: float, zg: float) -> float:
-        """
-
-        Args:
-            altura: La altura a la que se calcula el coeficiente de
-            exposición.
-            altura_limite: La altura limite superior en la que el valor empieza a dejar de ser constante
-                (Ver tabla en Reglamento)
-            alfa: La constante "alfa" de exposición de terreno.
-            zg: La constante "zg" de exposición de terreno.
-
-        Returns:
-            El coeficiente de exposición.
-        """
-        return 2.01 * (max(altura, altura_limite) / zg) ** (2 / alfa)

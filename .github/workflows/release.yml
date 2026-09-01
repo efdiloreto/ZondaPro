@@ -21,74 +21,38 @@ permissions:
 
 jobs:
   # Si esto falla no tiene sentido gastar tres compilaciones, asi que build
-  # depende de este job.
+  # depende de este job. Los pasos viven en una action compuesta que comparte
+  # con el workflow de dev: si se corrigen aca, se corrigen en los dos lados.
   tests:
     name: Tests y análisis estático
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Configurar Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - name: Correr verificaciones
+        uses: ./.github/actions/verificaciones
 
-      - name: Instalar uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: 'latest'
-
-      # Los wheels de PyQt6 traen las librerias de Qt, pero no las librerias del
-      # sistema contra las que estas linkean. Sin libEGL.so.1 falla el import de
-      # QtWidgets en conftest, o sea antes de que la deteccion de display pueda
-      # saltear los tests de la vista 3D. Los tests importan zonda.main, que
-      # arrastra QtWebEngine, asi que no alcanza con libEGL.
-      #
-      # Se piden los paquetes Qt6 de la distro y no una lista de .so a mano para
-      # que apt resuelva las dependencias con los nombres que correspondan a la
-      # version de Ubuntu del runner: en 24.04 la transicion a time_t de 64 bits
-      # renombro varios (libqt6gui6 es libqt6gui6t64, libcups2 es libcups2t64).
-      # Estos dos alcanzan porque entre sus dependencias arrastran Gui, Widgets,
-      # PrintSupport, Quick y WebEngineCore. Las librerias de Qt asi instaladas
-      # quedan sin usar: los wheels resuelven las suyas por RPATH. Lo que hace
-      # falta son las del sistema que vienen de arrastre.
-      - name: Instalar librerias de sistema que necesita Qt
+  # master se integra unicamente desde dev, que es donde se acumula y se prueba
+  # todo antes de una release. Ni los rulesets ni la proteccion de ramas de
+  # GitHub saben restringir la rama de origen de un pull request, asi que el
+  # control es este job, marcado como check obligatorio en el ruleset.
+  origen:
+    name: Origen del pull request
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que el pull request venga de dev
+        # La rama llega por variable de entorno y no interpolada en el script:
+        # un nombre de rama es texto que elige quien abre el pull request.
+        env:
+          RAMA_ORIGEN: ${{ github.head_ref }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libqt6webenginewidgets6 \
-            libqt6quickwidgets6
-
-      - name: Instalar dependencias del proyecto
-        run: |
-          cd python
-          uv sync
-
-      - name: Linter
-        run: |
-          cd python
-          uv run ruff check .
-
-      - name: Formato
-        run: |
-          cd python
-          uv run ruff format --check .
-
-      # Sin display, conftest.py fuerza QT_QPA_PLATFORM=offscreen y los tests
-      # que necesitan la vista 3D se saltean solos.
-      - name: Tests
-        run: |
-          cd python
-          uv run pytest
-
-      # No bloquea: hoy arrastra 149 errores de tipado preexistentes. Queda
-      # visible para poder ir bajándolos, pero no puede frenar una release.
-      - name: Tipos
-        continue-on-error: true
-        run: |
-          cd python
-          uv run mypy zonda
+          if [ "$RAMA_ORIGEN" != "dev" ]; then
+            echo "::error::master solo acepta pull requests desde dev, y este viene de '$RAMA_ORIGEN'. Mergeá primero a dev y abrí el pull request desde ahí."
+            exit 1
+          fi
+          echo "El pull request viene de dev."
 
   # La release se publica con el tag que sale de __version__. Si esa version ya
   # se publico, mergear pisaria la release anterior sin avisar.
@@ -98,10 +62,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -146,15 +110,15 @@ jobs:
 
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
       - name: Instalar uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: 'latest'
 
@@ -214,7 +178,7 @@ jobs:
 
       # Guardar artefactos
       - name: Subir artefacto de compilación
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zonda-${{ matrix.platform }}
           path: ${{ matrix.artifact_pattern }}
@@ -228,10 +192,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -243,7 +207,7 @@ jobs:
           echo "Versión detectada: $VERSION"
 
       - name: Descargar todos los artefactos
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist-release
           merge-multiple: true
@@ -253,7 +217,7 @@ jobs:
           ls -la dist-release/
 
       - name: Publicar Release en GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: Zonda v${{ steps.get_version.outputs.VERSION }}

@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from zonda.cirsoc import cp, geometria, presiones
+from zonda.cirsoc import cp, geometria, presiones, resultados
 from zonda.cirsoc.factores import Rafaga, Topografia
 from zonda.enums import (
     DireccionTopografia,
@@ -31,6 +32,12 @@ from zonda.enums import (
 )
 
 if TYPE_CHECKING:
+    from zonda.cirsoc.resultados import (
+        FilaCartel,
+        FilaCubiertaAislada,
+        FilaEdificio,
+        Tabla,
+    )
     from zonda.enums import (
         CategoriaEstructura,
         CategoriaExposicion,
@@ -100,7 +107,6 @@ class Cartel:
         self.factor_g_simplificado = factor_g_simplificado
         self.considerar_topografia = considerar_topografia
         self.categoria_exp = categoria_exp
-        self.categoria = categoria
         self.es_parapeto = es_parapeto
         self.alturas_personalizadas = alturas_personalizadas
         self.frecuencia = frecuencia
@@ -108,9 +114,9 @@ class Cartel:
         self.flexibilidad = flexibilidad
         self.tipo_terreno = tipo_terreno
         self.altura_terreno = altura_terreno
-        self.distancia_cresta: distancia_cresta
-        self.distancia_barlovento_sotavento: distancia_barlovento_sotavento
-        self.direccion: direccion
+        self.distancia_cresta = distancia_cresta
+        self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
+        self.direccion = direccion
 
         self.geometria = geometria.Cartel(
             profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas
@@ -147,6 +153,15 @@ class Cartel:
             self.cf,
             categoria_exp,
         )
+
+    @cached_property
+    def resultados(self) -> Tabla[FilaCartel]:
+        """La tabla de resultados del cartel.
+
+        Returns:
+            Una fila por cada altura considerada.
+        """
+        return resultados.Tabla(self.presiones.filas)
 
 
 class CubiertaAislada:
@@ -264,7 +279,17 @@ class CubiertaAislada:
             self.topografia.factor,
             self.cpn,
             categoria_exp,
+            coeficiente_friccion,
         )
+
+    @cached_property
+    def resultados(self) -> Tabla[FilaCubiertaAislada]:
+        """La tabla de resultados de la cubierta aislada.
+
+        Returns:
+            Una fila por cada combinación de tipo de presión, zona y extremo.
+        """
+        return resultados.Tabla(self.presiones.filas)
 
 
 class Edificio:
@@ -388,3 +413,38 @@ class Edificio:
             reducir_gcpi,
             metodo_sprfv,
         )
+
+    @cached_property
+    def resultados_sprfv(self) -> Tabla[FilaEdificio]:
+        """La tabla de resultados del SPRFV.
+
+        Returns:
+            Las filas de paredes, cubierta y alero.
+        """
+        return resultados.Tabla(self.presiones.filas_sprfv)
+
+    @cached_property
+    def resultados_componentes(self) -> Tabla[FilaEdificio]:
+        """La tabla de resultados de componentes y revestimientos.
+
+        Se calcula por separado del SPRFV porque el Reglamento puede no proveer
+        lineamientos para la geometría del edificio, y en ese caso los
+        resultados del SPRFV siguen siendo válidos.
+
+        Returns:
+            Las filas de paredes, cubierta y alero.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                Reglamento para componentes y revestimientos.
+        """
+        return resultados.Tabla(self.presiones.filas_componentes)
+
+    @cached_property
+    def resultados(self) -> Tabla[FilaEdificio]:
+        """La tabla completa de resultados del edificio.
+
+        Returns:
+            Las filas del SPRFV seguidas por las de componentes.
+        """
+        return self.resultados_sprfv + self.resultados_componentes

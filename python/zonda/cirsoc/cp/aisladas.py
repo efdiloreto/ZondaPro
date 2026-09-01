@@ -21,6 +21,7 @@ import numpy as np
 
 from zonda import excepciones
 from zonda.cirsoc import geometria
+from zonda.cirsoc.resultados import EntradaCpn
 from zonda.enums import (
     ExtremoPresion,
     PosicionBloqueoCubierta,
@@ -28,7 +29,6 @@ from zonda.enums import (
     TipoPresionCubiertaAislada,
     ZonaPresionCubiertaAislada,
 )
-from zonda.tipos import ValoresCpCubiertaAislada
 
 
 class CubiertaAislada:
@@ -91,21 +91,54 @@ class CubiertaAislada:
         return "Tabla I.2"
 
     @cached_property
-    def valores(
-        self,
-    ) -> ValoresCpCubiertaAislada:
+    def entradas(self) -> tuple[EntradaCpn, ...]:
         """Calcula los factores cpn para la cubierta.
 
         Returns:
-            Los factores cpn.
+            Un factor por cada combinación de tipo de presión, zona y extremo.
         """
         if self.tipo_cubierta == TipoCubierta.UN_AGUA:
             return self._cpn_un_agua()
         return self._cpn_dos_aguas()
 
-    def _cpn_dos_aguas(
+    def _entradas(
         self,
-    ) -> ValoresCpCubiertaAislada:
+        globales: tuple[float, float],
+        zonas: dict[ZonaPresionCubiertaAislada, tuple[float, float]],
+    ) -> tuple[EntradaCpn, ...]:
+        """Arma las entradas a partir de los valores máximos y mínimos.
+
+        Args:
+            globales: El valor máximo y el mínimo de las presiones globales.
+            zonas: El valor máximo y el mínimo de cada zona.
+
+        Returns:
+            Una entrada por cada combinación de tipo de presión, zona y extremo.
+        """
+        extremos = (ExtremoPresion.MAX, ExtremoPresion.MIN)
+        entradas = [
+            EntradaCpn(
+                tipo=TipoPresionCubiertaAislada.GLOBAL,
+                extremo=extremo,
+                valor=float(valor),
+                referencia=self.referencia,
+            )
+            for extremo, valor in zip(extremos, globales, strict=True)
+        ]
+        entradas += [
+            EntradaCpn(
+                tipo=TipoPresionCubiertaAislada.LOCAL,
+                extremo=extremo,
+                valor=float(valor),
+                referencia=self.referencia,
+                zona=zona,
+            )
+            for zona, valores in zonas.items()
+            for extremo, valor in zip(extremos, valores, strict=True)
+        ]
+        return tuple(entradas)
+
+    def _cpn_dos_aguas(self) -> tuple[EntradaCpn, ...]:
         """Calcula los factores cpn para una cubierta a dos aguas.
 
         Returns:
@@ -232,42 +265,37 @@ class CubiertaAislada:
             self.angulo, angulos, minimos_valores_caso_d_relacion
         )
 
-        return {
-            TipoPresionCubiertaAislada.GLOBAL: {
-                ExtremoPresion.MAX: valor_maximo_global,
-                ExtremoPresion.MIN: valor_minimo_global,
+        return self._entradas(
+            (valor_maximo_global, valor_minimo_global),
+            {
+                ZonaPresionCubiertaAislada.A: (
+                    valor_maximo_zona_a,
+                    valor_minimo_zona_a,
+                ),
+                ZonaPresionCubiertaAislada.B: (
+                    valor_maximo_zona_b,
+                    valor_minimo_zona_b,
+                ),
+                ZonaPresionCubiertaAislada.C: (
+                    valor_maximo_zona_c,
+                    valor_minimo_zona_c,
+                ),
+                ZonaPresionCubiertaAislada.D: (
+                    valor_maximo_zona_d,
+                    valor_minimo_zona_d,
+                ),
+                ZonaPresionCubiertaAislada.BC: (
+                    max(valor_maximo_zona_b, valor_maximo_zona_c),
+                    min(valor_minimo_zona_b, valor_minimo_zona_c),
+                ),
+                ZonaPresionCubiertaAislada.BD: (
+                    max(valor_maximo_zona_b, valor_maximo_zona_d),
+                    min(valor_minimo_zona_b, valor_minimo_zona_d),
+                ),
             },
-            TipoPresionCubiertaAislada.LOCAL: {
-                ZonaPresionCubiertaAislada.A: {
-                    ExtremoPresion.MAX: valor_maximo_zona_a,
-                    ExtremoPresion.MIN: valor_minimo_zona_a,
-                },
-                ZonaPresionCubiertaAislada.B: {
-                    ExtremoPresion.MAX: valor_maximo_zona_b,
-                    ExtremoPresion.MIN: valor_minimo_zona_b,
-                },
-                ZonaPresionCubiertaAislada.C: {
-                    ExtremoPresion.MAX: valor_maximo_zona_c,
-                    ExtremoPresion.MIN: valor_minimo_zona_c,
-                },
-                ZonaPresionCubiertaAislada.D: {
-                    ExtremoPresion.MAX: valor_maximo_zona_d,
-                    ExtremoPresion.MIN: valor_minimo_zona_d,
-                },
-                ZonaPresionCubiertaAislada.BC: {
-                    ExtremoPresion.MAX: max(valor_maximo_zona_b, valor_maximo_zona_c),
-                    ExtremoPresion.MIN: min(valor_minimo_zona_b, valor_minimo_zona_c),
-                },
-                ZonaPresionCubiertaAislada.BD: {
-                    ExtremoPresion.MAX: max(valor_maximo_zona_b, valor_maximo_zona_d),
-                    ExtremoPresion.MIN: min(valor_minimo_zona_b, valor_minimo_zona_d),
-                },
-            },
-        }
+        )
 
-    def _cpn_un_agua(
-        self,
-    ) -> ValoresCpCubiertaAislada:
+    def _cpn_un_agua(self) -> tuple[EntradaCpn, ...]:
         """Calcula los factores cpn para una cubierta a un agua.
 
         Returns:
@@ -384,30 +412,27 @@ class CubiertaAislada:
         valor_minimo_zona_c = np.interp(
             self.angulo, angulos, minimos_valores_caso_c_relacion
         )
-        return {
-            TipoPresionCubiertaAislada.GLOBAL: {
-                ExtremoPresion.MAX: valor_maximo_global,
-                ExtremoPresion.MIN: valor_minimo_global,
+        return self._entradas(
+            (valor_maximo_global, valor_minimo_global),
+            {
+                ZonaPresionCubiertaAislada.A: (
+                    valor_maximo_zona_a,
+                    valor_minimo_zona_a,
+                ),
+                ZonaPresionCubiertaAislada.B: (
+                    valor_maximo_zona_b,
+                    valor_minimo_zona_b,
+                ),
+                ZonaPresionCubiertaAislada.C: (
+                    valor_maximo_zona_c,
+                    valor_minimo_zona_c,
+                ),
+                ZonaPresionCubiertaAislada.BC: (
+                    max(valor_maximo_zona_b, valor_maximo_zona_c),
+                    min(valor_minimo_zona_b, valor_minimo_zona_c),
+                ),
             },
-            TipoPresionCubiertaAislada.LOCAL: {
-                ZonaPresionCubiertaAislada.A: {
-                    ExtremoPresion.MAX: valor_maximo_zona_a,
-                    ExtremoPresion.MIN: valor_minimo_zona_a,
-                },
-                ZonaPresionCubiertaAislada.B: {
-                    ExtremoPresion.MAX: valor_maximo_zona_b,
-                    ExtremoPresion.MIN: valor_minimo_zona_b,
-                },
-                ZonaPresionCubiertaAislada.C: {
-                    ExtremoPresion.MAX: valor_maximo_zona_c,
-                    ExtremoPresion.MIN: valor_minimo_zona_c,
-                },
-                ZonaPresionCubiertaAislada.BC: {
-                    ExtremoPresion.MAX: max(valor_maximo_zona_b, valor_maximo_zona_c),
-                    ExtremoPresion.MIN: min(valor_minimo_zona_b, valor_minimo_zona_c),
-                },
-            },
-        }
+        )
 
     @classmethod
     def desde_cubierta(cls, cubierta: geometria.Cubierta):
@@ -422,8 +447,3 @@ class CubiertaAislada:
             cubierta.relacion_bloqueo,
             cubierta.posicion_bloqueo,
         )
-
-    def __call__(
-        self,
-    ) -> ValoresCpCubiertaAislada:
-        return self.valores

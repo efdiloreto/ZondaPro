@@ -1,0 +1,86 @@
+name: Solicitud de funcionalidad
+description: Proponer algo nuevo o una mejora a algo que ya existe.
+title: 'Propuesta: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        La regla de oro es **discutir primero**. Contanos el problema de
+        ingeniería que querés resolver, no sólo la solución que imaginaste:
+        muchas veces el Reglamento o la arquitectura del proyecto empujan hacia
+        otra forma de resolverlo.
+
+  - type: checkboxes
+    id: requisitos
+    attributes:
+      label: Antes de proponer
+      options:
+        - label: Busqué en los [issues existentes](https://github.com/efdiloreto/ZondaPro/issues?q=is%3Aissue) y no encontré una propuesta igual.
+          required: true
+        - label: Leí las [guías de contribución](https://github.com/efdiloreto/ZondaPro/blob/master/.github/CONTRIBUTING.md).
+          required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Motor de cálculo (tipologías, coeficientes, factores)
+        - Interfaz de usuario
+        - Vista 3D
+        - Memoria de cálculo y exportación
+        - Archivos y gestión de proyectos
+        - Empaquetado e instaladores
+        - Otro reglamento (por ejemplo CIRSOC 102-2025)
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: >
+        Qué te resulta imposible o incómodo hoy. Si es un caso de cálculo que
+        Zonda no cubre, describí la estructura.
+      placeholder: |
+        Hoy no puedo calcular cubiertas en diente de sierra, y son la mitad de
+        las naves industriales que verifico.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solucion
+    attributes:
+      label: Cómo lo resolverías
+      description: Qué debería hacer Zonda.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reglamento
+    attributes:
+      label: Respaldo reglamentario
+      description: >
+        Si la propuesta toca el cálculo, de dónde saldrían los coeficientes:
+        artículo, tabla o figura del CIRSOC. Sin una fuente clara, una tipología
+        nueva no se puede implementar.
+      placeholder: |
+        Figura 5.3-5, cubiertas en diente de sierra. Art. 5.11.2.
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que consideraste
+      description: >
+        Incluí cómo lo resolvés hoy, si tenés una forma de hacerlo a mano o con
+        otro programa.
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: >
+        Capturas, croquis, links, o cómo lo resuelve otro software y qué te
+        gusta o no de esa solución.

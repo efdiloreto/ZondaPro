@@ -1,0 +1,77 @@
+name: Verificaciones de Python
+description: >
+  Prepara el entorno del proyecto y corre linter, formato, tests y tipos.
+  La usan el workflow de dev y el de release, para que las dos ramas midan
+  exactamente lo mismo.
+
+runs:
+  using: composite
+  steps:
+    - name: Configurar Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Instalar uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: 'latest'
+
+    # Los wheels de PyQt6 traen las librerias de Qt, pero no las librerias del
+    # sistema contra las que estas linkean. Sin libEGL.so.1 falla el import de
+    # QtWidgets en conftest, o sea antes de que la deteccion de display pueda
+    # saltear los tests de la vista 3D. Los tests importan zonda.main, que
+    # arrastra QtWebEngine, asi que no alcanza con libEGL.
+    #
+    # Se piden los paquetes Qt6 de la distro y no una lista de .so a mano para
+    # que apt resuelva las dependencias con los nombres que correspondan a la
+    # version de Ubuntu del runner: en 24.04 la transicion a time_t de 64 bits
+    # renombro varios (libqt6gui6 es libqt6gui6t64, libcups2 es libcups2t64).
+    # Estos dos alcanzan porque entre sus dependencias arrastran Gui, Widgets,
+    # PrintSupport, Quick y WebEngineCore. Las librerias de Qt asi instaladas
+    # quedan sin usar: los wheels resuelven las suyas por RPATH. Lo que hace
+    # falta son las del sistema que vienen de arrastre.
+    - name: Instalar librerias de sistema que necesita Qt
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          libqt6webenginewidgets6 \
+          libqt6quickwidgets6
+
+    - name: Instalar dependencias del proyecto
+      shell: bash
+      run: |
+        cd python
+        uv sync
+
+    - name: Linter
+      shell: bash
+      run: |
+        cd python
+        uv run ruff check .
+
+    - name: Formato
+      shell: bash
+      run: |
+        cd python
+        uv run ruff format --check .
+
+    # Sin display, conftest.py fuerza QT_QPA_PLATFORM=offscreen y los tests
+    # que necesitan la vista 3D se saltean solos.
+    - name: Tests
+      shell: bash
+      run: |
+        cd python
+        uv run pytest
+
+    # No bloquea: hoy arrastra errores de tipado preexistentes. Queda visible
+    # para poder ir bajandolos, pero no puede frenar un merge ni una release.
+    # Los pasos de una action compuesta no aceptan continue-on-error, asi que
+    # el fallo se absorbe aca y queda como aviso de la corrida.
+    - name: Tipos
+      shell: bash
+      run: |
+        cd python
+        uv run mypy zonda || echo "::warning::mypy reporta errores de tipado preexistentes"
