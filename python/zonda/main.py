@@ -37,13 +37,11 @@ registrar la extensión en el sistema, y eso lo hace el empaquetado
 import ctypes
 import ctypes.util
 import sys
-from pathlib import Path
 
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QFontDatabase
 
 from zonda import __acercade__, actualizaciones, proyecto, recursos
-from zonda.excepciones import ErrorArchivo
 from zonda.widgets.zonda import WidgetBienvenida
 
 _UTF8 = 0x08000100
@@ -176,44 +174,6 @@ def nombrar_la_aplicacion_en_macos(nombre: str) -> None:
     cf.CFRelease(valor)
 
 
-def abrir_proyecto(bienvenida: WidgetBienvenida, ruta: str | Path) -> bool:
-    """Abre un archivo de proyecto en el módulo que le corresponde.
-
-    Args:
-        bienvenida: La pantalla de bienvenida, que es la que abre los módulos.
-        ruta: El archivo de proyecto.
-
-    Returns:
-        Si quedó un módulo abierto con el archivo cargado.
-    """
-    # Se lee dos veces —acá para saber de qué módulo es, y de nuevo adentro del
-    # módulo para cargarlo—. Son unos pocos kB de JSON, y a cambio el módulo
-    # queda con una sola forma de cargar un archivo.
-    try:
-        estructura, _ = proyecto.abrir(ruta)
-    except ErrorArchivo as error:
-        QtWidgets.QMessageBox.critical(None, "Error al abrir el archivo", str(error))
-        return False
-
-    modulo = bienvenida.modulo
-    if modulo is None:
-        modulo = bienvenida.abrir_modulo(estructura)
-    elif modulo.estructura is not estructura:
-        QtWidgets.QMessageBox.warning(
-            modulo,
-            "Otro módulo abierto",
-            f'El archivo es del módulo "{estructura.value.title()}", y ahora está'
-            f' abierto el de "{modulo.titulo}". Cerrá este módulo y volvé a abrir'
-            " el archivo.",
-        )
-        return True
-
-    modulo.pedir_abrir(ruta)
-    modulo.raise_()
-    modulo.activateWindow()
-    return True
-
-
 def instalar_traducciones(app: QtWidgets.QApplication) -> None:
     """Pone en español los textos que escribe Qt.
 
@@ -284,10 +244,10 @@ def main():
     # Se mantiene la referencia para que el recolector de basura no cierre la
     # ventana apenas termina esta función.
     bienvenida = WidgetBienvenida(buscador)
-    app.archivoPedido.connect(lambda ruta: abrir_proyecto(bienvenida, ruta))
+    app.archivoPedido.connect(bienvenida.abrir_proyecto)
 
     ruta = app.tomar_pendiente() or _archivo_de_los_argumentos(app.arguments())
-    if ruta is None or not abrir_proyecto(bienvenida, ruta):
+    if ruta is None or not bienvenida.abrir_proyecto(ruta):
         bienvenida.show()
 
     sys.exit(app.exec())
