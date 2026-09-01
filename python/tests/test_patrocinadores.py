@@ -162,13 +162,30 @@ def test_la_lista_empaquetada_se_lee(qapp):
 
 
 def test_la_seccion_invita_si_no_hay_nadie(qapp):
-    """Con lista vacía la franja invita en lugar de dejar el hueco."""
-    from zonda.widgets.apoyo import INVITACION, WidgetSeccionPatrocinadores
+    """Con lista vacía la columna invita en lugar de dejar el hueco."""
+    from zonda.widgets.apoyo import WidgetSeccionPatrocinadores
 
     seccion = WidgetSeccionPatrocinadores(())
 
-    labels = seccion.findChildren(QtWidgets.QLabel)
-    assert any(INVITACION in label.text() for label in labels)
+    textos = " ".join(label.text() for label in seccion.findChildren(QtWidgets.QLabel))
+    assert "patrocinan" in textos
+    # El rótulo "Patrocinado por" sobre una columna vacía se leería como error.
+    assert "Patrocinado por" not in textos
+    assert [b.text() for b in seccion.findChildren(QtWidgets.QPushButton)] == [
+        "Apoyá el proyecto"
+    ]
+
+
+def test_la_seccion_enlaza_al_repositorio(qapp, tmp_path):
+    """Las instrucciones para patrocinar viven en GitHub, no en el programa."""
+    from zonda import __acercade__
+    from zonda.widgets.apoyo import WidgetSeccionPatrocinadores
+
+    _escribir(tmp_path, [{"nombre": "Estudio Uno", "nivel": "oro"}])
+    seccion = WidgetSeccionPatrocinadores(patrocinadores.cargar(tmp_path))
+
+    textos = " ".join(label.text() for label in seccion.findChildren(QtWidgets.QLabel))
+    assert __acercade__.__apoyo__ in textos
 
 
 def test_la_seccion_muestra_oro_y_plata_pero_no_bronce(qapp, tmp_path):
@@ -189,15 +206,3 @@ def test_la_seccion_muestra_oro_y_plata_pero_no_bronce(qapp, tmp_path):
     assert "El de plata" in textos
     # Bronce vive en el dialogo, que es donde entra una lista larga.
     assert "El de bronce" not in textos
-
-
-def test_el_dialogo_de_apoyo_se_construye_con_y_sin_patrocinadores(qapp, tmp_path):
-    from zonda.widgets.apoyo import DialogoApoyo
-
-    _escribir(tmp_path, [{"nombre": "Estudio Uno", "nivel": "bronce"}])
-    padre = QtWidgets.QWidget()
-
-    for lista in ((), patrocinadores.cargar(tmp_path)):
-        dialogo = DialogoApoyo(padre, lista)
-        assert dialogo.windowTitle() == "Apoyá el proyecto"
-        dialogo.deleteLater()

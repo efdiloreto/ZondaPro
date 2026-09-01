@@ -15,16 +15,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""La pantalla de apoyo al proyecto y la franja de patrocinadores.
+"""La columna de patrocinadores de la pantalla de bienvenida.
 
-Zonda no le pide nada a nadie al cerrar ni interrumpe el trabajo: el pedido vive
-en la pantalla de bienvenida, que es donde el usuario ya está mirando, y no
-tapa ni demora nada. Los de nivel oro aparecen además en una franja fija abajo
-de la bienvenida.
+Zonda no le pide nada a nadie al cerrar ni interrumpe el trabajo: quienes
+patrocinan el proyecto ocupan una columna fija de la bienvenida, que está a la
+vista cada vez que se abre el programa. Mientras no haya ninguno, ese lugar
+invita a serlo.
+
+Las instrucciones para patrocinar no están en el programa: viven en el
+repositorio (``PATROCINIO.md``), y desde acá se abre ese enlace. Así los
+montos y las condiciones se pueden cambiar sin publicar una versión nueva.
 
 Lo que compra un nivel es visibilidad, nunca funcionalidad. Zonda hace lo mismo
 para todo el mundo, que es lo que corresponde en un programa GPL y lo que
-sostiene el argumento de por qué vale la pena apoyarlo.
+sostiene el argumento de por qué vale la pena patrocinarlo.
 """
 
 from __future__ import annotations
@@ -35,35 +39,23 @@ from zonda import __acercade__, patrocinadores, recursos
 from zonda.enums import NivelPatrocinio
 from zonda.widgets.custom import WidgetPanel
 
-ALTO_LOGO_ORO = 34
-"""Alto en píxeles de los logos de oro, tanto en la franja como en el diálogo."""
+ALTO_LOGO_ORO = 40
+"""Alto en píxeles de los logos de oro dentro de la columna."""
 
-ALTO_LOGO_PLATA = 26
-"""Alto en píxeles de los logos de plata dentro del diálogo."""
+ALTO_LOGO_PLATA = 30
+"""Alto en píxeles de los logos de plata dentro de la columna."""
 
 INVITACION = "Tu estudio puede estar acá"
-"""Lo que dice la franja mientras no haya ningún patrocinador de oro."""
+"""El enlace de abajo de la columna cuando ya hay patrocinadores."""
 
-NIVELES = {
-    NivelPatrocinio.ORO: (
-        "Oro",
-        "Logo en la pantalla de bienvenida de Zonda, primer lugar en esta"
-        " pantalla y mención en las notas de cada versión.",
-    ),
-    NivelPatrocinio.PLATA: (
-        "Plata",
-        "Logo y enlace en esta pantalla.",
-    ),
-    NivelPatrocinio.BRONCE: (
-        "Bronce",
-        "Tu nombre en esta pantalla y en el repositorio.",
-    ),
-}
-"""Qué incluye cada nivel. Los precios no están acá: viven en la web, así que
-cambiarlos no obliga a publicar una versión nueva del programa."""
+CLAVE_ICONO = "iconos/apoyo.png"
+"""La ilustración del bloque de invitación.
+
+Si el archivo no está, el bloque se arma igual sin imagen: es decoración, y no
+tiene por qué impedir que se vea la invitación."""
 
 
-def _abrir(url: str) -> None:
+def abrir_enlace(url: str) -> None:
     """Abre un enlace en el navegador del sistema.
 
     Args:
@@ -110,7 +102,7 @@ class LabelLogo(QtWidgets.QLabel):
 
     def mousePressEvent(self, ev: QtGui.QMouseEvent | None) -> None:
         if ev is not None and self._web:
-            _abrir(self._web)
+            abrir_enlace(self._web)
 
 
 def _widget_patrocinador(
@@ -140,45 +132,57 @@ def _widget_patrocinador(
     return label
 
 
-def _fuente_de_titulo(widget: QtWidgets.QWidget) -> QtGui.QFont:
+def fuente_de_rotulo(widget: QtWidgets.QWidget, mayusculas: bool = True) -> QtGui.QFont:
     """La fuente de los rótulos chicos, derivada de la del sistema.
 
-    Se deriva en lugar de fijar un tamaño en píxeles para que la interfaz
-    siga la escala de fuentes del sistema operativo: con "texto grande"
-    activado, un tamaño fijo en px no crece y el rótulo queda ilegible.
+    Se deriva en lugar de fijar un tamaño en píxeles para que la interfaz siga
+    la escala de fuentes del sistema operativo: con "texto grande" activado, un
+    tamaño fijo en px no crece y el rótulo queda ilegible.
 
     Args:
         widget: De quién se toma la fuente base.
+        mayusculas: Si el texto va en versalitas. Va en ``False`` cuando el
+            texto lleva nombres propios o siglas —"GPLv3" en mayúsculas se lee
+            mal—.
 
     Returns: La fuente del rótulo.
     """
     fuente = widget.font()
     fuente.setPointSize(max(7, fuente.pointSize() - 2))
-    fuente.setCapitalization(QtGui.QFont.Capitalization.AllUppercase)
+    if mayusculas:
+        fuente.setCapitalization(QtGui.QFont.Capitalization.AllUppercase)
     return fuente
 
 
 class WidgetSeccionPatrocinadores(WidgetPanel):
-    """El pie de la bienvenida con quienes apoyan el proyecto.
+    """La columna lateral de la bienvenida con quienes patrocinan Zonda.
 
-    Está siempre visible: es la contrapartida de que Zonda no interrumpa el
-    trabajo con ningún pedido. Muestra oro y plata —bronce vive en el diálogo,
-    que es donde hay lugar para una lista larga— y, mientras no haya nadie,
-    invita en lugar de dejar un hueco.
+    Está siempre visible y ocupa un lugar propio, no un renglón al pie: es la
+    contrapartida de que el programa no interrumpa el trabajo con ningún
+    pedido, y es lo que un estudio compra cuando patrocina. Muestra oro y
+    plata; bronce figura en el repositorio, que es donde entra una lista larga.
+
+    Mientras no haya patrocinadores, el mismo lugar muestra la invitación a
+    serlo, que es lo que va a estar en pantalla los primeros meses.
     """
 
-    apoyo_solicitado = QtCore.pyqtSignal()
-    """Se emite al hacer clic en la invitación."""
+    ANCHO = 210
+    """El ancho fijo de la columna, en píxeles.
+
+    Fijo y no elástico para que los logos no bailen de tamaño al agrandar la
+    ventana, y para que el bloque de módulos se quede con todo lo que sobra.
+    """
 
     def __init__(self, lista: tuple[patrocinadores.Patrocinador, ...]) -> None:
         """
         Args:
-            lista: Todos los patrocinadores. La sección se queda con los que
+            lista: Todos los patrocinadores. La columna se queda con los que
                 llevan logo en pantalla.
         """
         super().__init__()
 
         self.setProperty("class", "patrocinadores")
+        self.setFixedWidth(self.ANCHO)
 
         agrupados = patrocinadores.mezclados_por_nivel(lista)
         alto = {
@@ -186,165 +190,86 @@ class WidgetSeccionPatrocinadores(WidgetPanel):
             NivelPatrocinio.PLATA: ALTO_LOGO_PLATA,
         }
 
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(25, 10, 25, 10)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
 
-        titulo = QtWidgets.QLabel("Con el apoyo de")
-        titulo.setFont(_fuente_de_titulo(self))
-        titulo.setStyleSheet("color: #707070;")
-        layout.addWidget(titulo)
+        logos = [
+            _widget_patrocinador(patrocinador, alto[nivel])
+            for nivel in (NivelPatrocinio.ORO, NivelPatrocinio.PLATA)
+            for patrocinador in agrupados.get(nivel, ())
+        ]
 
-        mostrados = 0
-        for nivel in (NivelPatrocinio.ORO, NivelPatrocinio.PLATA):
-            for patrocinador in agrupados.get(nivel, ()):
-                layout.addWidget(_widget_patrocinador(patrocinador, alto[nivel]))
-                mostrados += 1
-
-        if not mostrados:
-            invitacion = QtWidgets.QLabel(
-                f'<a style="color: #1858a8" href="#">{INVITACION}</a>'
-            )
-            invitacion.setToolTip("Conocé cómo apoyar el proyecto")
-            invitacion.linkActivated.connect(lambda _: self.apoyo_solicitado.emit())
-            invitacion.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            layout.addWidget(invitacion)
-
-        layout.addStretch()
-        self.setLayout(layout)
-
-
-class DialogoApoyo(QtWidgets.QDialog):
-    """La pantalla que explica el proyecto, los niveles y quiénes ya apoyan."""
-
-    def __init__(
-        self,
-        parent: QtWidgets.QWidget,
-        lista: tuple[patrocinadores.Patrocinador, ...],
-    ) -> None:
-        """
-        Args:
-            parent: La ventana sobre la que se abre.
-            lista: Los patrocinadores a mostrar.
-        """
-        super().__init__(parent)
-
-        widget_logo = QtWidgets.QLabel()
-        widget_logo.setPixmap(recursos.pixmap("imagenes/logo.png"))
-        widget_logo.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
-
-        descripcion = QtWidgets.QLabel(
-            "Zonda es software libre y gratuito, y lo va a seguir siendo. Está"
-            " hecho y mantenido por muy poca gente, en el tiempo que le queda"
-            " libre, y le ahorra horas de cálculo y verificación a cada"
-            " profesional que lo usa."
-            "<br><br>"
-            "Si te resulta útil en tu trabajo, apoyarlo es lo que permite que"
-            " siga actualizado —con los reglamentos, con los sistemas"
-            " operativos y con los errores que aparecen—. Los estudios que lo"
-            " apoyan aparecen acá y en la pantalla de inicio."
-        )
-        descripcion.setWordWrap(True)
-        descripcion.setFixedWidth(460)
-
-        layout_principal = QtWidgets.QVBoxLayout()
-        layout_principal.addWidget(widget_logo)
-        layout_principal.addSpacing(16)
-        layout_principal.addWidget(descripcion)
-        layout_principal.addSpacing(16)
-        layout_principal.addWidget(self._widget_niveles())
-
-        agrupados = patrocinadores.mezclados_por_nivel(lista)
-        if agrupados:
-            layout_principal.addSpacing(16)
-            layout_principal.addWidget(self._widget_lista(agrupados))
-
-        botones = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Close
-        )
-        boton_apoyar = botones.addButton(
-            "Quiero apoyar el proyecto",
-            QtWidgets.QDialogButtonBox.ButtonRole.ActionRole,
-        )
-        # ``addButton`` sólo devuelve None si el rol no existe, pero el stub lo
-        # declara opcional y sin el chequeo no tipa.
-        if boton_apoyar is not None:
-            boton_apoyar.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            boton_apoyar.clicked.connect(lambda _=False: _abrir(__acercade__.__apoyo__))
-        botones.rejected.connect(self.reject)
-
-        layout_principal.addSpacing(16)
-        layout_principal.addWidget(botones)
-        # Igual que en "Acerca de": que el layout fije el tamaño evita calcular
-        # a mano la altura que terminan ocupando los párrafos envueltos.
-        layout_principal.setSizeConstraint(
-            QtWidgets.QLayout.SizeConstraint.SetFixedSize
-        )
-
-        self.setLayout(layout_principal)
-        self.setWindowTitle("Apoyá el proyecto")
-        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
-
-    def _widget_niveles(self) -> QtWidgets.QWidget:
-        """Los tres niveles con lo que incluye cada uno.
-
-        Returns: El widget con la grilla de niveles.
-        """
-        grilla = QtWidgets.QGridLayout()
-        grilla.setHorizontalSpacing(14)
-        grilla.setVerticalSpacing(8)
-
-        for fila, (nivel, (titulo, detalle)) in enumerate(NIVELES.items()):
-            label_titulo = QtWidgets.QLabel(titulo.upper())
-            label_titulo.setStyleSheet("font-weight: bold;")
-            label_titulo.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
-
-            label_detalle = QtWidgets.QLabel(detalle)
-            label_detalle.setWordWrap(True)
-            label_detalle.setFixedWidth(380)
-
-            grilla.addWidget(label_titulo, fila, 0, QtCore.Qt.AlignmentFlag.AlignTop)
-            grilla.addWidget(label_detalle, fila, 1)
-            del nivel
-
-        widget = QtWidgets.QWidget()
-        widget.setLayout(grilla)
-        return widget
-
-    def _widget_lista(
-        self,
-        agrupados: dict[NivelPatrocinio, tuple[patrocinadores.Patrocinador, ...]],
-    ) -> QtWidgets.QWidget:
-        """La lista de quienes ya apoyan, por nivel.
-
-        Args:
-            agrupados: Los patrocinadores por nivel, ya barajados.
-
-        Returns: El widget con la lista.
-        """
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
-
-        altos = {
-            NivelPatrocinio.ORO: ALTO_LOGO_ORO,
-            NivelPatrocinio.PLATA: ALTO_LOGO_PLATA,
-            NivelPatrocinio.BRONCE: ALTO_LOGO_PLATA,
-        }
-
-        for nivel, lista in agrupados.items():
-            titulo = QtWidgets.QLabel(NIVELES[nivel][0].upper())
-            titulo.setStyleSheet("color: #808080; font-size: 10px;")
+        # Sin patrocinadores no se encabeza con "Patrocinado por": no hay nadie
+        # que lo esté, y el rótulo sobre una columna vacía se lee como un error.
+        if logos:
+            titulo = QtWidgets.QLabel("Patrocinado por")
+            titulo.setFont(fuente_de_rotulo(self))
+            titulo.setStyleSheet("color: #707070;")
             layout.addWidget(titulo)
 
-            fila = QtWidgets.QHBoxLayout()
-            fila.setSpacing(14)
-            for patrocinador in lista:
-                fila.addWidget(_widget_patrocinador(patrocinador, altos[nivel]))
-            fila.addStretch()
-            layout.addLayout(fila)
+            for widget in logos:
+                layout.addWidget(widget, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
-        widget = QtWidgets.QWidget()
-        widget.setLayout(layout)
-        return widget
+            layout.addStretch()
+            layout.addWidget(self._enlace_chico())
+        else:
+            for widget in self._invitacion():
+                layout.addWidget(widget)
+            layout.addStretch()
+
+        self.setLayout(layout)
+
+    def _invitacion(self) -> list[QtWidgets.QWidget]:
+        """El bloque que ocupa la columna mientras no haya patrocinadores.
+
+        Returns: La ilustración -si el recurso está-, el texto y el botón.
+        """
+        widgets: list[QtWidgets.QWidget] = []
+
+        pixmap = recursos.pixmap(CLAVE_ICONO)
+        if not pixmap.isNull():
+            ilustracion = QtWidgets.QLabel()
+            ilustracion.setPixmap(
+                pixmap.scaledToWidth(
+                    96, QtCore.Qt.TransformationMode.SmoothTransformation
+                )
+            )
+            ilustracion.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+            widgets.append(ilustracion)
+
+        texto = QtWidgets.QLabel(
+            "<b>Zonda es libre y gratuito.</b><br><br>"
+            "Este espacio es de los estudios que lo patrocinan."
+        )
+        texto.setWordWrap(True)
+        texto.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        texto.setStyleSheet("color: #505050;")
+        widgets.append(texto)
+
+        boton = QtWidgets.QPushButton("Apoyá el proyecto")
+        boton.setProperty("class", "apoyo")
+        boton.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        boton.setToolTip("Se abre el repositorio, con los niveles y cómo sumarse")
+        boton.clicked.connect(lambda _=False: abrir_enlace(__acercade__.__apoyo__))
+        widgets.append(boton)
+
+        return widgets
+
+    def _enlace_chico(self) -> QtWidgets.QLabel:
+        """El enlace del pie de la columna cuando ya hay patrocinadores.
+
+        Returns: El enlace al repositorio.
+        """
+        enlace = QtWidgets.QLabel(
+            f'<a style="color: #1858a8" href="{__acercade__.__apoyo__}">{INVITACION}</a>'
+        )
+        enlace.setWordWrap(True)
+        enlace.setFont(fuente_de_rotulo(self))
+        enlace.setToolTip("Se abre el repositorio, con los niveles y cómo sumarse")
+        enlace.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextBrowserInteraction
+        )
+        enlace.setOpenExternalLinks(True)
+        enlace.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        return enlace

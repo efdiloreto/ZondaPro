@@ -113,19 +113,9 @@ Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento,
 
 Zonda es libre y gratuito, y lo va a seguir siendo. Lo mantiene muy poca gente, en el tiempo que le queda libre, y le ahorra horas de cálculo y verificación a cada profesional que lo usa.
 
-Si te sirve en tu trabajo, apoyarlo es lo que permite que siga actualizado: con los reglamentos, con los sistemas operativos y con los errores que aparecen. Quienes lo apoyan aparecen en la pantalla de inicio del programa y acá.
+Los estudios que lo patrocinan aparecen en la columna lateral de la pantalla de inicio del programa. Hay tres niveles —oro, plata y bronce—, y quienes se sumen en los primeros meses conservan el distintivo de **Fundador**.
 
-| Nivel | Para quién | Qué incluye |
-| :--- | :--- | :--- |
-| 🥇 **Oro** | Estudios y empresas del rubro | Logo en la pantalla de inicio de Zonda, primer lugar en la pantalla de apoyo y mención en las notas de cada versión |
-| 🥈 **Plata** | Estudios | Logo y enlace en la pantalla de inicio y en la de apoyo |
-| 🥉 **Bronce** | Profesionales | Tu nombre en la pantalla de apoyo y en este repositorio |
-
-Quienes apoyen el proyecto en sus primeros meses conservan el distintivo de **Fundador**, en cualquiera de los tres niveles.
-
-> **Nota:** los montos y la forma de pago todavía se están definiendo. Si querés apoyar el proyecto o te interesa que tu estudio aparezca, escribinos a <efdiloreto@gmail.com>.
-
-El nivel compra visibilidad, nunca funcionalidad: Zonda hace exactamente lo mismo para todo el mundo, apoye o no.
+**[Cómo patrocinar el proyecto →](PATROCINIO.md)**
 
 ### Patrocinadores
 
