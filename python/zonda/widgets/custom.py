@@ -31,8 +31,19 @@ from zonda.widgets import dialogos
 
 
 class WidgetBotonModulo(QtWidgets.QWidget):
+    ANCHO_DESCRIPCION = 190
+    """El ancho al que se envuelve la descripción, en píxeles.
+
+    Fijo para que las tres columnas de la bienvenida queden del mismo ancho sin
+    importar cuánto texto tenga cada una.
+    """
+
     def __init__(
-        self, label: str, clave_icono: str, funcion: Callable[[], None]
+        self,
+        label: str,
+        clave_icono: str,
+        funcion: Callable[[], None],
+        descripcion: str = "",
     ) -> None:
         """
 
@@ -40,6 +51,8 @@ class WidgetBotonModulo(QtWidgets.QWidget):
             label: Label del boton.
             clave_icono: El alias del ícono dentro de los recursos.
             funcion: La funcion que se conecta al boton.
+            descripcion: Qué tipologías cubre el módulo. Vacía, no se muestra
+                nada: los usos fuera de la bienvenida no la necesitan.
         """
         super().__init__()
 
@@ -62,6 +75,16 @@ class WidgetBotonModulo(QtWidgets.QWidget):
         layout_principal.setSpacing(0)
         layout_principal.addWidget(boton)
         layout_principal.addWidget(widget_label)
+
+        if descripcion:
+            widget_descripcion = QtWidgets.QLabel(descripcion)
+            widget_descripcion.setWordWrap(True)
+            widget_descripcion.setFixedWidth(self.ANCHO_DESCRIPCION)
+            widget_descripcion.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+            widget_descripcion.setStyleSheet("color: #707070;")
+            layout_principal.addSpacing(6)
+            layout_principal.addWidget(widget_descripcion)
+
         layout_principal.addStretch()
 
         self.setLayout(layout_principal)

@@ -164,10 +164,49 @@ WidgetPanel {
     border-bottom: 1px solid #a6a6a6;
 }
 
-/* La seccion de patrocinadores cierra la ventana en vez de encabezarla, asi
-   que su linea va arriba. */
-WidgetPanel[class="patrocinadores"] {
+/* El pie cierra la ventana en vez de encabezarla, asi que su linea va arriba. */
+WidgetPanel[class="pie"] {
     border-top: 1px solid #a6a6a6;
+    border-bottom: none;
+}
+
+/* La franja de version nueva: el mismo celeste que el foco de los campos, que
+   avisa sin gritar. Lleva icono y texto, no solo color. */
+WidgetPanel[class="actualizacion"] {
+    background-color: #e5ebf3;
+    border-bottom: 1px solid #a6a6a6;
+}
+
+/* Los accesos del pie y los proyectos recientes son botones y no enlaces de
+   texto para que se llegue con el tabulador, pero se ven como enlaces. */
+QPushButton.enlace {
+    border: none;
+    background: none;
+    color: #1858a8;
+    padding: 4px 6px;
+}
+
+QPushButton.enlace:hover {
+    color: #12417b;
+    text-decoration: underline;
+}
+
+QPushButton.reciente {
+    border: none;
+    background: none;
+    text-align: left;
+    padding: 4px 6px;
+}
+
+QPushButton.reciente:hover {
+    background-color: #e5ebf3;
+}
+
+/* La columna de patrocinadores va al costado, asi que su linea es la que la
+   separa del bloque de modulos. */
+WidgetPanel[class="patrocinadores"] {
+    background-color: #ffffff;
+    border-left: 1px solid #a6a6a6;
     border-bottom: none;
 }
 

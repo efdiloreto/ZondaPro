@@ -46,12 +46,16 @@ El flujo de dependencias es estrictamente unidireccional:
    - `Visor.qml`, `contorno.vert`, `contorno.frag`: Componentes QML y shaders de contorno.
    - `directores/` y `escenas/`: Orquestación y armado de actores para cada tipología.
 3. **`zonda/widgets/` (Interfaz PyQt6):**
-   - `zonda.py` (ventana de bienvenida / selector de módulo). Es una ventana
-     común del sistema, con barra de título y geometría recordada en
-     `QSettings`; no una ventana sin borde.
+   - `zonda.py` (ventana de inicio). Es una ventana común del sistema, con
+     barra de título y geometría recordada en `QSettings`. Además de elegir el
+     módulo, ofrece los proyectos recientes, abrir uno del disco, los accesos
+     generales (ayuda, configuración, acerca de) y la franja que avisa de una
+     versión nueva. `abrir_proyecto()` vive acá y no en `main.py` porque es la
+     bienvenida la que abre los módulos.
    - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
-   - `apoyo.py` (sección de patrocinadores del pie de la bienvenida y diálogo
-     de apoyo al proyecto).
+   - `apoyo.py` (columna lateral de patrocinadores de la pantalla de inicio).
+     Las instrucciones para patrocinar viven en `PATROCINIO.md`, no en el
+     programa: así los montos cambian sin publicar una versión.
 4. **Módulos transversales (`zonda/`):**
    - `enums.py` (enumerados del dominio), `tipos.py` (sólo alias geométricos y
      numéricos; los resultados se describen en `cirsoc/resultados.py`),
@@ -59,6 +63,9 @@ El flujo de dependencias es estrictamente unidireccional:
    - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
    - `reportes.py`: Motor de plantillas Jinja2 y compilación con pandoc.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
+   - `recientes.py`: Los últimos proyectos abiertos o guardados, en `QSettings`.
+     Los que ya no están en disco se saltean al listar pero no se borran: pueden
+     estar en un disco desconectado.
    - `patrocinadores.py`: Lee `recursos/patrocinadores/patrocinadores.json`, que
      viaja empaquetado con cada versión. Ninguna entrada mal formada puede
      impedir que el programa arranque: se ignora y sigue. Cómo sumar a alguien
