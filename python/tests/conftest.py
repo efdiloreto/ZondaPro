@@ -56,6 +56,25 @@ from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 
 
+@pytest.fixture(autouse=True)
+def settings_aislados(tmp_path_factory):
+    """Ningún test escribe en la configuración real de quien lo corre.
+
+    Varias piezas del programa guardan estado en ``QSettings`` —la geometría de
+    la bienvenida, las unidades, los proyectos recientes, la versión que se
+    pidió no volver a avisar— y sin esto los tests se lo pisarían a quien los
+    corra, además de arrastrar entre sí lo que fue dejando cada uno.
+
+    Se redirige el formato ini a una carpeta temporal por test: ``QSettings()``
+    se construye en el momento de usarse, así que alcanza con cambiar el
+    destino antes.
+    """
+    carpeta = tmp_path_factory.mktemp("settings")
+    formato = QtCore.QSettings.Format.IniFormat
+    QtCore.QSettings.setDefaultFormat(formato)
+    QtCore.QSettings.setPath(formato, QtCore.QSettings.Scope.UserScope, str(carpeta))
+
+
 @pytest.fixture(scope="session")
 def qapp_cls():
     """Los tests usan la QApplication real del programa.
