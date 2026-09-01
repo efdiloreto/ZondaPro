@@ -56,6 +56,7 @@ from zonda.widgets.custom import (
     WidgetBotonModulo,
     WidgetLogo,
     WidgetPanel,
+    enlaces_de_autores,
 )
 from zonda.widgets.dialogos import DialogoConfiguracion
 from zonda.widgets.modulos import (
@@ -69,17 +70,6 @@ MODULOS = {
     Estructura.CUBIERTA_AISLADA: WidgetModuloCubiertaAislada,
     Estructura.CARTEL: WidgetModuloCartel,
 }
-
-DESCRIPCIONES = {
-    Estructura.EDIFICIO: "Cerrados y parcialmente cerrados",
-    Estructura.CUBIERTA_AISLADA: "A un agua, dos aguas y abovedadas",
-    Estructura.CARTEL: "Sobre terreno o elevados",
-}
-"""Qué tipologías cubre cada módulo, para orientar a quien abre el programa por
-primera vez.
-
-Cortas a propósito: son las que fijan el ancho de cada columna de módulos y,
-por ahí, el ancho mínimo de toda la ventana."""
 
 URL_REPORTAR = f"{__acercade__.__ayuda__}/new/choose"
 """El formulario de reporte del repositorio, con sus plantillas."""
@@ -97,10 +87,13 @@ class WidgetBienvenida(QtWidgets.QWidget):
     GRUPO_SETTINGS = "bienvenida"
     """El grupo de ``QSettings`` donde se recuerda la geometría."""
 
-    ANCHO_CARPETA = 260
+    ANCHO_PROYECTOS = 250
+    """El ancho fijo de la columna de proyectos, en píxeles."""
+
+    ANCHO_CARPETA = 190
     """Hasta dónde se muestra la carpeta de un proyecto reciente, en píxeles."""
 
-    TAMANIO_INICIAL = QtCore.QSize(1060, 680)
+    TAMANIO_INICIAL = QtCore.QSize(1140, 660)
     """Con qué tamaño abre la primera vez, antes de que haya nada recordado.
 
     Tiene que ser mayor que el mínimo, y el mínimo lo fija el contenido: los
@@ -133,21 +126,18 @@ class WidgetBienvenida(QtWidgets.QWidget):
             "Edificio",
             "iconos/edificio.png",
             self._modulo_edificio,
-            DESCRIPCIONES[Estructura.EDIFICIO],
         )
 
         boton_cubierta_aislada = WidgetBotonModulo(
             "Cubierta Aislada",
             "iconos/cubierta-aislada.png",
             self._modulo_cubierta_aislada,
-            DESCRIPCIONES[Estructura.CUBIERTA_AISLADA],
         )
 
         boton_cartel = WidgetBotonModulo(
             "Cartel",
             "iconos/cartel.png",
             self._modulo_cartel,
-            DESCRIPCIONES[Estructura.CARTEL],
         )
 
         layout_modulos = QtWidgets.QHBoxLayout()
@@ -159,24 +149,30 @@ class WidgetBienvenida(QtWidgets.QWidget):
         layout_modulos.addWidget(boton_cartel)
         layout_modulos.addStretch()
 
-        columna_izquierda = QtWidgets.QVBoxLayout()
-        columna_izquierda.setContentsMargins(0, 0, 0, 0)
-        columna_izquierda.setSpacing(0)
-        columna_izquierda.addWidget(self._encabezado())
-        columna_izquierda.addWidget(self._franja_actualizacion)
-        columna_izquierda.addLayout(layout_modulos)
-        columna_izquierda.addWidget(self._bloque_proyectos())
-        columna_izquierda.addStretch()
-        columna_izquierda.addWidget(self._pie())
+        centro = QtWidgets.QVBoxLayout()
+        centro.setContentsMargins(0, 0, 0, 0)
+        centro.addStretch()
+        centro.addLayout(layout_modulos)
+        centro.addStretch()
 
-        # La columna de patrocinadores corre de arriba a abajo, así que el gris
-        # del encabezado termina justo en su línea divisoria en vez de cruzar
-        # toda la ventana por encima.
-        layout_principal = QtWidgets.QHBoxLayout()
+        # Las dos columnas son fijas y el centro se lleva lo que sobra: al
+        # agrandar la ventana crecen los módulos, no las barras laterales.
+        cuerpo = QtWidgets.QHBoxLayout()
+        cuerpo.setContentsMargins(0, 0, 0, 0)
+        cuerpo.setSpacing(0)
+        cuerpo.addWidget(self._bloque_proyectos())
+        cuerpo.addLayout(centro)
+        cuerpo.addWidget(WidgetSeccionPatrocinadores(self._patrocinadores))
+
+        # El encabezado, la franja y el pie cruzan la ventana entera, por
+        # encima y por debajo de las dos columnas.
+        layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.setSpacing(0)
-        layout_principal.addLayout(columna_izquierda)
-        layout_principal.addWidget(WidgetSeccionPatrocinadores(self._patrocinadores))
+        layout_principal.addWidget(self._encabezado())
+        layout_principal.addWidget(self._franja_actualizacion)
+        layout_principal.addLayout(cuerpo)
+        layout_principal.addWidget(self._pie())
 
         self.setLayout(layout_principal)
 
@@ -194,23 +190,90 @@ class WidgetBienvenida(QtWidgets.QWidget):
 
         Returns: El encabezado.
         """
-        bajada = QtWidgets.QLabel(__acercade__.__descripcion__)
-        # Sin envolver: es corta y partirla dejaría "CIRSOC" en un renglón y
-        # "102-2005" en el otro. Lo que aporta al ancho mínimo de la ventana
-        # queda muy por debajo de lo que exige la fila de módulos.
-        bajada.setWordWrap(False)
-        bajada.setStyleSheet("color: #707070;")
+        # En Oswald, la tipografía de la marca: el encabezado es lo único que
+        # acompaña al logo y tiene que leerse como parte de él, no como un
+        # texto pegado al lado.
+        base = self.font().pointSize()
+
+        titulo = QtWidgets.QLabel("Cálculo de cargas de viento")
+        fuente_titulo = QtGui.QFont("Oswald")
+        fuente_titulo.setPointSize(base + 5)
+        fuente_titulo.setWeight(QtGui.QFont.Weight.Medium)
+        # En versalitas desde la fuente y no escrito en mayúsculas: un lector de
+        # pantalla lee "Cálculo", no "C-Á-L-C-U-L-O".
+        fuente_titulo.setCapitalization(QtGui.QFont.Capitalization.AllUppercase)
+        fuente_titulo.setLetterSpacing(QtGui.QFont.SpacingType.PercentageSpacing, 104)
+        titulo.setFont(fuente_titulo)
+        titulo.setStyleSheet("color: #1a1a1a;")
+
+        reglamento = QtWidgets.QLabel(__acercade__.__reglamento__)
+        fuente_reglamento = QtGui.QFont("Oswald")
+        fuente_reglamento.setPointSize(base)
+        fuente_reglamento.setWeight(QtGui.QFont.Weight.Medium)
+        # El espaciado entre letras separa el número de reglamento del título
+        # sin necesidad de otro color ni otro tamaño.
+        fuente_reglamento.setLetterSpacing(
+            QtGui.QFont.SpacingType.PercentageSpacing, 112
+        )
+        reglamento.setFont(fuente_reglamento)
+        reglamento.setStyleSheet("color: #707070;")
+
+        layout_bajada = QtWidgets.QVBoxLayout()
+        layout_bajada.setContentsMargins(0, 0, 0, 0)
+        layout_bajada.setSpacing(0)
+        layout_bajada.addWidget(titulo)
+        layout_bajada.addWidget(reglamento)
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(25, 14, 25, 14)
         layout.setSpacing(20)
         layout.addWidget(WidgetLogo())
-        layout.addWidget(bajada)
+        layout.addWidget(self._separador_vertical())
+        layout.addLayout(layout_bajada)
         layout.addStretch()
+        layout.addLayout(self._datos_del_programa())
 
         encabezado = WidgetPanel()
         encabezado.setLayout(layout)
         return encabezado
+
+    @staticmethod
+    def _separador_vertical() -> QtWidgets.QFrame:
+        """Una línea vertical para separar bloques del encabezado.
+
+        Returns: La línea.
+        """
+        separador = QtWidgets.QFrame()
+        separador.setFrameShape(QtWidgets.QFrame.Shape.VLine)
+        separador.setStyleSheet("color: #c4c4c4;")
+        return separador
+
+    def _datos_del_programa(self) -> QtWidgets.QVBoxLayout:
+        """La versión y la licencia, contra el borde derecho de la barra.
+
+        Returns: El bloque de los dos renglones.
+        """
+        base = self.font().pointSize()
+
+        version = QtWidgets.QLabel(f"Versión {__acercade__.__version__}")
+        fuente_version = QtGui.QFont("Oswald")
+        fuente_version.setPointSize(base + 2)
+        fuente_version.setWeight(QtGui.QFont.Weight.Medium)
+        version.setFont(fuente_version)
+        version.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        version.setStyleSheet("color: #505050;")
+
+        licencia = QtWidgets.QLabel(__acercade__.__licencia__)
+        licencia.setFont(fuente_de_rotulo(self, mayusculas=False))
+        licencia.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        licencia.setStyleSheet("color: #808080;")
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(version)
+        layout.addWidget(licencia)
+        return layout
 
     def _bloque_proyectos(self) -> QtWidgets.QWidget:
         """Abrir un proyecto y los últimos que se usaron.
@@ -235,14 +298,17 @@ class WidgetBienvenida(QtWidgets.QWidget):
         self._layout_recientes.setSpacing(2)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(25, 0, 25, 0)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(8)
-        layout.addWidget(boton_abrir, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(boton_abrir)
         layout.addSpacing(6)
         layout.addWidget(self._titulo_recientes)
         layout.addLayout(self._layout_recientes)
+        layout.addStretch()
 
-        bloque = QtWidgets.QWidget()
+        bloque = WidgetPanel()
+        bloque.setProperty("class", "proyectos")
+        bloque.setFixedWidth(self.ANCHO_PROYECTOS)
         bloque.setLayout(layout)
         return bloque
 
@@ -270,7 +336,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
         self._recargar_recientes()
         super().showEvent(a0)
 
-    def _fila_reciente(self, ruta: Path) -> QtWidgets.QHBoxLayout:
+    def _fila_reciente(self, ruta: Path) -> QtWidgets.QVBoxLayout:
         """Un proyecto de la lista de recientes.
 
         El nombre va en un botón y no en un enlace de texto para que se pueda
@@ -280,7 +346,8 @@ class WidgetBienvenida(QtWidgets.QWidget):
         Args:
             ruta: El archivo.
 
-        Returns: La fila, con el nombre y la carpeta.
+        Returns: La fila: el nombre arriba y la carpeta debajo, que es lo que
+            entra en una columna angosta.
         """
         boton = QtWidgets.QPushButton(ruta.name)
         boton.setProperty("class", "reciente")
@@ -292,7 +359,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
         # ancho mínimo a partir del sizeHint, así que una ruta larga guardada
         # en la configuración obligaría a abrir la ventana más ancha.
         carpeta = QtWidgets.QLabel()
-        carpeta.setStyleSheet("color: #707070;")
+        carpeta.setStyleSheet("color: #808080; padding-left: 6px;")
         carpeta.setText(
             QtGui.QFontMetrics(carpeta.font()).elidedText(
                 self._carpeta_para_mostrar(ruta),
@@ -302,11 +369,11 @@ class WidgetBienvenida(QtWidgets.QWidget):
         )
         carpeta.setToolTip(str(ruta))
 
-        fila = QtWidgets.QHBoxLayout()
-        fila.setSpacing(8)
+        fila = QtWidgets.QVBoxLayout()
+        fila.setContentsMargins(0, 0, 0, 6)
+        fila.setSpacing(0)
         fila.addWidget(boton)
         fila.addWidget(carpeta)
-        fila.addStretch()
         return fila
 
     @staticmethod
@@ -342,17 +409,19 @@ class WidgetBienvenida(QtWidgets.QWidget):
 
         Returns: El pie.
         """
-        creditos = QtWidgets.QLabel(
-            f"Zonda {__acercade__.__version__} · {__acercade__.__autor__}"
-            f" · {__acercade__.__licencia__}"
+        copyright_ = QtWidgets.QLabel(f"© {enlaces_de_autores('#606060')}")
+        copyright_.setFont(fuente_de_rotulo(self, mayusculas=False))
+        copyright_.setStyleSheet("color: #808080;")
+        # Los perfiles de los autores se alcanzan con el tabulador.
+        copyright_.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextBrowserInteraction
         )
-        creditos.setFont(fuente_de_rotulo(self, mayusculas=False))
-        creditos.setStyleSheet("color: #808080;")
+        copyright_.setOpenExternalLinks(True)
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(25, 8, 25, 8)
         layout.setSpacing(16)
-        layout.addWidget(creditos)
+        layout.addWidget(copyright_)
         layout.addStretch()
 
         enlaces = (

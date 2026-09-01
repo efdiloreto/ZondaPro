@@ -130,7 +130,7 @@ def test_olvidar_todo(qapp, tmp_path):
     assert recientes.listar() == ()
 
 
-def test_la_ventana_no_exige_mas_de_lo_que_abre(qapp):
+def test_la_ventana_no_exige_mas_de_lo_que_abre(qtbot):
     """El mínimo lo fija el contenido y el inicial está escrito a mano.
 
     Si alguien alarga una descripción de módulo, ensancha la columna de
@@ -141,6 +141,7 @@ def test_la_ventana_no_exige_mas_de_lo_que_abre(qapp):
     from zonda.widgets.zonda import WidgetBienvenida
 
     ventana = WidgetBienvenida()
+    qtbot.addWidget(ventana)
     ventana.show()
 
     assert ventana.minimumSize().width() <= ventana.TAMANIO_INICIAL.width()

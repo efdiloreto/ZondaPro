@@ -31,19 +31,8 @@ from zonda.widgets import dialogos
 
 
 class WidgetBotonModulo(QtWidgets.QWidget):
-    ANCHO_DESCRIPCION = 190
-    """El ancho al que se envuelve la descripción, en píxeles.
-
-    Fijo para que las tres columnas de la bienvenida queden del mismo ancho sin
-    importar cuánto texto tenga cada una.
-    """
-
     def __init__(
-        self,
-        label: str,
-        clave_icono: str,
-        funcion: Callable[[], None],
-        descripcion: str = "",
+        self, label: str, clave_icono: str, funcion: Callable[[], None]
     ) -> None:
         """
 
@@ -51,8 +40,6 @@ class WidgetBotonModulo(QtWidgets.QWidget):
             label: Label del boton.
             clave_icono: El alias del ícono dentro de los recursos.
             funcion: La funcion que se conecta al boton.
-            descripcion: Qué tipologías cubre el módulo. Vacía, no se muestra
-                nada: los usos fuera de la bienvenida no la necesitan.
         """
         super().__init__()
 
@@ -75,15 +62,6 @@ class WidgetBotonModulo(QtWidgets.QWidget):
         layout_principal.setSpacing(0)
         layout_principal.addWidget(boton)
         layout_principal.addWidget(widget_label)
-
-        if descripcion:
-            widget_descripcion = QtWidgets.QLabel(descripcion)
-            widget_descripcion.setWordWrap(True)
-            widget_descripcion.setFixedWidth(self.ANCHO_DESCRIPCION)
-            widget_descripcion.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
-            widget_descripcion.setStyleSheet("color: #707070;")
-            layout_principal.addSpacing(6)
-            layout_principal.addWidget(widget_descripcion)
 
         layout_principal.addStretch()
 
@@ -271,6 +249,24 @@ class WidgetPanelResultados(WidgetPanel):
         self.setLayout(layout_botones)
 
 
+def enlaces_de_autores(color: str = "#606060") -> str:
+    """Los nombres de los autores, cada uno enlazado a su perfil.
+
+    Devuelve el fragmento y no un widget porque los dos lugares que lo usan
+    —el "Acerca de" y el pie de la pantalla de inicio— lo meten dentro de un
+    texto propio.
+
+    Args:
+        color: Con qué color se dibujan los enlaces.
+
+    Returns: El HTML con un enlace por autor, separados por coma.
+    """
+    return ", ".join(
+        f'<a style="color: {color}" href="{perfil}">{nombre}</a>'
+        for nombre, perfil in __acercade__.__autores__
+    )
+
+
 class WidgetLabelLinkInfo(QtWidgets.QLabel):
     def __init__(self, texto: str, ref: str):
         """
@@ -312,11 +308,15 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         # layout necesita saber cuánto ocupa el párrafo ya envuelto.
         label_descripcion.setFixedWidth(430)
 
+        label_garantia = QtWidgets.QLabel(
+            "Zonda se distribuye SIN NINGUNA GARANTÍA, bajo los términos de la"
+            " Licencia Pública General de GNU, versión 3 o posterior."
+        )
+        label_garantia.setWordWrap(True)
+        label_garantia.setFixedWidth(430)
+
         label_copyright = QtWidgets.QLabel(
-            f"Copyright © {__acercade__.__anio_inicio__}"
-            f" {__acercade__.__autor__}. Zonda se distribuye SIN NINGUNA GARANTÍA,"
-            " bajo los términos de la Licencia Pública General de GNU,"
-            " versión 3 o posterior."
+            f"Copyright © {__acercade__.anios_copyright()} {__acercade__.__autor__}."
         )
         label_copyright.setWordWrap(True)
         label_copyright.setFixedWidth(430)
@@ -327,16 +327,7 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         informacion = (
             ("Versión", QtWidgets.QLabel(__acercade__.__version__)),
             ("Licencia", QtWidgets.QLabel(__acercade__.__licencia__)),
-            (
-                "Autores",
-                WidgetLabelLinkInfo(__acercade__.__autor__, __acercade__.__autor_web__),
-            ),
-            (
-                "E-Mail",
-                WidgetLabelLinkInfo(
-                    __acercade__.__autor_email__, __acercade__.__contacto__
-                ),
-            ),
+            ("Autores", _label_autores()),
             ("Source", WidgetLabelLinkInfo(__acercade__.__web__, __acercade__.__web__)),
         )
 
@@ -370,6 +361,8 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         layout_principal.addSpacing(20)
         layout_principal.addWidget(label_descripcion)
         layout_principal.addSpacing(10)
+        layout_principal.addWidget(label_garantia)
+        layout_principal.addSpacing(10)
         layout_principal.addWidget(label_copyright)
         layout_principal.addSpacing(10)
         layout_principal.addWidget(_linea_horizontal())
@@ -390,6 +383,19 @@ class WidgetAcercaDe(QtWidgets.QDialog):
 
         self.setWindowTitle("Acerca de Zonda")
         self.show()
+
+
+def _label_autores() -> QtWidgets.QLabel:
+    """Los autores del "Acerca de", cada uno enlazado a su perfil.
+
+    Returns: El label con los dos enlaces.
+    """
+    label = QtWidgets.QLabel(enlaces_de_autores())
+    # Con TextBrowserInteraction los enlaces entran en la cadena del tabulador,
+    # cosa que un label de sólo lectura no da por sí solo.
+    label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextBrowserInteraction)
+    label.setOpenExternalLinks(True)
+    return label
 
 
 def _linea_horizontal() -> QtWidgets.QFrame:

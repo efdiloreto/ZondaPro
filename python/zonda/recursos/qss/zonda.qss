@@ -202,6 +202,14 @@ QPushButton.reciente:hover {
     background-color: #e5ebf3;
 }
 
+/* La columna de proyectos es el espejo de la de patrocinadores: misma forma,
+   la linea del lado que la separa del centro. */
+WidgetPanel[class="proyectos"] {
+    background-color: #ffffff;
+    border-right: 1px solid #a6a6a6;
+    border-bottom: none;
+}
+
 /* La columna de patrocinadores va al costado, asi que su linea es la que la
    separa del bloque de modulos. */
 WidgetPanel[class="patrocinadores"] {
