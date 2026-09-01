@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  # Las actualizaciones van contra dev, no contra master: master se integra
+  # unicamente desde dev, y un pull request de Dependabot apuntado ahi seria
+  # rechazado por el check de origen.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    labels:
+      - dependencias
+    # Las actions se actualizan casi siempre juntas y por la misma razon
+    # (seguir la version mayor). Un solo pull request en vez de cinco.
+    groups:
+      actions:
+        patterns:
+          - '*'
+
+  - package-ecosystem: uv
+    directory: /python
+    target-branch: dev
+    schedule:
+      interval: monthly
+    labels:
+      - dependencias
+    open-pull-requests-limit: 5
+    groups:
+      # Las herramientas de desarrollo pueden subir en bloque: si algo se rompe,
+      # se rompe en CI y no en la aplicacion.
+      herramientas:
+        dependency-type: development
+        patterns:
+          - '*'
+    ignore:
+      # PyQt6 y PyQt6-WebEngine tienen que subir juntos y con los wheels de Qt
+      # alineados, y cada salto toca la vista 3D y los tres empaquetados. Las
+      # menores y mayores se hacen a mano, cuando hay tiempo de probar los
+      # instaladores; los parches si entran solos.
+      - dependency-name: pyqt6
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      - dependency-name: pyqt6-webengine
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor

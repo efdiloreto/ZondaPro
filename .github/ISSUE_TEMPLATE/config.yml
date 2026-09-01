@@ -1,0 +1,15 @@
+# Se permiten issues en blanco: a veces lo que hay que decir no entra en
+# ninguna plantilla, y es peor perder el reporte que recibirlo desordenado.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Pregunta o duda de uso
+    url: https://github.com/efdiloreto/ZondaPro/discussions
+    about: >
+      Dudas sobre cómo usar Zonda, cómo interpretar un resultado o qué dice el
+      Reglamento. Las preguntas van a Discusiones, no a issues.
+  - name: Reportar una vulnerabilidad de seguridad
+    url: https://github.com/efdiloreto/ZondaPro/security/advisories/new
+    about: >
+      No abras un issue público para una vulnerabilidad. Reportala en privado
+      por acá.

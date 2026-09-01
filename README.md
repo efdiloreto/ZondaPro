@@ -98,6 +98,17 @@ Para más detalles sobre la arquitectura interna, el motor de cálculo y la capa
 
 ---
 
+## Contribuir
+
+Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento, mejorar la interfaz o sumar código.
+
+- **[Guía de contribución](.github/CONTRIBUTING.md):** entorno de desarrollo, convenciones, tests y flujo de ramas.
+- **[Reportar un error o proponer una funcionalidad](https://github.com/efdiloreto/ZondaPro/issues/new/choose):** si un número no coincide con lo que da el Reglamento a mano, ese es el reporte más valioso que podés hacer.
+- **[Código de Conducta](.github/CODE_OF_CONDUCT.md)**
+- **[Política de seguridad](SECURITY.md):** las vulnerabilidades se reportan en privado, no como issue.
+
+---
+
 ## Licencia
 
 Zonda es software libre: podés redistribuirlo y/o modificarlo bajo los términos de la [Licencia Pública General de GNU](LICENSE), versión 3 o posterior, publicada por la Free Software Foundation.
