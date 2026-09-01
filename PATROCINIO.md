@@ -22,9 +22,12 @@ modificarlo, y eso no está en discusión.
 
 | Nivel | Para quién | Qué incluye |
 | :--- | :--- | :--- |
-| 🥇 **Oro** | Estudios y empresas del rubro | Logo en la columna de la pantalla de inicio, en tamaño destacado y primero en la lista. Logo en la pantalla de apoyo y mención en las notas de cada versión |
-| 🥈 **Plata** | Estudios | Logo y enlace en la columna de la pantalla de inicio y en la pantalla de apoyo |
-| 🥉 **Bronce** | Profesionales | Nombre y enlace en la pantalla de apoyo y en este repositorio |
+| 🥇 **Oro** | Estudios y empresas del rubro | Logo primero y en tamaño destacado en la columna de la pantalla de inicio, **con una ventana propia** dentro del programa: logo, descripción, rubro, ciudad y contacto. Mención en las notas de cada versión |
+| 🥈 **Plata** | Estudios | Logo y enlace en la columna de la pantalla de inicio. Al tocarlo se abre lo que elijan: su sitio o su correo |
+| 🥉 **Bronce** | Profesionales | Nombre en la ventana de Agradecimientos, junto a los demás niveles y a quienes colaboran con su tiempo |
+
+La ventana de Agradecimientos se abre desde *Acerca de Zonda* y es donde figuran
+**todos** los niveles.
 
 Dentro de cada nivel el orden se sortea en cada arranque del programa: nadie se
 queda con el primer lugar de forma permanente.
@@ -35,9 +38,9 @@ Quienes patrocinen el proyecto en sus primeros meses conservan el distintivo de
 > **Montos y forma de pago:** todavía se están definiendo. Si te interesa que tu
 > estudio aparezca, escribinos a <efdiloreto@gmail.com> y lo conversamos.
 
-## Requisitos del logo
+## Qué necesitamos de vos
 
-Oro y plata aparecen con logo. Para que se vea bien hace falta:
+**Oro y plata** aparecen con logo:
 
 - **PNG con fondo transparente**, o SVG.
 - Al **doble de la altura final**, para pantallas HiDPI: 68 px de alto para
@@ -45,7 +48,11 @@ Oro y plata aparecen con logo. Para que se vea bien hace falta:
 - **Legible sobre fondo claro.** La columna es blanca. Un logo blanco, o con el
   fondo blanco recortado, desaparece ahí; si el que tenés es para fondo oscuro,
   hace falta la variante para fondo claro.
-- La **URL del sitio** al que tiene que llevar el logo.
+- El **enlace** al que tiene que llevar el logo: una dirección web o un correo.
+
+**Oro**, además, para armar su ventana: una descripción de dos o tres oraciones,
+el rubro en una línea, la ciudad y, si quieren, un correo de contacto. Todo eso
+es opcional: la ventana se arma con lo que haya.
 
 ## Cómo se publica
 
@@ -54,6 +61,10 @@ La lista viaja empaquetada con cada versión de Zonda, en
 primera versión que se publique después de sumarse. El formato del archivo está
 documentado en el [LEEME](python/zonda/recursos/patrocinadores/LEEME.md) de ese
 directorio.
+
+En ese mismo directorio, `colaboradores.json` lleva a quienes aportan tiempo al
+proyecto —revisar cálculos contra el Reglamento, reportar resultados dudosos,
+probar instaladores—, que también figuran en Agradecimientos.
 
 ## Sobre los logos y la licencia
 

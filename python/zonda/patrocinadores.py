@@ -39,14 +39,43 @@ import random
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from zonda.enums import NivelPatrocinio
+
+ESQUEMAS_PERMITIDOS = frozenset({"http", "https", "mailto"})
+"""Los esquemas de enlace que se aceptan de los datos.
+
+Estos enlaces terminan en ``QDesktopServices.openUrl()``, que le pide al sistema
+operativo que abra lo que sea. Un ``file://`` acá abriría archivos de la máquina
+de quien usa el programa, así que todo lo que no sea una web o un correo se
+descarta al leer.
+"""
 
 NOMBRE_ARCHIVO = "patrocinadores.json"
 """El JSON con la lista, dentro del directorio de recursos."""
 
+NOMBRE_ARCHIVO_COLABORADORES = "colaboradores.json"
+"""El JSON con quienes aportan tiempo al proyecto.
+
+Se mantiene a mano y no se saca del historial de git a propósito: los aportes
+que más importan —revisar un cálculo contra el Reglamento, reportar un
+resultado dudoso, probar un instalador— no dejan ningún commit.
+"""
+
 DIRECTORIO_RECURSOS = "patrocinadores"
 """El subdirectorio de recursos donde viven el JSON y los logos."""
+
+
+@dataclass(frozen=True)
+class Colaborador:
+    """Alguien que le pone tiempo al proyecto sin patrocinarlo."""
+
+    nombre: str
+    """Cómo quiere que se lo nombre."""
+
+    aporte: str = ""
+    """En qué ayuda, en pocas palabras."""
 
 
 @dataclass(frozen=True)
@@ -60,7 +89,26 @@ class Patrocinador:
     """Con qué nivel apoya. Decide dónde y con qué tamaño aparece."""
 
     web: str = ""
-    """El sitio al que lleva el logo. Vacío si no tiene, y el logo no linkea."""
+    """Adónde lleva el logo: su sitio, o un ``mailto:`` si prefieren eso.
+
+    Vacío cuando no tienen, o cuando lo declarado no pasó la validación de
+    esquemas, y entonces el logo no linkea a ningún lado.
+    """
+
+    contacto: str = ""
+    """Un segundo enlace para el perfil de oro, normalmente un ``mailto:``."""
+
+    ciudad: str = ""
+    """Dónde están. Sólo se muestra en el perfil de oro."""
+
+    rubro: str = ""
+    """A qué se dedican, en una línea. Sólo en el perfil de oro."""
+
+    descripcion: str = ""
+    """El párrafo que escriben ellos. Sólo en el perfil de oro."""
+
+    desde: str = ""
+    """Desde qué año patrocinan el proyecto."""
 
     logo: Path | None = None
     """La ruta al archivo del logo, ya resuelta y verificada.
@@ -128,6 +176,20 @@ def cargar(directorio: Path | None = None) -> tuple[Patrocinador, ...]:
     return tuple(patrocinadores)
 
 
+def _enlace(valor: object) -> str:
+    """Deja pasar un enlace sólo si es de un esquema aceptado.
+
+    Args:
+        valor: Lo que trae el JSON.
+
+    Returns: El enlace, o una cadena vacía si no sirve.
+    """
+    enlace = str(valor or "").strip()
+    if not enlace:
+        return ""
+    return enlace if urlsplit(enlace).scheme.lower() in ESQUEMAS_PERMITIDOS else ""
+
+
 def _leer_entrada(entrada: object, raiz: Path) -> Patrocinador | None:
     """Interpreta una entrada del JSON.
 
@@ -162,7 +224,12 @@ def _leer_entrada(entrada: object, raiz: Path) -> Patrocinador | None:
     return Patrocinador(
         nombre=nombre,
         nivel=nivel,
-        web=str(entrada.get("web", "")).strip(),
+        web=_enlace(entrada.get("web")),
+        contacto=_enlace(entrada.get("contacto")),
+        ciudad=str(entrada.get("ciudad", "")).strip(),
+        rubro=str(entrada.get("rubro", "")).strip(),
+        descripcion=str(entrada.get("descripcion", "")).strip(),
+        desde=str(entrada.get("desde", "")).strip(),
         logo=logo,
         fundador=bool(entrada.get("fundador", False)),
     )
@@ -207,3 +274,43 @@ def mezclados_por_nivel(
         nivel: tuple(random.sample(lista, len(lista)))
         for nivel, lista in agrupados.items()
     }
+
+
+def colaboradores(directorio: Path | None = None) -> tuple[Colaborador, ...]:
+    """Lee la lista de quienes aportan tiempo al proyecto.
+
+    Args:
+        directorio: Dónde buscar el JSON. Por omisión, el de recursos.
+
+    Returns: Los colaboradores, en el orden del archivo. Vacío si el archivo no
+        está o no se puede leer, igual que con los patrocinadores: es
+        información de cortesía y no puede impedir que el programa arranque.
+    """
+    raiz = directorio if directorio is not None else _directorio_por_defecto()
+
+    try:
+        datos = json.loads(
+            (raiz / NOMBRE_ARCHIVO_COLABORADORES).read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError):
+        return ()
+
+    if not isinstance(datos, dict):
+        return ()
+
+    entradas = datos.get("colaboradores")
+    if not isinstance(entradas, list):
+        return ()
+
+    leidos = []
+    for entrada in entradas:
+        if not isinstance(entrada, dict):
+            continue
+        nombre = str(entrada.get("nombre", "")).strip()
+        if nombre:
+            leidos.append(
+                Colaborador(
+                    nombre=nombre, aporte=str(entrada.get("aporte", "")).strip()
+                )
+            )
+    return tuple(leidos)

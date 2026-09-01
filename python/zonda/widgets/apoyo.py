@@ -45,8 +45,11 @@ ALTO_LOGO_ORO = 40
 ALTO_LOGO_PLATA = 30
 """Alto en píxeles de los logos de plata dentro de la columna."""
 
-INVITACION = "Tu estudio puede estar acá"
+INVITACION = "Podés estar acá"
 """El enlace de abajo de la columna cuando ya hay patrocinadores."""
+
+TEXTO_SIN_PATROCINADORES = "Este espacio es para nuestros patrocinadores"
+"""Lo que ocupa la columna mientras no haya ningún patrocinador."""
 
 CLAVE_ICONO = "iconos/apoyo.png"
 """La ilustración del bloque de invitación.
@@ -67,7 +70,11 @@ def abrir_enlace(url: str) -> None:
 
 
 class LabelLogo(QtWidgets.QLabel):
-    """El logo de un patrocinador, que lleva a su sitio si tiene uno.
+    """El logo de un patrocinador, clickeable.
+
+    Qué pasa al tocarlo depende del nivel, y es lo que cada uno compró: el de
+    oro abre su perfil dentro del programa; el de plata, el enlace que haya
+    elegido —su sitio o su correo—.
 
     Escala el pixmap contra la densidad de la pantalla en lugar de dejar que Qt
     lo estire al dibujar: en un monitor HiDPI, un logo reducido sin tener en
@@ -82,6 +89,7 @@ class LabelLogo(QtWidgets.QLabel):
         """
         super().__init__()
 
+        self._patrocinador = patrocinador
         self._web = patrocinador.web
 
         ratio = 1.0
@@ -96,12 +104,21 @@ class LabelLogo(QtWidgets.QLabel):
         pixmap.setDevicePixelRatio(ratio)
         self.setPixmap(pixmap)
 
-        self.setToolTip(patrocinador.nombre)
-        if self._web:
+        self._es_oro = patrocinador.nivel is NivelPatrocinio.ORO
+        if self._es_oro:
+            self.setToolTip(f"Conocé a {patrocinador.nombre}")
+        else:
+            self.setToolTip(patrocinador.nombre)
+
+        if self._es_oro or self._web:
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
     def mousePressEvent(self, ev: QtGui.QMouseEvent | None) -> None:
-        if ev is not None and self._web:
+        if ev is None:
+            return
+        if self._es_oro:
+            DialogoPatrocinador(self, self._patrocinador)
+        elif self._web:
             abrir_enlace(self._web)
 
 
@@ -216,14 +233,17 @@ class WidgetSeccionPatrocinadores(WidgetPanel):
         else:
             for widget in self._invitacion():
                 layout.addWidget(widget)
+            # El botón se va al fondo de la columna: es la acción que cierra el
+            # bloque, y arrimado al texto competía con él.
             layout.addStretch()
+            layout.addWidget(self._boton_apoyo())
 
         self.setLayout(layout)
 
     def _invitacion(self) -> list[QtWidgets.QWidget]:
         """El bloque que ocupa la columna mientras no haya patrocinadores.
 
-        Returns: La ilustración -si el recurso está-, el texto y el botón.
+        Returns: La ilustración -si el recurso está- y el texto.
         """
         widgets: list[QtWidgets.QWidget] = []
 
@@ -238,23 +258,25 @@ class WidgetSeccionPatrocinadores(WidgetPanel):
             ilustracion.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
             widgets.append(ilustracion)
 
-        texto = QtWidgets.QLabel(
-            "<b>Zonda es libre y gratuito.</b><br><br>"
-            "Este espacio es de los estudios que lo patrocinan."
-        )
+        texto = QtWidgets.QLabel(TEXTO_SIN_PATROCINADORES)
         texto.setWordWrap(True)
         texto.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         texto.setStyleSheet("color: #505050;")
         widgets.append(texto)
 
+        return widgets
+
+    def _boton_apoyo(self) -> QtWidgets.QPushButton:
+        """El botón que lleva a las instrucciones para patrocinar.
+
+        Returns: El botón.
+        """
         boton = QtWidgets.QPushButton("Apoyá el proyecto")
         boton.setProperty("class", "apoyo")
         boton.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         boton.setToolTip("Se abre el repositorio, con los niveles y cómo sumarse")
         boton.clicked.connect(lambda _=False: abrir_enlace(__acercade__.__apoyo__))
-        widgets.append(boton)
-
-        return widgets
+        return boton
 
     def _enlace_chico(self) -> QtWidgets.QLabel:
         """El enlace del pie de la columna cuando ya hay patrocinadores.
@@ -273,3 +295,192 @@ class WidgetSeccionPatrocinadores(WidgetPanel):
         enlace.setOpenExternalLinks(True)
         enlace.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         return enlace
+
+
+def _titulo(widget: QtWidgets.QWidget, texto: str) -> QtWidgets.QLabel:
+    """Un rótulo de sección, del mismo tratamiento que "Patrocinado por".
+
+    Args:
+        widget: De quién se toma la fuente base.
+        texto: Qué dice.
+
+    Returns: El rótulo.
+    """
+    label = QtWidgets.QLabel(texto)
+    label.setFont(fuente_de_rotulo(widget))
+    label.setStyleSheet("color: #707070;")
+    return label
+
+
+class DialogoPatrocinador(QtWidgets.QDialog):
+    """El perfil de un patrocinador de oro.
+
+    Es lo que compra ese nivel: no un enlace que se va del programa, sino una
+    pantalla propia adentro. Se arma con lo que la entrada traiga, así que una
+    sin descripción o sin ciudad se muestra igual, más corta.
+    """
+
+    ALTO_LOGO = 72
+    """El alto del logo en el perfil, en píxeles."""
+
+    ANCHO_TEXTO = 420
+    """A qué ancho se envuelve la descripción, en píxeles."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget,
+        patrocinador: patrocinadores.Patrocinador,
+    ) -> None:
+        """
+        Args:
+            parent: Sobre qué ventana se abre.
+            patrocinador: De quién es el perfil.
+        """
+        super().__init__(parent)
+
+        self._patrocinador = patrocinador
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(24, 24, 24, 20)
+        layout.setSpacing(6)
+
+        if patrocinador.logo is not None:
+            layout.addWidget(
+                LabelLogo(patrocinador, self.ALTO_LOGO),
+                alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
+            )
+            layout.addSpacing(10)
+
+        nombre = QtWidgets.QLabel(patrocinador.nombre)
+        fuente_nombre = nombre.font()
+        fuente_nombre.setPointSize(fuente_nombre.pointSize() + 4)
+        fuente_nombre.setWeight(QtGui.QFont.Weight.Medium)
+        nombre.setFont(fuente_nombre)
+        layout.addWidget(nombre)
+
+        for texto in (patrocinador.rubro, patrocinador.ciudad):
+            if texto:
+                label = QtWidgets.QLabel(texto)
+                label.setStyleSheet("color: #606060;")
+                layout.addWidget(label)
+
+        if patrocinador.descripcion:
+            descripcion = QtWidgets.QLabel(patrocinador.descripcion)
+            descripcion.setWordWrap(True)
+            descripcion.setFixedWidth(self.ANCHO_TEXTO)
+            layout.addSpacing(10)
+            layout.addWidget(descripcion)
+
+        if patrocinador.desde or patrocinador.fundador:
+            partes = []
+            if patrocinador.desde:
+                partes.append(f"Patrocina Zonda desde {patrocinador.desde}")
+            if patrocinador.fundador:
+                partes.append("Fundador")
+            leyenda = QtWidgets.QLabel(" · ".join(partes))
+            leyenda.setFont(fuente_de_rotulo(self, mayusculas=False))
+            leyenda.setStyleSheet("color: #808080;")
+            layout.addSpacing(10)
+            layout.addWidget(leyenda)
+
+        layout.addSpacing(10)
+        layout.addWidget(self._botones())
+        layout.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetFixedSize)
+
+        self.setLayout(layout)
+        self.setWindowTitle(patrocinador.nombre)
+        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.show()
+
+    def _botones(self) -> QtWidgets.QDialogButtonBox:
+        """Los accesos al sitio y al correo, si la entrada los trae.
+
+        Returns: La botonera.
+        """
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Close
+        )
+        botones.rejected.connect(self.reject)
+
+        for texto, enlace in (
+            ("Ir al sitio", self._patrocinador.web),
+            ("Escribirles", self._patrocinador.contacto),
+        ):
+            if not enlace:
+                continue
+            boton = botones.addButton(
+                texto, QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+            )
+            if boton is not None:
+                boton.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+                boton.clicked.connect(lambda _=False, e=enlace: abrir_enlace(e))
+
+        return botones
+
+
+class DialogoAgradecimientos(QtWidgets.QDialog):
+    """Quiénes hacen posible el proyecto: los tres niveles y quienes ponen tiempo.
+
+    Es el único lugar donde figuran los de bronce, y es lo que ese nivel compra.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
+        """
+        Args:
+            parent: Sobre qué ventana se abre.
+        """
+        super().__init__(parent)
+
+        lista = patrocinadores.cargar()
+        agrupados = patrocinadores.mezclados_por_nivel(lista)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(24, 24, 24, 20)
+        layout.setSpacing(8)
+
+        intro = QtWidgets.QLabel(
+            "Zonda es libre y gratuito. Estos son los estudios que lo patrocinan"
+            " y las personas que le ponen tiempo."
+        )
+        intro.setWordWrap(True)
+        intro.setFixedWidth(420)
+        layout.addWidget(intro)
+        layout.addSpacing(10)
+
+        for nivel, del_nivel in agrupados.items():
+            layout.addWidget(_titulo(self, nivel.value))
+            for patrocinador in del_nivel:
+                layout.addWidget(QtWidgets.QLabel(patrocinador.nombre))
+            layout.addSpacing(8)
+
+        equipo = patrocinadores.colaboradores()
+        if equipo:
+            layout.addWidget(_titulo(self, "Colaboran con su tiempo"))
+            for colaborador in equipo:
+                texto = colaborador.nombre
+                if colaborador.aporte:
+                    texto += f" — {colaborador.aporte}"
+                layout.addWidget(QtWidgets.QLabel(texto))
+            layout.addSpacing(8)
+
+        if not agrupados and not equipo:
+            layout.addWidget(
+                QtWidgets.QLabel(
+                    "Todavía no hay a quién agradecerle. Podés ser el primero."
+                )
+            )
+            layout.addSpacing(8)
+
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Close
+        )
+        botones.rejected.connect(self.reject)
+        layout.addWidget(botones)
+        layout.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetFixedSize)
+
+        self.setLayout(layout)
+        self.setWindowTitle("Agradecimientos")
+        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.show()

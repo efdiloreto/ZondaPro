@@ -161,14 +161,18 @@ def test_la_lista_empaquetada_se_lee(qapp):
     assert isinstance(patrocinadores.cargar(), tuple)
 
 
-def test_la_seccion_invita_si_no_hay_nadie(qapp):
+def test_la_seccion_invita_si_no_hay_nadie(qtbot):
     """Con lista vacía la columna invita en lugar de dejar el hueco."""
-    from zonda.widgets.apoyo import WidgetSeccionPatrocinadores
+    from zonda.widgets.apoyo import (
+        TEXTO_SIN_PATROCINADORES,
+        WidgetSeccionPatrocinadores,
+    )
 
     seccion = WidgetSeccionPatrocinadores(())
+    qtbot.addWidget(seccion)
 
     textos = " ".join(label.text() for label in seccion.findChildren(QtWidgets.QLabel))
-    assert "patrocinan" in textos
+    assert TEXTO_SIN_PATROCINADORES in textos
     # El rótulo "Patrocinado por" sobre una columna vacía se leería como error.
     assert "Patrocinado por" not in textos
     assert [b.text() for b in seccion.findChildren(QtWidgets.QPushButton)] == [
@@ -176,19 +180,20 @@ def test_la_seccion_invita_si_no_hay_nadie(qapp):
     ]
 
 
-def test_la_seccion_enlaza_al_repositorio(qapp, tmp_path):
+def test_la_seccion_enlaza_al_repositorio(qtbot, tmp_path):
     """Las instrucciones para patrocinar viven en GitHub, no en el programa."""
     from zonda import __acercade__
     from zonda.widgets.apoyo import WidgetSeccionPatrocinadores
 
     _escribir(tmp_path, [{"nombre": "Estudio Uno", "nivel": "oro"}])
     seccion = WidgetSeccionPatrocinadores(patrocinadores.cargar(tmp_path))
+    qtbot.addWidget(seccion)
 
     textos = " ".join(label.text() for label in seccion.findChildren(QtWidgets.QLabel))
     assert __acercade__.__apoyo__ in textos
 
 
-def test_la_seccion_muestra_oro_y_plata_pero_no_bronce(qapp, tmp_path):
+def test_la_seccion_muestra_oro_y_plata_pero_no_bronce(qtbot, tmp_path):
     from zonda.widgets.apoyo import WidgetSeccionPatrocinadores
 
     _escribir(
@@ -200,9 +205,189 @@ def test_la_seccion_muestra_oro_y_plata_pero_no_bronce(qapp, tmp_path):
         ],
     )
     seccion = WidgetSeccionPatrocinadores(patrocinadores.cargar(tmp_path))
+    qtbot.addWidget(seccion)
 
     textos = " ".join(label.text() for label in seccion.findChildren(QtWidgets.QLabel))
     assert "El de oro" in textos
     assert "El de plata" in textos
     # Bronce vive en el dialogo, que es donde entra una lista larga.
     assert "El de bronce" not in textos
+
+
+def test_solo_se_aceptan_webs_y_correos(tmp_path):
+    """Estos enlaces terminan en `QDesktopServices.openUrl()`.
+
+    Un `file://` ahí le abriría archivos del disco a quien usa el programa, así
+    que todo lo que no sea una web o un correo se descarta al leer.
+    """
+    _escribir(
+        tmp_path,
+        [
+            {"nombre": "Web", "nivel": "oro", "web": "https://ejemplo.com.ar"},
+            {"nombre": "Correo", "nivel": "oro", "web": "mailto:hola@ejemplo.com"},
+            {"nombre": "Archivo", "nivel": "oro", "web": "file:///etc/passwd"},
+            {"nombre": "Script", "nivel": "oro", "web": "javascript:alert(1)"},
+            {"nombre": "Sin esquema", "nivel": "oro", "web": "www.ejemplo.com"},
+        ],
+    )
+
+    enlaces = {p.nombre: p.web for p in patrocinadores.cargar(tmp_path)}
+
+    assert enlaces["Web"] == "https://ejemplo.com.ar"
+    assert enlaces["Correo"] == "mailto:hola@ejemplo.com"
+    # No se descarta al patrocinador: se lo muestra sin enlace.
+    assert enlaces["Archivo"] == ""
+    assert enlaces["Script"] == ""
+    assert enlaces["Sin esquema"] == ""
+
+
+def test_lee_los_datos_del_perfil_de_oro(tmp_path):
+    _escribir(
+        tmp_path,
+        [
+            {
+                "nombre": "Estudio Uno",
+                "nivel": "oro",
+                "web": "https://uno.com.ar",
+                "contacto": "mailto:info@uno.com.ar",
+                "ciudad": "Rosario, Santa Fe",
+                "rubro": "Cálculo estructural",
+                "descripcion": "Dos líneas sobre el estudio.",
+                "desde": "2026",
+            }
+        ],
+    )
+
+    uno = patrocinadores.cargar(tmp_path)[0]
+
+    assert uno.contacto == "mailto:info@uno.com.ar"
+    assert uno.ciudad == "Rosario, Santa Fe"
+    assert uno.rubro == "Cálculo estructural"
+    assert uno.descripcion == "Dos líneas sobre el estudio."
+    assert uno.desde == "2026"
+
+
+def test_una_entrada_minima_deja_el_perfil_vacio(tmp_path):
+    """Bronce son dos campos, y el resto tiene que quedar en blanco sin fallar."""
+    _escribir(tmp_path, [{"nombre": "Ing. Pérez", "nivel": "bronce"}])
+
+    uno = patrocinadores.cargar(tmp_path)[0]
+
+    assert (uno.web, uno.contacto, uno.ciudad, uno.rubro, uno.descripcion) == (
+        "",
+        "",
+        "",
+        "",
+        "",
+    )
+
+
+def _escribir_colaboradores(directorio, entradas):
+    (directorio / patrocinadores.NOMBRE_ARCHIVO_COLABORADORES).write_text(
+        json.dumps({"colaboradores": entradas}), encoding="utf-8"
+    )
+
+
+def test_lee_los_colaboradores(tmp_path):
+    _escribir_colaboradores(
+        tmp_path,
+        [
+            {"nombre": "Natalia Alvarado", "aporte": "revisión reglamentaria"},
+            {"nombre": "Sin aporte"},
+            {"nombre": ""},
+            "esto no es un objeto",
+        ],
+    )
+
+    equipo = patrocinadores.colaboradores(tmp_path)
+
+    assert [c.nombre for c in equipo] == ["Natalia Alvarado", "Sin aporte"]
+    assert equipo[0].aporte == "revisión reglamentaria"
+    assert equipo[1].aporte == ""
+
+
+def test_sin_archivo_de_colaboradores_no_falla(tmp_path):
+    assert patrocinadores.colaboradores(tmp_path) == ()
+
+
+def test_el_perfil_de_oro_se_construye_con_lo_minimo_y_con_todo(qtbot, tmp_path):
+    from zonda.widgets.apoyo import DialogoPatrocinador
+
+    _escribir(
+        tmp_path,
+        [
+            {
+                "nombre": "Completo",
+                "nivel": "oro",
+                "web": "https://uno.com.ar",
+                "contacto": "mailto:a@b.com",
+                "ciudad": "Rosario",
+                "rubro": "Cálculo",
+                "descripcion": "Un párrafo.",
+                "desde": "2026",
+                "fundador": True,
+            },
+            {"nombre": "Mínimo", "nivel": "oro"},
+        ],
+    )
+    padre = QtWidgets.QWidget()
+    qtbot.addWidget(padre)
+
+    for patrocinador in patrocinadores.cargar(tmp_path):
+        dialogo = DialogoPatrocinador(padre, patrocinador)
+        qtbot.addWidget(dialogo)
+        assert dialogo.windowTitle() == patrocinador.nombre
+
+
+def test_los_agradecimientos_se_construyen_sin_nadie(qtbot):
+    from zonda.widgets.apoyo import DialogoAgradecimientos
+
+    padre = QtWidgets.QWidget()
+    qtbot.addWidget(padre)
+
+    dialogo = DialogoAgradecimientos(padre)
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.windowTitle() == "Agradecimientos"
+
+
+def test_el_acerca_de_se_muestra_al_construirse(qtbot):
+    """Los diálogos de Zonda se muestran solos en su constructor.
+
+    Quien los abre hace `WidgetAcercaDe(self)` y nada más, así que si el
+    `show()` se pierde el diálogo existe pero no lo ve nadie —y no falla ningún
+    otro test, porque todo lo demás se construye igual—.
+    """
+    from zonda.widgets.custom import WidgetAcercaDe
+
+    padre = QtWidgets.QWidget()
+    qtbot.addWidget(padre)
+    padre.show()
+
+    dialogo = WidgetAcercaDe(padre)
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.isVisible()
+    assert [
+        b.text()
+        for b in dialogo.findChildren(QtWidgets.QPushButton)
+        if b.text() == "Agradecimientos"
+    ]
+
+
+def test_los_dialogos_de_apoyo_se_muestran_al_construirse(qtbot, tmp_path):
+    """Lo mismo para las dos ventanas nuevas."""
+    from zonda.widgets.apoyo import DialogoAgradecimientos, DialogoPatrocinador
+
+    _escribir(tmp_path, [{"nombre": "Estudio Uno", "nivel": "oro"}])
+    padre = QtWidgets.QWidget()
+    qtbot.addWidget(padre)
+    padre.show()
+
+    perfil = DialogoPatrocinador(padre, patrocinadores.cargar(tmp_path)[0])
+    qtbot.addWidget(perfil)
+    gracias = DialogoAgradecimientos(padre)
+    qtbot.addWidget(gracias)
+
+    assert perfil.isVisible()
+    assert gracias.isVisible()

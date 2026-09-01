@@ -354,6 +354,10 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         boton_licencia.clicked.connect(
             lambda _=False: webbrowser.open(__acercade__.__licencia_url__)
         )
+        boton_agradecimientos = botones.addButton(
+            "Agradecimientos", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+        )
+        boton_agradecimientos.clicked.connect(lambda _=False: self._agradecimientos())
         botones.rejected.connect(self.reject)
 
         layout_principal = QtWidgets.QVBoxLayout()
@@ -383,6 +387,16 @@ class WidgetAcercaDe(QtWidgets.QDialog):
 
         self.setWindowTitle("Acerca de Zonda")
         self.show()
+
+    def _agradecimientos(self) -> None:
+        """Abre la ventana con los patrocinadores y los colaboradores.
+
+        El import va acá adentro porque ``apoyo`` importa este módulo para el
+        panel, y al revés en el encabezado sería un ciclo.
+        """
+        from zonda.widgets.apoyo import DialogoAgradecimientos
+
+        DialogoAgradecimientos(self)
 
 
 def _label_autores() -> QtWidgets.QLabel:
