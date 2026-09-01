@@ -185,5 +185,3 @@ WidgetBotonPanel.tab:checked {
 .noverifica {
     color: red;
 }
-
-

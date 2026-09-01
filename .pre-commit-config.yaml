@@ -1,0 +1,51 @@
+# Las mismas verificaciones que corren en CI, pero antes del commit: es mas
+# barato que enterarse en el runner. Se instalan una sola vez con
+#
+#   cd python && uv sync
+#   uv run pre-commit install
+#
+# CI no depende de esto: si alguien no instala los hooks, el workflow de dev
+# frena igual lo que este mal.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Atada a la version que resuelve uv.lock, para que el hook y CI no puedan
+    # discrepar sobre que es un error o como se formatea.
+    rev: v0.16.4
+    hooks:
+      # Acotados a python/, que es lo que verifica CI. empaquetado/ y launcher/
+      # quedan afuera a proposito: la configuracion de ruff vive en
+      # python/pyproject.toml y no alcanza a la raiz, asi que lintearlos con los
+      # valores por defecto los reformatearia con otras reglas que el resto.
+      - id: ruff-check
+        args: [--fix]
+        files: ^python/
+      - id: ruff-format
+        files: ^python/
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.12.8
+    hooks:
+      # Si se toca pyproject.toml y no se relockea, el uv sync de CI resuelve
+      # otras versiones que las de la maquina donde se probo.
+      - id: uv-lock
+        files: ^python/(pyproject\.toml|uv\.lock)$
+        args: [--project, python]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # En Markdown dos espacios al final son un salto de linea, y las
+      # plantillas de la memoria de calculo los usan: ahi no se tocan.
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+
+# mypy y pytest quedan afuera a proposito. mypy arrastra errores preexistentes
+# y frenaria todos los commits; pytest tarda demasiado para un hook. Los dos
+# corren en CI, donde mypy avisa sin bloquear.
