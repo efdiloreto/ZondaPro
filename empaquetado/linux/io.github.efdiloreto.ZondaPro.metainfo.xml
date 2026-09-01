@@ -93,6 +93,11 @@
     <content_rating type="oars-1.1"/>
 
     <releases>
+        <release version="1.1.1" date="2026-09-01">
+            <description>
+                <p>Corrección en el instalador de macOS: el bundle ahora se firma al empaquetarlo. Sin esa firma macOS lo rechazaba al abrirlo, avisando que la aplicación estaba dañada.</p>
+            </description>
+        </release>
         <release version="1.1.0" date="2026-09-01">
             <description>
                 <p>Pantalla de inicio nueva: proyectos recientes, apertura de proyectos, accesos a la ayuda y a la configuración, y la sección de patrocinadores del proyecto.</p>
