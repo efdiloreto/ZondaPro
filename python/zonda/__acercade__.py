@@ -27,5 +27,9 @@ __descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2005"
 __autor__ = "Eduardo Di Loreto, Natalia Alvarado"
 __autor_email__ = "efdiloreto@gmail.com, mnaa85@gmail.com"
 __autor_web__ = "https://github.com/efdiloreto"
+# Adónde manda el diálogo de apoyo. Los niveles, los precios y las condiciones
+# viven ahí y no en el programa: cambiarlos no puede obligar a publicar una
+# versión nueva.
+__apoyo__ = "https://github.com/efdiloreto/ZondaPro#apoyá-el-proyecto"
 __licencia__ = "GPLv3"
 __licencia_url__ = "https://www.gnu.org/licenses/gpl-3.0-standalone.html"
