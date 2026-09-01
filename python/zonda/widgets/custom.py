@@ -18,7 +18,7 @@
 import webbrowser
 from collections.abc import Callable
 
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from zonda import __acercade__, recursos
 from zonda.enums import (
@@ -45,6 +45,10 @@ class WidgetBotonModulo(QtWidgets.QWidget):
 
         boton = QtWidgets.QPushButton()
         boton.setProperty("class", "modulo")
+        # El boton es solo icono: sin nombre accesible, un lector de pantalla
+        # anuncia "boton" tres veces y no hay forma de saber cual es cual.
+        boton.setAccessibleName(label)
+        boton.setToolTip(label)
         boton.setIcon(recursos.icono(clave_icono))
         boton.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         boton.setIconSize(QtCore.QSize(128, 128))
@@ -242,37 +246,6 @@ class WidgetPanelResultados(WidgetPanel):
         layout_botones.addWidget(self.boton_generar_reporte)
 
         self.setLayout(layout_botones)
-
-
-class WidgetSinBorde(QtWidgets.QWidget):
-    """Una ventana sin barra de título, que se arrastra desde cualquier lado.
-
-    La posición del puntero se pide con ``globalPosition()``, que devuelve un
-    ``QPointF``. El ``globalPos()`` de Qt5 no existe más: al llamarlo saltaba un
-    ``AttributeError``, y como PyQt6 aborta el proceso cuando un virtual
-    reimplementado levanta una excepción, un clic sobre la ventana cerraba el
-    programa de golpe.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._pos_ult: QtCore.QPoint | None = None
-        self.setWindowFlag(QtCore.Qt.WindowType.FramelessWindowHint)
-
-    def mousePressEvent(self, a0: QtGui.QMouseEvent | None) -> None:
-        if a0 is None:
-            return
-        self._pos_ult = a0.globalPosition().toPoint()
-
-    def mouseMoveEvent(self, a0: QtGui.QMouseEvent | None) -> None:
-        # Sin un press previo no hay desde dónde medir el arrastre.
-        if a0 is None or self._pos_ult is None:
-            return
-        pos = a0.globalPosition().toPoint()
-        delta = pos - self._pos_ult
-        self.move(self.x() + delta.x(), self.y() + delta.y())
-        self._pos_ult = pos
 
 
 class WidgetLabelLinkInfo(QtWidgets.QLabel):

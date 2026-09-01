@@ -46,8 +46,12 @@ El flujo de dependencias es estrictamente unidireccional:
    - `Visor.qml`, `contorno.vert`, `contorno.frag`: Componentes QML y shaders de contorno.
    - `directores/` y `escenas/`: Orquestación y armado de actores para cada tipología.
 3. **`zonda/widgets/` (Interfaz PyQt6):**
-   - `zonda.py` (pantalla de bienvenida / selector de módulo).
+   - `zonda.py` (ventana de bienvenida / selector de módulo). Es una ventana
+     común del sistema, con barra de título y geometría recordada en
+     `QSettings`; no una ventana sin borde.
    - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
+   - `apoyo.py` (sección de patrocinadores del pie de la bienvenida y diálogo
+     de apoyo al proyecto).
 4. **Módulos transversales (`zonda/`):**
    - `enums.py` (enumerados del dominio), `tipos.py` (sólo alias geométricos y
      numéricos; los resultados se describen en `cirsoc/resultados.py`),
@@ -55,6 +59,10 @@ El flujo de dependencias es estrictamente unidireccional:
    - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
    - `reportes.py`: Motor de plantillas Jinja2 y compilación con pandoc.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
+   - `patrocinadores.py`: Lee `recursos/patrocinadores/patrocinadores.json`, que
+     viaja empaquetado con cada versión. Ninguna entrada mal formada puede
+     impedir que el programa arranque: se ignora y sigue. Cómo sumar a alguien
+     está en el `LEEME.md` de ese directorio.
 
 ---
 

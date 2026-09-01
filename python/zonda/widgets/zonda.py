@@ -25,16 +25,13 @@ programa arranca abriendo un archivo (`zonda.main`), el módulo que corresponde 
 abre directo y la bienvenida queda escondida hasta que se cierre ese módulo.
 """
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
+from zonda import __acercade__, patrocinadores
 from zonda.actualizaciones import Actualizacion, BuscadorActualizaciones
 from zonda.enums import Estructura
-from zonda.widgets.custom import (
-    WidgetBotonModulo,
-    WidgetLogo,
-    WidgetPanel,
-    WidgetSinBorde,
-)
+from zonda.widgets.apoyo import DialogoApoyo, WidgetSeccionPatrocinadores
+from zonda.widgets.custom import WidgetBotonModulo, WidgetLogo, WidgetPanel
 from zonda.widgets.dialogos import DialogoActualizacion
 from zonda.widgets.modulos import (
     WidgetModuloCartel,
@@ -49,7 +46,18 @@ MODULOS = {
 }
 
 
-class WidgetBienvenida(WidgetSinBorde):
+class WidgetBienvenida(QtWidgets.QWidget):
+    """La ventana desde la que se elige el módulo y se ve quién apoya Zonda.
+
+    Es una ventana común del sistema, con su barra de título, sus botones de
+    minimizar y cerrar y su posición recordada entre sesiones. Antes era una
+    ventana sin borde que se arrastraba desde cualquier lado: se veía distinta
+    de todo lo demás del escritorio y no ofrecía nada a cambio.
+    """
+
+    GRUPO_SETTINGS = "bienvenida"
+    """El grupo de ``QSettings`` donde se recuerda la geometría."""
+
     def __init__(self, buscador: BuscadorActualizaciones | None = None):
         """
         Args:
@@ -63,6 +71,9 @@ class WidgetBienvenida(WidgetSinBorde):
         self._modulo: WidgetModuloEdificio | None = None
         self._buscador = buscador
         self._ya_aviso = False
+        # Se lee una sola vez: es un JSON chico al lado de los logos, y volver
+        # a leerlo cada vez que se abre el dialogo rebarajaria el orden.
+        self._patrocinadores = patrocinadores.cargar()
 
         widget_logo = WidgetLogo()
 
@@ -79,6 +90,14 @@ class WidgetBienvenida(WidgetSinBorde):
         boton_cartel = WidgetBotonModulo(
             "Cartel", "iconos/cartel.png", self._modulo_cartel
         )
+
+        boton_apoyo = QtWidgets.QPushButton("Apoyá el proyecto")
+        boton_apoyo.setProperty("class", "apoyo")
+        boton_apoyo.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        boton_apoyo.clicked.connect(self._mostrar_apoyo)
+
+        seccion_patrocinadores = WidgetSeccionPatrocinadores(self._patrocinadores)
+        seccion_patrocinadores.apoyo_solicitado.connect(self._mostrar_apoyo)
 
         boton_salir = QtWidgets.QPushButton("Salir")
         boton_salir.setFixedWidth(75)
@@ -100,19 +119,28 @@ class WidgetBienvenida(WidgetSinBorde):
         layout_modulos.addWidget(boton_cubierta_aislada)
         layout_modulos.addWidget(boton_cartel)
 
-        layout_inferior = QtWidgets.QHBoxLayout()
-        layout_inferior.setContentsMargins(25, 11, 25, 11)
-        layout_inferior.addStretch()
-        layout_inferior.addWidget(boton_salir)
+        # Los dos botones viven dentro de la sección de patrocinadores: son
+        # del mismo asunto, y agruparlos evita sumarle otra fila a la ventana.
+        layout_seccion = seccion_patrocinadores.layout()
+        assert layout_seccion is not None
+        layout_seccion.addWidget(boton_apoyo)
+        layout_seccion.addWidget(boton_salir)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addWidget(widget_encabezado)
         layout_principal.addLayout(layout_modulos)
-        layout_principal.addLayout(layout_inferior)
+        layout_principal.addStretch()
+        layout_principal.addWidget(seccion_patrocinadores)
         layout_principal.setContentsMargins(0, 0, 0, 0)
+        layout_principal.setSpacing(0)
 
         self.setLayout(layout_principal)
-        self.setWindowFlag(QtCore.Qt.WindowType.Window)
+
+        self.setWindowTitle(f"Zonda {__acercade__.__version__}")
+        # El mínimo sale del tamaño que pide el contenido: por debajo de eso los
+        # tres módulos no entran en una fila y el pie se empieza a recortar.
+        self.setMinimumSize(self.sizeHint())
+        self._restaurar_geometria()
 
     @property
     def modulo(self):
@@ -164,6 +192,37 @@ class WidgetBienvenida(WidgetSinBorde):
         # El módulo pudo cerrarse mientras GitHub contestaba, y los módulos se
         # destruyen al cerrarse. La bienvenida, en cambio, vive toda la sesión.
         DialogoActualizacion(self._modulo or self, actualizacion)
+
+    def _restaurar_geometria(self) -> None:
+        """Vuelve a poner la ventana donde estaba la última vez.
+
+        Si no hay nada guardado —primera corrida— o lo guardado no se puede
+        aplicar —cambió la cantidad de monitores, por ejemplo—, Qt deja que el
+        sistema la ubique, que es el comportamiento correcto.
+        """
+        settings = QtCore.QSettings()
+        settings.beginGroup(self.GRUPO_SETTINGS)
+        geometria = settings.value("geometria")
+        settings.endGroup()
+
+        if isinstance(geometria, QtCore.QByteArray):
+            self.restoreGeometry(geometria)
+
+    def _guardar_geometria(self) -> None:
+        """Anota dónde quedó la ventana, para la próxima sesión."""
+        settings = QtCore.QSettings()
+        settings.beginGroup(self.GRUPO_SETTINGS)
+        settings.setValue("geometria", self.saveGeometry())
+        settings.endGroup()
+        settings.sync()
+
+    def closeEvent(self, a0: QtGui.QCloseEvent | None) -> None:
+        self._guardar_geometria()
+        super().closeEvent(a0)
+
+    def _mostrar_apoyo(self) -> None:
+        """Abre la pantalla de apoyo al proyecto."""
+        DialogoApoyo(self, self._patrocinadores).show()
 
     def _olvidar_modulo(self) -> None:
         self._modulo = None
