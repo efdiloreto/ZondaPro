@@ -25,7 +25,7 @@ cortesía y el usuario abrió Zonda para calcular cargas de viento.
 import json
 from pathlib import Path
 
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from zonda import patrocinadores
 from zonda.enums import NivelPatrocinio
@@ -391,3 +391,97 @@ def test_los_dialogos_de_apoyo_se_muestran_al_construirse(qtbot, tmp_path):
 
     assert perfil.isVisible()
     assert gracias.isVisible()
+
+
+def test_el_logo_de_plata_abre_su_enlace(qtbot, tmp_path, monkeypatch):
+    from zonda.widgets import apoyo
+
+    (tmp_path / "logo.png").write_bytes(b"")
+    _escribir(
+        tmp_path,
+        [
+            {
+                "nombre": "Grupo Delta",
+                "nivel": "plata",
+                "web": "https://delta.com.ar",
+                "logo": "logo.png",
+            }
+        ],
+    )
+    abiertos: list[str] = []
+    monkeypatch.setattr(apoyo, "abrir_enlace", abiertos.append)
+
+    boton = apoyo._widget_patrocinador(patrocinadores.cargar(tmp_path)[0], 30)
+    qtbot.addWidget(boton)
+    boton.click()
+
+    assert abiertos == ["https://delta.com.ar"]
+
+
+def test_los_logos_se_alcanzan_con_el_tabulador(qtbot, tmp_path):
+    """Un logo clickeable tiene que ser un botón, no un label con un clic.
+
+    Un `QLabel` con `mousePressEvent` sólo responde al mouse: no entra en la
+    cadena del tabulador ni lo anuncia un lector de pantalla.
+    """
+    from zonda.widgets import apoyo
+
+    (tmp_path / "logo.png").write_bytes(b"")
+    _escribir(
+        tmp_path,
+        [
+            {"nombre": "Estudio Uno", "nivel": "oro", "logo": "logo.png"},
+            {
+                "nombre": "Grupo Delta",
+                "nivel": "plata",
+                "web": "https://delta.com.ar",
+                "logo": "logo.png",
+            },
+        ],
+    )
+
+    for patrocinador in patrocinadores.cargar(tmp_path):
+        widget = apoyo._widget_patrocinador(patrocinador, 30)
+        qtbot.addWidget(widget)
+        assert widget.focusPolicy() != QtCore.Qt.FocusPolicy.NoFocus
+        assert widget.accessibleName()
+
+
+def test_un_logo_sin_adonde_ir_no_parece_clickeable(qtbot, tmp_path):
+    """Plata sin enlace válido se muestra, pero no como algo que se pueda tocar."""
+    from zonda.widgets import apoyo
+
+    (tmp_path / "logo.png").write_bytes(b"")
+    _escribir(
+        tmp_path,
+        [
+            {
+                "nombre": "Sin enlace",
+                "nivel": "plata",
+                "logo": "logo.png",
+                "web": "file:///etc/passwd",
+            }
+        ],
+    )
+
+    widget = apoyo._widget_patrocinador(patrocinadores.cargar(tmp_path)[0], 30)
+    qtbot.addWidget(widget)
+
+    assert not isinstance(widget, QtWidgets.QPushButton)
+
+
+def test_el_logo_del_perfil_no_reabre_el_perfil(qtbot, tmp_path):
+    """Dentro de la ventana, el logo ya está adentro de lo que abriría."""
+    from zonda.widgets.apoyo import DialogoPatrocinador
+
+    (tmp_path / "logo.png").write_bytes(b"")
+    _escribir(tmp_path, [{"nombre": "Estudio Uno", "nivel": "oro", "logo": "logo.png"}])
+    padre = QtWidgets.QWidget()
+    qtbot.addWidget(padre)
+
+    perfil = DialogoPatrocinador(padre, patrocinadores.cargar(tmp_path)[0])
+    qtbot.addWidget(perfil)
+
+    from zonda.widgets.apoyo import BotonLogo
+
+    assert not perfil.findChildren(BotonLogo)

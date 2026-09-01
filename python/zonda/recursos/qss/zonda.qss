@@ -191,6 +191,23 @@ QPushButton.enlace:hover {
     text-decoration: underline;
 }
 
+/* Los logos de patrocinadores son botones para que se llegue con el tabulador.
+   El foco tiene que verse: sin este borde, la hoja de estilo tapa el que dibuja
+   el sistema y quien navega con teclado no sabe dónde está parado. */
+QPushButton.logo {
+    border: 1px solid transparent;
+    background: none;
+    padding: 3px;
+}
+
+QPushButton.logo:hover {
+    background-color: #e5ebf3;
+}
+
+QPushButton.logo:focus {
+    border: 1px solid #1858a8;
+}
+
 QPushButton.reciente {
     border: none;
     background: none;

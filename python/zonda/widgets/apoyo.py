@@ -69,57 +69,100 @@ def abrir_enlace(url: str) -> None:
     QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
 
-class LabelLogo(QtWidgets.QLabel):
-    """El logo de un patrocinador, clickeable.
+def _pixmap_logo(patrocinador: patrocinadores.Patrocinador, alto: int) -> QtGui.QPixmap:
+    """El logo de un patrocinador, escalado para la pantalla que haya.
 
-    Qué pasa al tocarlo depende del nivel, y es lo que cada uno compró: el de
+    Se escala contra la densidad de la pantalla en lugar de dejar que Qt lo
+    estire al dibujar: en un monitor HiDPI, un logo reducido sin tener en cuenta
+    el ``devicePixelRatio`` se ve notablemente sucio.
+
+    Args:
+        patrocinador: De quién es el logo. Tiene que tener uno.
+        alto: El alto final en píxeles lógicos.
+
+    Returns: El pixmap listo para mostrar.
+    """
+    ratio = 1.0
+    pantalla = QtGui.QGuiApplication.primaryScreen()
+    if pantalla is not None:
+        ratio = pantalla.devicePixelRatio()
+
+    pixmap = QtGui.QPixmap(str(patrocinador.logo))
+    pixmap = pixmap.scaledToHeight(
+        int(alto * ratio), QtCore.Qt.TransformationMode.SmoothTransformation
+    )
+    pixmap.setDevicePixelRatio(ratio)
+    return pixmap
+
+
+def label_logo(
+    patrocinador: patrocinadores.Patrocinador, alto: int
+) -> QtWidgets.QLabel:
+    """El logo sin nada que hacer al tocarlo.
+
+    Es el del perfil de oro —donde el logo ya está adentro de la ventana que
+    abriría— y el de un patrocinador cuyo enlace no pasó la validación.
+
+    Args:
+        patrocinador: De quién es el logo.
+        alto: El alto final en píxeles lógicos.
+
+    Returns: El label con el logo.
+    """
+    label = QtWidgets.QLabel()
+    label.setPixmap(_pixmap_logo(patrocinador, alto))
+    label.setToolTip(patrocinador.nombre)
+    return label
+
+
+class BotonLogo(QtWidgets.QPushButton):
+    """El logo de un patrocinador de la columna, que se puede activar.
+
+    Qué pasa al activarlo depende del nivel, y es lo que cada uno compró: el de
     oro abre su perfil dentro del programa; el de plata, el enlace que haya
     elegido —su sitio o su correo—.
 
-    Escala el pixmap contra la densidad de la pantalla en lugar de dejar que Qt
-    lo estire al dibujar: en un monitor HiDPI, un logo reducido sin tener en
-    cuenta el ``devicePixelRatio`` se ve notablemente sucio.
+    Es un botón y no un ``QLabel`` con ``mousePressEvent`` porque un label no
+    entra en la cadena del tabulador ni lo anuncia un lector de pantalla: el
+    logo sólo se podía activar con el mouse, y no había ninguna señal visible de
+    que fuera clickeable más allá del cursor, que también es una señal de mouse.
     """
 
     def __init__(self, patrocinador: patrocinadores.Patrocinador, alto: int) -> None:
         """
         Args:
-            patrocinador: De quién es el logo. Tiene que tener uno.
+            patrocinador: De quién es el logo. Tiene que tener uno, y algo que
+                hacer al activarse.
             alto: El alto final en píxeles lógicos.
         """
         super().__init__()
 
         self._patrocinador = patrocinador
-        self._web = patrocinador.web
-
-        ratio = 1.0
-        pantalla = QtGui.QGuiApplication.primaryScreen()
-        if pantalla is not None:
-            ratio = pantalla.devicePixelRatio()
-
-        pixmap = QtGui.QPixmap(str(patrocinador.logo))
-        pixmap = pixmap.scaledToHeight(
-            int(alto * ratio), QtCore.Qt.TransformationMode.SmoothTransformation
-        )
-        pixmap.setDevicePixelRatio(ratio)
-        self.setPixmap(pixmap)
-
         self._es_oro = patrocinador.nivel is NivelPatrocinio.ORO
+
+        pixmap = _pixmap_logo(patrocinador, alto)
+        self.setIcon(QtGui.QIcon(pixmap))
+        self.setIconSize(pixmap.deviceIndependentSize().toSize())
+
+        self.setProperty("class", "logo")
+        self.setFlat(True)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
         if self._es_oro:
-            self.setToolTip(f"Conocé a {patrocinador.nombre}")
+            descripcion = f"Conocé a {patrocinador.nombre}"
         else:
-            self.setToolTip(patrocinador.nombre)
+            descripcion = f"Ir al sitio de {patrocinador.nombre}"
+        self.setToolTip(descripcion)
+        self.setAccessibleName(descripcion)
 
-        if self._es_oro or self._web:
-            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.clicked.connect(self._activar)
 
-    def mousePressEvent(self, ev: QtGui.QMouseEvent | None) -> None:
-        if ev is None:
-            return
+    def _activar(self) -> None:
+        """Abre el perfil o el enlace, según el nivel."""
         if self._es_oro:
             DialogoPatrocinador(self, self._patrocinador)
-        elif self._web:
-            abrir_enlace(self._web)
+        else:
+            abrir_enlace(self._patrocinador.web)
 
 
 def _widget_patrocinador(
@@ -131,11 +174,17 @@ def _widget_patrocinador(
         patrocinador: A quién mostrar.
         alto: El alto del logo, si tiene.
 
-    Returns: El logo, o su nombre como enlace cuando no hay logo -que es el
-        caso de bronce y el de un archivo que falta-.
+    Returns: El logo como botón si hay algo que hacer al activarlo, el logo
+        suelto si no, y el nombre -enlazado o no- cuando no hay logo, que es el
+        caso de bronce y el de un archivo que falta.
     """
+    tiene_accion = patrocinador.nivel is NivelPatrocinio.ORO or bool(patrocinador.web)
+
     if patrocinador.logo is not None:
-        return LabelLogo(patrocinador, alto)
+        if tiene_accion:
+            return BotonLogo(patrocinador, alto)
+        # Un logo que no lleva a ningún lado no puede parecer clickeable.
+        return label_logo(patrocinador, alto)
 
     nombre = patrocinador.nombre
     if not patrocinador.web:
@@ -346,7 +395,7 @@ class DialogoPatrocinador(QtWidgets.QDialog):
 
         if patrocinador.logo is not None:
             layout.addWidget(
-                LabelLogo(patrocinador, self.ALTO_LOGO),
+                label_logo(patrocinador, self.ALTO_LOGO),
                 alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
             )
             layout.addSpacing(10)
