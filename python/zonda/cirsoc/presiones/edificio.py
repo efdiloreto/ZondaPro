@@ -447,26 +447,7 @@ class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
     """ParedesComponentes.
 
     Determina las presiones para componentes y revestimientos de paredes.
-
-    Con la Figura 8 del Reglamento los coeficientes se discriminan por pared, y
-    los de la pared a barlovento se resuelven altura por altura.
     """
-
-    @cached_property
-    def filas(self) -> tuple[FilaEdificio, ...]:
-        """Calcula las presiones sobre los componentes de las paredes.
-
-        Returns:
-            Una fila por cada coeficiente, o una por altura en la pared a
-            barlovento cuando la figura del Reglamento la discrimina.
-        """
-        filas = []
-        for entrada in self.cp.entradas:
-            if entrada.pared == ParedEdificioSprfv.BARLOVENTO:
-                filas += [self._fila(entrada, q, 1.0) for q in self.presiones_velocidad]
-            else:
-                filas.append(self._fila(entrada, self.q_media, 1.0))
-        return tuple(filas)
 
 
 class Cubierta:

@@ -160,6 +160,30 @@ def edificio_con_parapeto() -> Edificio:
 
 
 @pytest.fixture(scope="session")
+def edificio_tabla_c_5_3_3() -> Edificio:
+    """Edificio de la Tabla C 5.3-3 (Figura 5.3-2B).
+
+    Cubierta a dos aguas de 30 x 40 con altura de alero 8 m y cumbrera a 10 m:
+    el ángulo es de unos 7.6°, dentro del rango 7° < θ ≤ 20° de la tabla.
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
 def cartel() -> Cartel:
     return Cartel(
         profundidad=1,

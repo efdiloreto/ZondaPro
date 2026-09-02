@@ -413,44 +413,6 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
                 self._combobox_componentes_paredes, numero_filas, 1
             )
 
-            # Con la Figura 8 los valores dependen de la pared y varían con la
-            # altura en la pared a barlovento.
-            if any(
-                fila.pared
-                for fila in edificio.resultados_componentes.filtrar(
-                    zona=ZonaEdificio.PAREDES
-                )
-            ):
-                self._combobox_alturas_barlovento = QtWidgets.QComboBox()
-                for altura in edificio.geometria.alturas:
-                    self._combobox_alturas_barlovento.addItem(f"{altura} m", altura)
-                self._combobox_alturas_barlovento.setCurrentIndex(
-                    self._combobox_alturas_barlovento.count() - 1
-                )
-                self._combobox_alturas_barlovento.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-
-                self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Altura Pared Barlovento"),
-                    numero_filas + 1,
-                    0,
-                    QtCore.Qt.AlignmentFlag.AlignRight,
-                )
-                self._layout_parametros.addWidget(
-                    self._combobox_alturas_barlovento, numero_filas + 1, 1
-                )
-
-                self._combobox_presion_componentes.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-                self._combobox_gcpi.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-                self._combobox_componentes_paredes.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-
         numero_filas = self._layout_parametros.rowCount()
         self._layout_parametros.setRowStretch(numero_filas, 1)
 
@@ -468,8 +430,6 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
             self.grafico.escena.actualizar_componente_pared(
                 self._combobox_componentes_paredes.currentText()
             )
-            if hasattr(self, "_combobox_alturas_barlovento"):
-                self._actualizar_altura_pared_barlovento()
 
         if hasattr(self, "_combobox_componentes_cubierta"):
             self.grafico.escena.actualizar_componente_cubierta(
@@ -477,14 +437,6 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
             )
 
         self.setLayout(layout_principal)
-
-    def _actualizar_altura_pared_barlovento(self) -> None:
-        """Actualiza la altura a la que se calcula la presion de la pared barlovento. Solo es válido para la Figura 8 del
-        Reglamento.
-        """
-        self.grafico.escena.actualizar_altura_pared_barlovento(
-            self._combobox_alturas_barlovento.currentData()
-        )
 
 
 class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
