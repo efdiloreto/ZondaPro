@@ -218,6 +218,10 @@ jobs:
     # este evento.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # Los consume el back-merge, que corre despues de publicar.
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+      head_sha: ${{ steps.corrida.outputs.HEAD_SHA }}
     permissions:
       contents: write
       # Bajar artefactos de otra corrida necesita leer la API de Actions.
@@ -254,6 +258,7 @@ jobs:
             exit 1
           fi
           echo "Head del pull request: $HEAD_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> $GITHUB_OUTPUT
 
           RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
             --workflow release.yml --commit "$HEAD_SHA" \
@@ -298,3 +303,61 @@ jobs:
             dist-release/*.msi
             dist-release/*.dmg
             dist-release/*.flatpak
+
+  # El pull request de dev a master se mergea con squash, asi que master queda
+  # con un commit que tiene todo el contenido y ninguno de los commits de dev en
+  # su historia. Si dev no lo incorpora, el pull request siguiente vuelve a
+  # proponer todo lo que master ya tiene aplastado: git lo ve como historia
+  # divergente sobre los mismos archivos y conflictua sin que nadie haya tocado
+  # nada. Paso a mano seria uno por release, y de los que se olvidan, porque no
+  # duele al publicar sino al abrir el pull request siguiente.
+  back-merge:
+    name: Traer master de vuelta a dev
+    needs: publish-release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clonar dev con toda la historia
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          # El merge tiene que ver las dos historias enteras, no el ultimo commit.
+          fetch-depth: 0
+
+      # Se mergea con estrategia ours, que se queda con el arbol de dev sin
+      # mirar el de master. Eso es correcto solo mientras master no tenga nada
+      # propio, y hoy siempre es asi porque el ruleset lo obliga a recibir todo
+      # por pull request desde dev. Si algun dia deja de serlo -un hotfix
+      # commiteado derecho sobre master- el merge lo descartaria en silencio,
+      # asi que se comprueba antes y se frena.
+      - name: Comprobar que master no traiga nada que dev no tenga
+        env:
+          HEAD_SHA: ${{ needs.publish-release.outputs.head_sha }}
+        run: |
+          if ! git diff --quiet "$HEAD_SHA" origin/master; then
+            echo "::error::master tiene contenido que no esta en $HEAD_SHA, el head del pull request que acaba de publicar. Traelo a dev a mano: un merge con estrategia ours lo descartaria."
+            git --no-pager diff --stat "$HEAD_SHA" origin/master
+            exit 1
+          fi
+          echo "master no aporta contenido propio: el back-merge es seguro."
+
+      - name: Traer master a dev
+        env:
+          VERSION: ${{ needs.publish-release.outputs.version }}
+        run: |
+          # Si el pull request se mergeo con merge commit en vez de squash, dev
+          # ya es descendiente de master y no hay nada que traer.
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "dev ya contiene a master, no hay nada que traer."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge -s ours --no-edit origin/master \
+            -m "Traer master de vuelta a dev despues de la release $VERSION" \
+            -m "Cierra el ciclo del squash: dev incorpora el commit con que master publico la release, para que el pull request siguiente proponga solo lo nuevo. Se mergea con estrategia ours porque ese contenido ya esta en dev."
+          git push origin dev
+          echo "master quedo incorporado a dev."
