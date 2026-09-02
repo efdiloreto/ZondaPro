@@ -1,23 +1,44 @@
 name: Release Multiplataforma
 
+# Los instaladores se compilan una sola vez por release, en el pull request de
+# dev a master, y esa misma compilacion es la que se publica. El ruleset de
+# master pide los tres jobs "Compilar en ..." como check obligatorio, asi que
+# para cuando el merge ocurre los tres instaladores ya existen y estan verdes.
+# Recompilarlos al mergear daria lo mismo: el ruleset tambien exige que el pull
+# request este actualizado con master, con lo cual el arbol que queda mergeado
+# es el que ya compilo. Por eso el push a master no compila: descarga los
+# artefactos de la corrida del pull request y los publica. Ademas de ahorrar
+# tres runners, se publica exactamente lo que se probo antes de mergear y no
+# una recompilacion que se le parece.
 on:
+  # Unico camino que publica una release.
   push:
     branches:
       - master
       - main
-    tags:
-      - 'v*'
-  # En los pull request se compila pero no se publica: es la forma de probar
-  # los tres instaladores antes de mergear. Quedan como artefactos de la
-  # corrida, para descargar y abrir.
+  # Compila los tres instaladores. Son a la vez el check obligatorio del merge
+  # y los artefactos que despues se publican, y quedan en la corrida para
+  # descargarlos y abrirlos antes de mergear: que compilen no prueba que
+  # arranquen.
   pull_request:
     branches:
       - master
       - main
+  # Ensayo a demanda desde cualquier rama: compila y deja los artefactos, pero
+  # no publica.
   workflow_dispatch:
 
+# Cada commit que llega al pull request mientras esta abierto dispara los tres
+# builds de nuevo, y el resultado del anterior ya no lo mira nadie. El push a
+# master queda afuera del cancelado: ahi se publica, y una release a medio
+# publicar es peor que una corrida de mas.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Solo el job que publica escribe. El resto lee.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # Si esto falla no tiene sentido gastar tres compilaciones, asi que build
@@ -25,6 +46,9 @@ jobs:
   # con el workflow de dev: si se corrigen aca, se corrigen en los dos lados.
   tests:
     name: Tests y análisis estático
+    # En el push a master no se repite: corrio en el pull request, sobre el
+    # mismo arbol, y es check obligatorio del merge.
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
@@ -83,6 +107,9 @@ jobs:
   build:
     name: Compilar en ${{ matrix.os }}
     needs: tests
+    # Unica compilacion de la release. En el push a master no corre: los
+    # instaladores salieron del pull request y publish-release los descarga.
+    if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
     # Los scripts de empaquetado imprimen un ✓ al terminar cada paso, y en el
     # runner de Windows el stdout de Python queda en cp1252, que no lo puede
@@ -186,15 +213,24 @@ jobs:
 
   publish-release:
     name: Crear GitHub Release
-    needs: build
-    # Un pull request compila para que se pueda probar, pero no publica nada.
-    if: github.event_name != 'pull_request'
+    # No compila: promueve a release los instaladores que ya genero y aprobo el
+    # pull request. No lleva needs porque los jobs que compilan no corren en
+    # este evento.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # Los consume el back-merge, que corre despues de publicar.
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+      head_sha: ${{ steps.corrida.outputs.HEAD_SHA }}
+    permissions:
+      contents: write
+      # Bajar artefactos de otra corrida necesita leer la API de Actions.
+      actions: read
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v5
 
-      - name: Configurar Python
+      - name: Configurar Python 3.13
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
@@ -206,15 +242,54 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Versión detectada: $VERSION"
 
-      - name: Descargar todos los artefactos
+      # El commit que acaba de llegar a master es el merge del pull request, y
+      # de ahi sale el sha de su head: el commit que compilo los instaladores.
+      # Con ese sha se ubica la corrida que los dejo como artefactos.
+      - name: Ubicar la corrida que compiló los instaladores
+        id: corrida
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
+            --jq '.[0].head.sha // empty')
+          if [ -z "$HEAD_SHA" ]; then
+            echo "::error::No se encontro el pull request que trajo $SHA a master. Los instaladores salen de su corrida, asi que sin pull request no hay nada que publicar."
+            exit 1
+          fi
+          echo "Head del pull request: $HEAD_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> $GITHUB_OUTPUT
+
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow release.yml --commit "$HEAD_SHA" \
+            --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No hay una corrida exitosa de release.yml para $HEAD_SHA. Volve a correr el workflow en el pull request y despues reintenta este job."
+            exit 1
+          fi
+          echo "Corrida con los instaladores: $RUN_ID"
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Descargar los instaladores del pull request
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ steps.corrida.outputs.RUN_ID }}
+          github-token: ${{ github.token }}
           path: dist-release
           merge-multiple: true
 
-      - name: Listar archivos a publicar
+      # Si un artefacto expiro o quedo sin subir, mejor frenar que publicar una
+      # release a la que le falta una plataforma.
+      - name: Comprobar que estén los tres instaladores
         run: |
           ls -la dist-release/
+          for extension in msi dmg flatpak; do
+            if [ -z "$(find dist-release -maxdepth 1 -name "*.$extension" -print -quit)" ]; then
+              echo "::error::Falta el instalador .$extension entre los artefactos de la corrida."
+              exit 1
+            fi
+          done
 
       - name: Publicar Release en GitHub
         uses: softprops/action-gh-release@v3
@@ -228,3 +303,61 @@ jobs:
             dist-release/*.msi
             dist-release/*.dmg
             dist-release/*.flatpak
+
+  # El pull request de dev a master se mergea con squash, asi que master queda
+  # con un commit que tiene todo el contenido y ninguno de los commits de dev en
+  # su historia. Si dev no lo incorpora, el pull request siguiente vuelve a
+  # proponer todo lo que master ya tiene aplastado: git lo ve como historia
+  # divergente sobre los mismos archivos y conflictua sin que nadie haya tocado
+  # nada. Paso a mano seria uno por release, y de los que se olvidan, porque no
+  # duele al publicar sino al abrir el pull request siguiente.
+  back-merge:
+    name: Traer master de vuelta a dev
+    needs: publish-release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clonar dev con toda la historia
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          # El merge tiene que ver las dos historias enteras, no el ultimo commit.
+          fetch-depth: 0
+
+      # Se mergea con estrategia ours, que se queda con el arbol de dev sin
+      # mirar el de master. Eso es correcto solo mientras master no tenga nada
+      # propio, y hoy siempre es asi porque el ruleset lo obliga a recibir todo
+      # por pull request desde dev. Si algun dia deja de serlo -un hotfix
+      # commiteado derecho sobre master- el merge lo descartaria en silencio,
+      # asi que se comprueba antes y se frena.
+      - name: Comprobar que master no traiga nada que dev no tenga
+        env:
+          HEAD_SHA: ${{ needs.publish-release.outputs.head_sha }}
+        run: |
+          if ! git diff --quiet "$HEAD_SHA" origin/master; then
+            echo "::error::master tiene contenido que no esta en $HEAD_SHA, el head del pull request que acaba de publicar. Traelo a dev a mano: un merge con estrategia ours lo descartaria."
+            git --no-pager diff --stat "$HEAD_SHA" origin/master
+            exit 1
+          fi
+          echo "master no aporta contenido propio: el back-merge es seguro."
+
+      - name: Traer master a dev
+        env:
+          VERSION: ${{ needs.publish-release.outputs.version }}
+        run: |
+          # Si el pull request se mergeo con merge commit en vez de squash, dev
+          # ya es descendiente de master y no hay nada que traer.
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "dev ya contiene a master, no hay nada que traer."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge -s ours --no-edit origin/master \
+            -m "Traer master de vuelta a dev despues de la release $VERSION" \
+            -m "Cierra el ciclo del squash: dev incorpora el commit con que master publico la release, para que el pull request siguiente proponga solo lo nuevo. Se mergea con estrategia ours porque ese contenido ya esta en dev."
+          git push origin dev
+          echo "master quedo incorporado a dev."
