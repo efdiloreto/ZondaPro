@@ -817,14 +817,15 @@ class CubiertaComponentes:
     Determina los coeficientes de presión de cubierta de edificio para Componentes y Revestimientos.
 
     Sólo se proveen las tablas del CIRSOC 102-2025: la Tabla C 5.3-2 (Fig. 5.3-2A,
-    cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m) y la Tabla C
-    5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m). El resto de la
-    geometría (cubiertas a un agua, otros ángulos o alturas) todavía no tiene
+    cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m), la Tabla C
+    5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m) y la Tabla C
+    5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m). El resto de
+    la geometría (cubiertas a un agua, otros ángulos o alturas) todavía no tiene
     lineamientos 2025 migrados y lanza ErrorLineamientos.
 
-    TODO: el alero de la Tabla C 5.3-3 debería resolverse por el Art. 5.7 del
-    reglamento (superficie superior + inferior de pared); hoy usa sólo la
-    superficie superior (ver issue).
+    TODO: el alero de las Tablas C 5.3-3 y C 5.3-4 debería resolverse por el
+    Art. 5.7 del reglamento (superficie superior + inferior de pared); hoy usa
+    sólo la superficie superior (ver issue).
     """
 
     def __init__(
@@ -936,6 +937,26 @@ class CubiertaComponentes:
                 },
                 ZonaComponenteCubiertaEdificio.TRES: {
                     "cp": (-3.6, -1.8),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.TODAS: {
+                    "cp": (0.6, 0.3),
+                    "area": (1, 20),
+                },
+            },
+            # CIRSOC 102-2025 - Tabla C 5.3-4 (Figura 5.3-2C). Cada zona
+            # declara su rango de áreas.
+            "Tabla C 5.3-4": {
+                ZonaComponenteCubiertaEdificio.UNO: {
+                    "cp": (-1.5, -0.8),
+                    "area": (1, 20),
+                },
+                ZonaComponenteCubiertaEdificio.DOS: {
+                    "cp": (-2.5, -1.2),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.TRES: {
+                    "cp": (-3.0, -1.4),
                     "area": (1, 10),
                 },
                 ZonaComponenteCubiertaEdificio.TODAS: {
@@ -1105,10 +1126,12 @@ class CubiertaComponentes:
             return "Tabla C 5.3-2"
         if self.angulo <= 20:
             return "Tabla C 5.3-3"
+        if self.angulo <= 27:
+            return "Tabla C 5.3-4"
         raise excepciones.ErrorLineamientos(
             "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
             "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas a dos aguas con ángulo > 20° (Figuras 5.3-2 C a G "
+            "de cubiertas a dos aguas con ángulo > 27° (Figuras 5.3-2 D a G "
             "pendientes de migrar)."
         )
 

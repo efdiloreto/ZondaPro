@@ -1005,7 +1005,7 @@ class PresionesComponentes(Geometria):
         """
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
-        if self._referencia_cubierta == "Tabla C 5.3-3":
+        if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
             return self._cubierta_tabla_c_5_3_3()
         return {}
 
@@ -1014,12 +1014,15 @@ class PresionesComponentes(Geometria):
             return super().cubierta.__wrapped__(self, 0, self.longitud)
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
-        if self._referencia_cubierta == "Tabla C 5.3-3":
+        if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
             return self._cubierta_tabla_c_5_3_3()
         return {}
 
     def _cubierta_tabla_c_5_3_3(self):
-        """Determina las coordenadas de las zonas de la Figura 5.3-2B.
+        """Determina las coordenadas de las zonas de las Figuras 5.3-2B y C.
+
+        La Tabla C 5.3-3 (Figura 5.3-2B) y la Tabla C 5.3-4 (Figura 5.3-2C)
+        reparten las zonas de la misma forma.
 
         Cada faldón se divide en un listón de ancho "a" junto a la cumbrera y
         un campo que llega hasta el borde exterior del voladizo si existe
