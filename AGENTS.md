@@ -5,6 +5,8 @@ Interfaz en **PyQt6**, visualización 3D en **Qt Quick 3D** y reportes técnicos
 
 **Convención de idioma:** Todo el código, nombres de funciones/variables, comentarios y docstrings están en **español**. Mantené esta convención en cualquier cambio o agregado.
 
+**Comunicaciones técnicas:** Los mensajes de issues, pull requests, commits, releases y demás comunicaciones del repositorio se escriben en español, **claros y concisos**: un tema por mensaje, explicando el efecto (sobre todo en los cambios numéricos) y sin rodeos.
+
 ---
 
 ## Estructura y Comandos
@@ -45,8 +47,20 @@ El flujo de dependencias es estrictamente unidireccional:
    - `directores/`: **Geometría.** Una clase por tipología y sistema resistente (`Geometria`, `PresionesSprfvMetodoDireccional`, `PresionesComponentes`). Los métodos devuelven sólo coordenadas; el decorador `actores_poligonos` (en `actores.py`) recorre lo devuelto -un polígono, una tupla o un diccionario anidado- con `aplicar_func_recursivamente`, crea un `ActorPresion` por polígono respetando esa estructura y, con `crear_atributo=True`, lo guarda como `actores_<nombre del método>`. Los helpers de `utils_geometria.py` proyectan distancias horizontales sobre el plano de cubierta.
    - `escenas/`: **Presentación.** Leen `estructura.resultados`, indexan las filas, arman la `TablaColores` con `resultados.min_max()`, instancian el director y en cada `actualizar_*` buscan la fila y llaman `actor.asignar_presion()`. Son las que consumen los widgets, que del director sólo usan la cámara (`setear_posicion_camara`) y `volumen()`: nunca le piden geometría ni presiones.
 3. **`zonda/widgets/` (Interfaz PyQt6):**
-   - `zonda.py` (pantalla de bienvenida / selector de módulo).
+   - `zonda.py` (ventana de inicio). Es una ventana común del sistema, con
+     barra de título y geometría recordada en `QSettings`. Además de elegir el
+     módulo, ofrece los proyectos recientes, abrir uno del disco, los accesos
+     generales (ayuda, configuración, acerca de) y la franja que avisa de una
+     versión nueva. `abrir_proyecto()` vive acá y no en `main.py` porque es la
+     bienvenida la que abre los módulos.
    - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
+   - `apoyo.py` (columna lateral de patrocinadores de la pantalla de inicio, el
+     perfil de un patrocinador de oro y la ventana de Agradecimientos). Cada
+     nivel se comporta distinto y eso es lo que compra: oro abre su perfil
+     dentro del programa, plata abre el enlace que eligió, bronce sólo figura
+     en Agradecimientos. Las instrucciones para patrocinar viven en
+     `PATROCINIO.md`, no en el programa: así los montos cambian sin publicar
+     una versión.
 4. **Módulos transversales (`zonda/`):**
    - `enums.py` (enumerados del dominio), `tipos.py` (sólo alias geométricos y
      numéricos; los resultados se describen en `cirsoc/resultados.py`),
@@ -54,6 +68,16 @@ El flujo de dependencias es estrictamente unidireccional:
    - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
    - `reportes.py`: Motor de plantillas Jinja2 y compilación con pandoc.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
+   - `recientes.py`: Los últimos proyectos abiertos o guardados, en `QSettings`.
+     Los que ya no están en disco se saltean al listar pero no se borran: pueden
+     estar en un disco desconectado.
+   - `patrocinadores.py`: Lee `recursos/patrocinadores/patrocinadores.json` y
+     `colaboradores.json`. **Los enlaces se validan al leer**: sólo `http`,
+     `https` y `mailto`, porque terminan en `QDesktopServices.openUrl()` y un
+     `file://` ahí abriría archivos de la máquina del usuario. Los dos archivos
+     viajan empaquetados con cada versión, y ninguna entrada mal formada puede
+     impedir que el programa arranque: se ignora y sigue. Cómo sumar a alguien
+     está en el `LEEME.md` de ese directorio.
 
 ---
 

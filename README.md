@@ -109,6 +109,20 @@ Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento,
 
 ---
 
+## Apoyá el proyecto
+
+Zonda es libre y gratuito, y lo va a seguir siendo. Lo mantiene muy poca gente, en el tiempo que le queda libre, y le ahorra horas de cálculo y verificación a cada profesional que lo usa.
+
+Los estudios que lo patrocinan aparecen en la columna lateral de la pantalla de inicio del programa. Hay tres niveles —oro, plata y bronce—, y quienes se sumen en los primeros meses conservan el distintivo de **Fundador**.
+
+**[Cómo patrocinar el proyecto →](PATROCINIO.md)**
+
+### Patrocinadores
+
+Todavía no hay ninguno. **Tu estudio puede ser el primero.**
+
+---
+
 ## Licencia
 
 Zonda es software libre: podés redistribuirlo y/o modificarlo bajo los términos de la [Licencia Pública General de GNU](LICENSE), versión 3 o posterior, publicada por la Free Software Foundation.

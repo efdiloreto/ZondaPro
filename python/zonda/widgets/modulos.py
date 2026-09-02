@@ -20,7 +20,8 @@ datos de la estructura y visualizar sus resultados.
 
 Cada módulo lleva una barra de menús con las acciones de archivo —nuevo, abrir,
 guardar, guardar como— y las opciones generales del programa —configuración,
-ayuda y acerca de—, que antes vivían en la pantalla de bienvenida.
+ayuda y acerca de—, que la pantalla de inicio también ofrece para cuando no hay
+ningún módulo abierto.
 
 Por eso el módulo es un ``QMainWindow`` y no un ``QWidget`` suelto: es la
 ventana principal la que sabe ubicar y dibujar una ``QMenuBar`` como corresponde
@@ -50,7 +51,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import __acercade__, proyecto, recursos
+from zonda import __acercade__, proyecto, recientes, recursos
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 from zonda.enums import Estructura
 from zonda.excepciones import ErrorArchivo, ErrorEstructura, ErrorLineamientos
@@ -329,6 +330,9 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             raise ErrorArchivo("El archivo está incompleto o dañado.") from error
         self._limpiar_resultados()
         self._ruta_archivo = Path(ruta)
+        # Abrir y guardar son los dos momentos en que alguien eligió este
+        # archivo, así que son los dos que lo anotan como reciente.
+        recientes.registrar(self._ruta_archivo)
         self._estado_guardado = self._estado()
         self._actualizar_titulo()
 
@@ -384,6 +388,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             )
             return False
         self._ruta_archivo = ruta
+        recientes.registrar(ruta)
         self._estado_guardado = estado
         self._actualizar_titulo()
         return True

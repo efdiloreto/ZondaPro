@@ -24,10 +24,9 @@ necesitan un servidor gráfico.
 import sys
 
 import pytest
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtWidgets
 
 from zonda import recursos
-from zonda.widgets.custom import WidgetSinBorde
 
 from .conftest import SIN_OPENGL
 
@@ -484,55 +483,6 @@ def test_guardar_y_abrir_desde_el_modulo(modulo, tmp_path):
     _, estado = proyecto.abrir(archivo)
     modulo._cargar_estado(estado)
     assert modulo._widget_estructura._spinboxs["ancho"].value() == 77.5
-
-
-def test_arrastrar_una_ventana_sin_borde_la_mueve(qapp):
-    """El press y el move llegan como los despacha Qt, no llamando al método.
-
-    Antes de esto usaban ``globalPos()``, que Qt6 eliminó: el ``AttributeError``
-    dentro de un virtual reimplementado hace que PyQt6 aborte el proceso, así
-    que un clic sobre la pantalla de bienvenida cerraba el programa.
-    """
-    ventana = WidgetSinBorde()
-    ventana.move(100, 100)
-
-    for tipo, pos in (
-        (QtCore.QEvent.Type.MouseButtonPress, QtCore.QPointF(200, 200)),
-        (QtCore.QEvent.Type.MouseMove, QtCore.QPointF(230, 215)),
-    ):
-        qapp.sendEvent(
-            ventana,
-            QtGui.QMouseEvent(
-                tipo,
-                QtCore.QPointF(10, 10),
-                pos,
-                QtCore.Qt.MouseButton.LeftButton,
-                QtCore.Qt.MouseButton.LeftButton,
-                QtCore.Qt.KeyboardModifier.NoModifier,
-            ),
-        )
-
-    assert (ventana.x(), ventana.y()) == (130, 115)
-
-
-def test_mover_sin_haber_apretado_no_hace_nada(qapp):
-    """Sin un press previo no hay desde dónde medir el arrastre."""
-    ventana = WidgetSinBorde()
-    ventana.move(100, 100)
-
-    qapp.sendEvent(
-        ventana,
-        QtGui.QMouseEvent(
-            QtCore.QEvent.Type.MouseMove,
-            QtCore.QPointF(10, 10),
-            QtCore.QPointF(500, 500),
-            QtCore.Qt.MouseButton.NoButton,
-            QtCore.Qt.MouseButton.LeftButton,
-            QtCore.Qt.KeyboardModifier.NoModifier,
-        ),
-    )
-
-    assert (ventana.x(), ventana.y()) == (100, 100)
 
 
 def test_widget_cerramiento_edificio(qapp):

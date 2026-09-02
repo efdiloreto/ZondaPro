@@ -18,7 +18,7 @@
 import webbrowser
 from collections.abc import Callable
 
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from zonda import __acercade__, recursos
 from zonda.enums import (
@@ -46,6 +46,10 @@ class WidgetBotonModulo(QtWidgets.QWidget):
 
         boton = QtWidgets.QPushButton()
         boton.setProperty("class", "modulo")
+        # El boton es solo icono: sin nombre accesible, un lector de pantalla
+        # anuncia "boton" tres veces y no hay forma de saber cual es cual.
+        boton.setAccessibleName(label)
+        boton.setToolTip(label)
         boton.setIcon(recursos.icono(clave_icono))
         boton.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         boton.setIconSize(QtCore.QSize(128, 128))
@@ -59,6 +63,7 @@ class WidgetBotonModulo(QtWidgets.QWidget):
         layout_principal.setSpacing(0)
         layout_principal.addWidget(boton)
         layout_principal.addWidget(widget_label)
+
         layout_principal.addStretch()
 
         self.setLayout(layout_principal)
@@ -251,35 +256,22 @@ class WidgetPanelResultados(WidgetPanel):
         self.setLayout(layout_botones)
 
 
-class WidgetSinBorde(QtWidgets.QWidget):
-    """Una ventana sin barra de título, que se arrastra desde cualquier lado.
+def enlaces_de_autores(color: str = "#606060") -> str:
+    """Los nombres de los autores, cada uno enlazado a su perfil.
 
-    La posición del puntero se pide con ``globalPosition()``, que devuelve un
-    ``QPointF``. El ``globalPos()`` de Qt5 no existe más: al llamarlo saltaba un
-    ``AttributeError``, y como PyQt6 aborta el proceso cuando un virtual
-    reimplementado levanta una excepción, un clic sobre la ventana cerraba el
-    programa de golpe.
+    Devuelve el fragmento y no un widget porque los dos lugares que lo usan
+    —el "Acerca de" y el pie de la pantalla de inicio— lo meten dentro de un
+    texto propio.
+
+    Args:
+        color: Con qué color se dibujan los enlaces.
+
+    Returns: El HTML con un enlace por autor, separados por coma.
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._pos_ult: QtCore.QPoint | None = None
-        self.setWindowFlag(QtCore.Qt.WindowType.FramelessWindowHint)
-
-    def mousePressEvent(self, a0: QtGui.QMouseEvent | None) -> None:
-        if a0 is None:
-            return
-        self._pos_ult = a0.globalPosition().toPoint()
-
-    def mouseMoveEvent(self, a0: QtGui.QMouseEvent | None) -> None:
-        # Sin un press previo no hay desde dónde medir el arrastre.
-        if a0 is None or self._pos_ult is None:
-            return
-        pos = a0.globalPosition().toPoint()
-        delta = pos - self._pos_ult
-        self.move(self.x() + delta.x(), self.y() + delta.y())
-        self._pos_ult = pos
+    return ", ".join(
+        f'<a style="color: {color}" href="{perfil}">{nombre}</a>'
+        for nombre, perfil in __acercade__.__autores__
+    )
 
 
 class WidgetLabelLinkInfo(QtWidgets.QLabel):
@@ -323,11 +315,15 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         # layout necesita saber cuánto ocupa el párrafo ya envuelto.
         label_descripcion.setFixedWidth(430)
 
+        label_garantia = QtWidgets.QLabel(
+            "Zonda se distribuye SIN NINGUNA GARANTÍA, bajo los términos de la"
+            " Licencia Pública General de GNU, versión 3 o posterior."
+        )
+        label_garantia.setWordWrap(True)
+        label_garantia.setFixedWidth(430)
+
         label_copyright = QtWidgets.QLabel(
-            f"Copyright © {__acercade__.__anio_inicio__}"
-            f" {__acercade__.__autor__}. Zonda se distribuye SIN NINGUNA GARANTÍA,"
-            " bajo los términos de la Licencia Pública General de GNU,"
-            " versión 3 o posterior."
+            f"Copyright © {__acercade__.anios_copyright()} {__acercade__.__autor__}."
         )
         label_copyright.setWordWrap(True)
         label_copyright.setFixedWidth(430)
@@ -338,16 +334,7 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         informacion = (
             ("Versión", QtWidgets.QLabel(__acercade__.__version__)),
             ("Licencia", QtWidgets.QLabel(__acercade__.__licencia__)),
-            (
-                "Autores",
-                WidgetLabelLinkInfo(__acercade__.__autor__, __acercade__.__autor_web__),
-            ),
-            (
-                "E-Mail",
-                WidgetLabelLinkInfo(
-                    __acercade__.__autor_email__, __acercade__.__contacto__
-                ),
-            ),
+            ("Autores", _label_autores()),
             ("Source", WidgetLabelLinkInfo(__acercade__.__web__, __acercade__.__web__)),
         )
 
@@ -374,12 +361,18 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         boton_licencia.clicked.connect(
             lambda _=False: webbrowser.open(__acercade__.__licencia_url__)
         )
+        boton_agradecimientos = botones.addButton(
+            "Agradecimientos", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+        )
+        boton_agradecimientos.clicked.connect(lambda _=False: self._agradecimientos())
         botones.rejected.connect(self.reject)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addWidget(widget_logo)
         layout_principal.addSpacing(20)
         layout_principal.addWidget(label_descripcion)
+        layout_principal.addSpacing(10)
+        layout_principal.addWidget(label_garantia)
         layout_principal.addSpacing(10)
         layout_principal.addWidget(label_copyright)
         layout_principal.addSpacing(10)
@@ -401,6 +394,29 @@ class WidgetAcercaDe(QtWidgets.QDialog):
 
         self.setWindowTitle("Acerca de Zonda")
         self.show()
+
+    def _agradecimientos(self) -> None:
+        """Abre la ventana con los patrocinadores y los colaboradores.
+
+        El import va acá adentro porque ``apoyo`` importa este módulo para el
+        panel, y al revés en el encabezado sería un ciclo.
+        """
+        from zonda.widgets.apoyo import DialogoAgradecimientos
+
+        DialogoAgradecimientos(self)
+
+
+def _label_autores() -> QtWidgets.QLabel:
+    """Los autores del "Acerca de", cada uno enlazado a su perfil.
+
+    Returns: El label con los dos enlaces.
+    """
+    label = QtWidgets.QLabel(enlaces_de_autores())
+    # Con TextBrowserInteraction los enlaces entran en la cadena del tabulador,
+    # cosa que un label de sólo lectura no da por sí solo.
+    label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextBrowserInteraction)
+    label.setOpenExternalLinks(True)
+    return label
 
 
 def _linea_horizontal() -> QtWidgets.QFrame:

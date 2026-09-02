@@ -153,6 +153,40 @@ def construir_app_bundle() -> Path:
     return APP_BUNDLE
 
 
+def firmar_bundle(app_bundle: Path) -> None:
+    """Firma el bundle ad-hoc para que el sellado de recursos quede consistente.
+
+    El lanzador que va en Contents/MacOS llega firmado por el linker: en Apple
+    Silicon el linker le pone una firma ad-hoc a cada binario que produce. Esa
+    firma cubre el binario, no el bundle, asi que cuando acá se le arma un
+    Contents/Resources alrededor el bundle termina con una firma que declara
+    tener recursos sellados y sin el Contents/_CodeSignature que los sella.
+
+    Gatekeeper no lo lee como una firma ausente sino como una firma rota, y esa
+    diferencia se nota del lado del usuario: a la app descargada la rechaza con
+    "is damaged and can't be opened", que no se puede saltear, en vez del aviso
+    de desarrollador no identificado, que sí se saltea abriendo con click
+    derecho. Firmar el bundle entero escribe el CodeResources que falta.
+
+    No reemplaza a la firma con Developer ID ni a la notarización: la app sigue
+    figurando como de origen desconocido y hay que aceptarla la primera vez.
+
+    Args:
+        app_bundle: El Zonda.app recién construido.
+    """
+    print("=== Firmando Zonda.app ===")
+
+    # --deep alcanza para ad-hoc, que es lo único que se firma acá. Una firma
+    # con Developer ID tendría que ir de adentro hacia afuera: para ese caso
+    # Apple lo desaconseja.
+    subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(app_bundle)], check=True)
+
+    # Si el sellado quedó mal, mejor que falle el empaquetado y no el usuario.
+    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app_bundle)], check=True)
+
+    print(f"✓ Zonda.app firmado ad-hoc: {app_bundle}")
+
+
 def crear_dmg(app_bundle: Path) -> Path:
     """Genera la imagen .dmg usando hdiutil de macOS con enlace a /Applications."""
     print("=== Creando imagen de disco Zonda.dmg ===")
@@ -197,6 +231,7 @@ def main() -> None:
         sys.exit(1)
 
     app = construir_app_bundle()
+    firmar_bundle(app)
     crear_dmg(app)
 
 
