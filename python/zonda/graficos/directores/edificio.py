@@ -1007,6 +1007,8 @@ class PresionesComponentes(Geometria):
             return self._cubierta_tabla_c_5_3_2()
         if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
             return self._cubierta_tabla_c_5_3_3()
+        if self._referencia_cubierta == "Tabla C 5.3-5":
+            return self._cubierta_tabla_c_5_3_5()
         return {}
 
     def _seleccionar_cubierta(self):
@@ -1016,6 +1018,8 @@ class PresionesComponentes(Geometria):
             return self._cubierta_tabla_c_5_3_2()
         if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
             return self._cubierta_tabla_c_5_3_3()
+        if self._referencia_cubierta == "Tabla C 5.3-5":
+            return self._cubierta_tabla_c_5_3_5()
         return {}
 
     def _cubierta_tabla_c_5_3_3(self):
@@ -1085,6 +1089,111 @@ class PresionesComponentes(Geometria):
             ZonaComponenteCubiertaEdificio.UNO: [
                 (borde_izq, centro),
                 (borde_der, centro),
+            ],
+        }
+
+        coords_faldon_izq = defaultdict(list)
+        coords_faldon_der = defaultdict(list)
+        for zona, rectangulos in rectangulos_zonas.items():
+            for (x_inicio, x_fin), (z_inicio, z_fin) in rectangulos:
+                if x_fin - x_inicio < TOLERANCIA or z_fin - z_inicio < TOLERANCIA:
+                    continue
+                faldones = (
+                    (
+                        coords_faldon_izq,
+                        (x_inicio, min(x_fin, x_cumbrera)),
+                        punto_alero_inicio,
+                        punto_mitad,
+                    ),
+                    (
+                        coords_faldon_der,
+                        (max(x_inicio, x_cumbrera), x_fin),
+                        punto_mitad,
+                        punto_alero_fin,
+                    ),
+                )
+                for coords, (x_faldon_inicio, x_faldon_fin), origen, fin in faldones:
+                    if x_faldon_fin - x_faldon_inicio < TOLERANCIA:
+                        continue
+                    coords[zona].append(
+                        coords_zona_cubierta_desde_proyeccion(
+                            (inicio + x_faldon_inicio, inicio + x_faldon_fin),
+                            origen,
+                            fin,
+                            -z_inicio,
+                            -z_fin,
+                        )
+                    )
+        return {
+            "faldon izq": dict(coords_faldon_izq),
+            "faldon der": dict(coords_faldon_der),
+        }
+
+    def _cubierta_tabla_c_5_3_5(self):
+        """Determina las coordenadas de las zonas de la Figura 5.3-2D.
+
+        Cada faldón se divide en dos bandas de profundidad "a" junto a los
+        bordes de cabecera y un campo central que llega hasta el borde
+        exterior del voladizo si existe (Nota 7). Las Zonas 3 son los
+        cuadrados a×a de las esquinas; las Zonas 2 el resto de esas bandas -el
+        tramo que corre entre la esquina y la cumbrera-; la Zona 1 el campo
+        central. Los rectángulos se arman en planta y se parten en la cumbrera
+        para proyectarlos sobre cada faldón.
+
+        Returns:
+            Las coordenadas de las zonas de cada faldón.
+        """
+        mitad_ancho = self.ancho / 2
+        punto_mitad = (mitad_ancho, self.altura_cumbrera)
+
+        if self.alero_:
+            punto_alero_inicio = tuple(
+                punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad)
+            )
+            punto_alero_fin = (
+                self.ancho + abs(punto_alero_inicio[0]),
+                punto_alero_inicio[1],
+            )
+        else:
+            punto_alero_inicio = (0, self.altura_alero)
+            punto_alero_fin = (self.ancho, self.altura_alero)
+
+        inicio = punto_alero_inicio[0]
+        ancho_total = punto_alero_fin[0] - inicio
+        profundidad = -self.longitud  # La longitud es negativa.
+
+        x_cumbrera = mitad_ancho - inicio
+
+        # Si el edificio es chico las bandas se solapan, así que la distancia
+        # "a" se recorta a la mitad de la menor dimensión en planta.
+        mitad_menor_dimension = min(ancho_total, profundidad) / 2
+        a = min(self._distancia_a, mitad_menor_dimension)
+
+        # Bandas de cabecera (a de profundidad) y campo central.
+        banda_delantera = (0, a)
+        campo_central = (a, profundidad - a)
+        banda_trasera = (profundidad - a, profundidad)
+        # Esquinas y tramo medio entre esquina y cumbrera.
+        esquina_izq = (0, a)
+        tramo_izq = (a, x_cumbrera)
+        tramo_der = (x_cumbrera, ancho_total - a)
+        esquina_der = (ancho_total - a, ancho_total)
+
+        rectangulos_zonas = {
+            ZonaComponenteCubiertaEdificio.TRES: [
+                (esquina_izq, banda_delantera),
+                (esquina_izq, banda_trasera),
+                (esquina_der, banda_delantera),
+                (esquina_der, banda_trasera),
+            ],
+            ZonaComponenteCubiertaEdificio.DOS: [
+                (tramo_izq, banda_delantera),
+                (tramo_izq, banda_trasera),
+                (tramo_der, banda_delantera),
+                (tramo_der, banda_trasera),
+            ],
+            ZonaComponenteCubiertaEdificio.UNO: [
+                ((0, ancho_total), campo_central),
             ],
         }
 

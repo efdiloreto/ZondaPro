@@ -818,14 +818,15 @@ class CubiertaComponentes:
 
     Sólo se proveen las tablas del CIRSOC 102-2025: la Tabla C 5.3-2 (Fig. 5.3-2A,
     cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m), la Tabla C
-    5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m) y la Tabla C
-    5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m). El resto de
+    5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m), la Tabla C
+    5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m) y la Tabla C
+    5.3-5 (Fig. 5.3-2D, 27° < ángulo <= 45° y altura media <= 20 m). El resto de
     la geometría (cubiertas a un agua, otros ángulos o alturas) todavía no tiene
     lineamientos 2025 migrados y lanza ErrorLineamientos.
 
-    TODO: el alero de las Tablas C 5.3-3 y C 5.3-4 debería resolverse por el
-    Art. 5.7 del reglamento (superficie superior + inferior de pared); hoy usa
-    sólo la superficie superior (ver issue).
+    TODO: el alero de las Tablas C 5.3-3, C 5.3-4 y C 5.3-5 debería resolverse
+    por el Art. 5.7 del reglamento (superficie superior + inferior de pared);
+    hoy usa sólo la superficie superior (ver issue).
     """
 
     def __init__(
@@ -964,14 +965,34 @@ class CubiertaComponentes:
                     "area": (1, 20),
                 },
             },
+            # CIRSOC 102-2025 - Tabla C 5.3-5 (Figura 5.3-2D). Cada zona
+            # declara su rango de áreas.
+            "Tabla C 5.3-5": {
+                ZonaComponenteCubiertaEdificio.UNO: {
+                    "cp": (-1.8, -0.8),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.DOS: {
+                    "cp": (-2.0, -1.0),
+                    "area": (1, 20),
+                },
+                ZonaComponenteCubiertaEdificio.TRES: {
+                    "cp": (-2.5, -1.0),
+                    "area": (1, 20),
+                },
+                ZonaComponenteCubiertaEdificio.TODAS: {
+                    "cp": (0.9, 0.5),
+                    "area": (1, 20),
+                },
+            },
         }
         if self.es_alero:
             # Tabla C 5.3-2, bloque "Negativo con voladizo". Las Zonas 1 y
             # 1' comparten curva y los valores ya incluyen las presiones de
             # las superficies superior e inferior del voladizo (Nota 6).
-            # La Tabla C 5.3-3 resuelve el voladizo por el Art. 5.7 (aún
-            # pendiente, ver issue): por ahora el alero usa la superficie
-            # superior, o sea el bloque de la cubierta.
+            # Las Tablas C 5.3-3, 5.3-4 y 5.3-5 resuelven el voladizo por el
+            # Art. 5.7 (aún pendiente, ver issue): por ahora el alero usa la
+            # superficie superior, o sea el bloque de la cubierta.
             casos["Tabla C 5.3-2"].update(
                 {
                     ZonaComponenteCubiertaEdificio.UNO_PRIMA: {
@@ -1128,10 +1149,12 @@ class CubiertaComponentes:
             return "Tabla C 5.3-3"
         if self.angulo <= 27:
             return "Tabla C 5.3-4"
+        if self.angulo <= 45:
+            return "Tabla C 5.3-5"
         raise excepciones.ErrorLineamientos(
             "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
             "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas a dos aguas con ángulo > 27° (Figuras 5.3-2 D a G "
+            "de cubiertas a dos aguas con ángulo > 45° (Figuras 5.3-2 E a G "
             "pendientes de migrar)."
         )
 

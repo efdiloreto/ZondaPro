@@ -818,7 +818,7 @@ def test_cubierta_componentes_referencia_tabla_c533():
     assert _cubierta_componentes(3, angulo=7).referencia == "Tabla C 5.3-2"
     # Fuera del alcance 2025: sin lineamientos.
     with pytest.raises(ErrorLineamientos):
-        _ = _cubierta_componentes(3, angulo=28).referencia
+        _ = _cubierta_componentes(3, angulo=46).referencia
     with pytest.raises(ErrorLineamientos):
         _ = _cubierta_componentes(3, altura_media=21).referencia
     with pytest.raises(ErrorLineamientos):
@@ -838,6 +838,19 @@ def test_cubierta_componentes_referencia_tabla_c534():
     assert _cubierta_componentes(3, angulo=20).referencia == "Tabla C 5.3-3"
     # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
     assert _cubierta_componentes(3, angulo=25).distancias_zonas is None
+
+
+def test_cubierta_componentes_referencia_tabla_c535():
+    """La cubierta a dos aguas con 27° < θ ≤ 45° y h ≤ 20 m usa la Tabla C 5.3-5."""
+    assert _cubierta_componentes(3, angulo=28).referencia == "Tabla C 5.3-5"
+    assert _cubierta_componentes(3, angulo=45).referencia == "Tabla C 5.3-5"
+    assert (
+        _cubierta_componentes(3, angulo=36, es_alero=True).referencia == "Tabla C 5.3-5"
+    )
+    # Límite: θ = 27° sigue en la 5.3-4.
+    assert _cubierta_componentes(3, angulo=27).referencia == "Tabla C 5.3-4"
+    # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
+    assert _cubierta_componentes(3, angulo=36).distancias_zonas is None
 
 
 def test_cubierta_componentes_referencia_tabla_c532_planas():
@@ -969,6 +982,67 @@ def test_cubierta_componentes_alero_tabla_c534():
     """
     cubierta = _cubierta_componentes(5, angulo=25)
     alero = _cubierta_componentes(5, angulo=25, es_alero=True)
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    valores_cubierta = _valores_por_zona(cubierta)
+    valores_alero = _valores_por_zona(alero)
+    assert zonas.TODAS not in valores_alero
+    for zona in (zonas.UNO, zonas.DOS, zonas.TRES):
+        assert valores_alero[zona] == pytest.approx(valores_cubierta[zona])
+
+
+def test_cubierta_componentes_valores_tabla_c535():
+    """Los GCp de la Tabla C 5.3-5 (Figura 5.3-2D).
+
+    Los esperados salen de las fórmulas de la tabla, que son otra forma de
+    escribir la interpolación logarítmica entre los extremos de cada zona.
+    """
+    log10 = np.log10
+
+    def esperado(area: float) -> dict:
+        # zona: (área tramo constante, extremo, cst, pendiente, área tope, tope)
+        pendientes = {
+            enums.ZonaComponenteCubiertaEdificio.UNO: (1, -1.8, -1.8, 1.000, 10, -0.8),
+            enums.ZonaComponenteCubiertaEdificio.DOS: (1, -2.0, -2.0, 0.7686, 20, -1.0),
+            enums.ZonaComponenteCubiertaEdificio.TRES: (
+                1,
+                -2.5,
+                -2.5,
+                1.1529,
+                20,
+                -1.0,
+            ),
+        }
+        negativos = {}
+        for zona, (area_a, extremo, cst, pendiente, area_b, tope) in pendientes.items():
+            if area <= area_a:
+                negativos[zona] = extremo
+            elif area <= area_b:
+                negativos[zona] = cst + pendiente * log10(area)
+            else:
+                negativos[zona] = tope
+        if area <= 1:
+            positivo = 0.9
+        elif area <= 20:
+            positivo = 0.9 - 0.3074 * log10(area)
+        else:
+            positivo = 0.5
+        negativos[enums.ZonaComponenteCubiertaEdificio.TODAS] = positivo
+        return negativos
+
+    for area in (0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 60.0):
+        valores_cp = _valores_por_zona(_cubierta_componentes(area, angulo=36))
+        assert valores_cp == pytest.approx(esperado(area), abs=0.001)
+
+
+def test_cubierta_componentes_alero_tabla_c535():
+    """El alero de la Tabla C 5.3-5 usa la superficie superior de la cubierta.
+
+    Igual que en las Tablas C 5.3-3 y 5.3-4, la Nota de la Figura 5.3-2D envía
+    los voladizos al Art. 5.7 (pendiente, ver issue): el alero toma los valores
+    de la cubierta sin el positivo de la zona "todas".
+    """
+    cubierta = _cubierta_componentes(5, angulo=36)
+    alero = _cubierta_componentes(5, angulo=36, es_alero=True)
     zonas = enums.ZonaComponenteCubiertaEdificio
     valores_cubierta = _valores_por_zona(cubierta)
     valores_alero = _valores_por_zona(alero)
