@@ -176,7 +176,6 @@ class Cartel:
         altura_superior: float,
         ancho: float,
         profundidad: float,
-        es_parapeto: bool = False,
         epsilon: float = 1.0,
         doble_cara: bool = False,
         esquina_retorno: float = 0.0,
@@ -189,8 +188,6 @@ class Cartel:
             altura_superior: h, la altura medida desde el suelo hasta la punta del cartel.
             ancho: B, el ancho del cartel.
             profundidad: t, el espesor del cartel.
-            es_parapeto: Si es True, se considera que el cartel actúa como parapeto de
-                edificio y se adopta s/h = 1.
             epsilon: La relación entre el área sólida y el área bruta (Nota 1). El
                 valor 1.0 es un cartel sin aberturas.
             doble_cara: Si es True, el cartel es de doble cara con todos los lados
@@ -215,7 +212,6 @@ class Cartel:
         self.altura_superior = altura_superior
         self.ancho = ancho
         self.profundidad = profundidad
-        self.es_parapeto = es_parapeto
         self.epsilon = epsilon
         self.doble_cara = doble_cara
         self.esquina_retorno = esquina_retorno
@@ -228,8 +224,6 @@ class Cartel:
         suelo hasta su punta. El valor 1 corresponde a un cartel o pared apoyado
         en forma continua en el suelo.
         """
-        if self.es_parapeto:
-            return 1.0
         return self.altura_neta / self.altura_superior
 
     @property
@@ -405,7 +399,6 @@ class Cartel:
     def desde_cartel(
         cls,
         cartel: geometria.Cartel,
-        es_parapeto: bool = False,
         epsilon: float = 1.0,
         doble_cara: bool = False,
         esquina_retorno: float = 0.0,
@@ -414,8 +407,6 @@ class Cartel:
 
         Args:
             cartel: La geometría de un cartel.
-            es_parapeto: Si es True, se considera que el cartel actúa como parapeto
-                de edificio.
             epsilon: La relación entre el área sólida y el área bruta (Nota 1).
             doble_cara: Si es True, el cartel es de doble cara con todos los lados
                 cerrados.
@@ -431,7 +422,6 @@ class Cartel:
             cartel.altura_superior,
             cartel.ancho,
             cartel.profundidad,
-            es_parapeto=es_parapeto,
             epsilon=epsilon,
             doble_cara=doble_cara,
             esquina_retorno=esquina_retorno,

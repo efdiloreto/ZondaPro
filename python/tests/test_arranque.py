@@ -31,7 +31,7 @@ from PyQt6 import QtCore, QtWidgets
 
 from zonda import main as arranque
 from zonda import proyecto
-from zonda.enums import CategoriaEstructura, Estructura
+from zonda.enums import Estructura
 from zonda.widgets.zonda import WidgetBienvenida
 
 from .conftest import SIN_OPENGL
@@ -71,8 +71,6 @@ def archivo_cartel(tmp_path):
                     "ancho": 6.5,
                     "profundidad": 1.0,
                 },
-                "categoria": CategoriaEstructura.II,
-                "es_parapeto": False,
                 "epsilon": 1.0,
                 "doble_cara": False,
                 "esquina_retorno": 0.0,

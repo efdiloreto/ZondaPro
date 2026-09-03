@@ -19,7 +19,6 @@ Ancho: {{ '%.2f'|format(estructura.ancho) }} m
 
 Profundidad: {{ '%.2f'|format(estructura.profundidad) }} m
 
-Categoría: {{ estructura.categoria.value }}
 {%- endblock %}
 
 {% block datos_rafaga -%}
@@ -46,7 +45,7 @@ Altura de evaluación de la presión dinámica, h: {{ '%.2f'|format(estructura.a
 
 Factor de direccionalidad, K~d~: {{ '%.2f'|format(estructura.presiones.factor_direccionalidad) }}
 
-Relación de espacio libre, s/h: {{ '%.2f'|format(estructura.cf.relacion_espacio_libre) }}{% if estructura.es_parapeto %} (parapeto: se adopta s/h = 1){% endif %}
+Relación de espacio libre, s/h: {{ '%.2f'|format(estructura.cf.relacion_espacio_libre) }}
 
 Relación de aspecto, B/s: {{ '%.2f'|format(estructura.cf.relacion_aspecto) }}
 
