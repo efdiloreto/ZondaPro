@@ -469,11 +469,15 @@ class CubiertaSprfvMetodoDireccional:
             entradas += self._entradas_por_posicion()
         return tuple(entradas)
 
-    def _entrada(self, valor: float, **claves) -> EntradaCp:
+    def _entrada(
+        self, valor: float, referencia: str | None = None, **claves
+    ) -> EntradaCp:
         """Arma una entrada con las claves comunes de la superficie.
 
         Args:
             valor: El coeficiente de presión.
+            referencia: La referencia que reemplaza a la de la superficie.
+                Ninguna si la entrada sale de la figura de la clase.
             **claves: Las claves que identifican a la entrada.
 
         Returns:
@@ -483,7 +487,7 @@ class CubiertaSprfvMetodoDireccional:
             zona=self.zona,
             sistema=SistemaResistente.SPRFV,
             valor=float(valor),
-            referencia=self.referencia,
+            referencia=referencia or self.referencia,
             **claves,
         )
 
@@ -772,9 +776,11 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
 
         Con el viento paralelo a la cumbrera el alero toma los coeficientes de
         la cubierta. Con el viento normal no se divide en zonas: a barlovento el
-        coeficiente se reduce en 0.8 y a sotavento se mantiene. Con el viento
-        normal y ángulo menor que 10° se repite el caso de presión positiva de
-        la cubierta.
+        coeficiente de la superficie superior, de la Figura 2.4-1, se combina
+        con la presión externa positiva de la superficie inferior, Cp = +0.8
+        (Art. 2.4.4), lo que equivale a restarle 0.8, y a sotavento se mantiene.
+        Con el viento normal y ángulo menor que 10° se repite el caso de
+        presión positiva de la cubierta.
 
         Returns:
             Un coeficiente por cada zona o posición y dirección del viento.
@@ -798,6 +804,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
                     negativa[0].valor - 0.8,
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                    referencia=self._referencia_barlovento,
                 ),
                 self._entrada(
                     negativa[-1].valor,
@@ -809,6 +816,7 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
                     caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+                    referencia=self._referencia_barlovento,
                 ),
                 self._entrada(
                     positiva[-1].valor,
@@ -819,12 +827,25 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             ]
         else:
             normal = [
-                replace(entrada, valor=entrada.valor - 0.8)
+                replace(
+                    entrada,
+                    valor=entrada.valor - 0.8,
+                    referencia=self._referencia_barlovento,
+                )
                 if entrada.posicion == PosicionCubiertaAleroSprfv.BARLOVENTO
                 else entrada
                 for entrada in normal
             ]
         return (*paralelo, *normal)
+
+    @property
+    def _referencia_barlovento(self) -> str:
+        """La referencia del coeficiente neto del alero a barlovento.
+
+        La superficie superior sale de la Figura 2.4-1 y la inferior lleva la
+        presión externa positiva con Cp = +0.8 (Art. 2.4.4).
+        """
+        return f"{self.referencia} y Art. 2.4.4"
 
 
 class CubiertaComponentes:

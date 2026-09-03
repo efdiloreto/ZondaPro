@@ -452,6 +452,91 @@ def test_cubierta_barlovento_angulo_menor_diez_alero():
     assert sotavento.cp == pytest.approx(-0.18)
 
 
+def test_alero_referencia_articulo_2_4_4():
+    """El alero a barlovento cita el Art. 2.4.4 y el resto sólo la figura.
+
+    A barlovento el coeficiente combina la superficie superior de la Figura
+    2.4-1 con la presión externa positiva de la superficie inferior del
+    voladizo, Cp = +0.8 (Art. 2.4.4), así que la referencia lo menciona.
+    """
+    edificio_pequeno = _edificio_angulo_pequeno(alero=1)
+    edificio_grande = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=8,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=1,
+    )
+    for edificio in (edificio_pequeno, edificio_grande):
+        alero = edificio.resultados_sprfv.filtrar(zona=enums.ZonaEdificio.ALERO)
+        for fila in alero.filtrar(posicion=enums.PosicionCubiertaAleroSprfv.BARLOVENTO):
+            assert fila.referencia == "Figura 2.4-1 (cont.) y Art. 2.4.4"
+        for fila in alero.filtrar(posicion=enums.PosicionCubiertaAleroSprfv.SOTAVENTO):
+            assert fila.referencia == "Figura 2.4-1 (cont.)"
+        for fila in alero.filtrar(
+            direccion=enums.DireccionVientoMetodoDireccionalSprfv.PARALELO
+        ):
+            assert fila.referencia == "Figura 2.4-1 (cont.)"
+
+
+def test_alero_barlovento_combina_superficie_inferior():
+    """El cp del alero a barlovento es el de la cubierta menos 0.8.
+
+    El Art. 2.4.4 combina la presión externa positiva de la superficie
+    inferior del voladizo, Cp = +0.8, con la de la superficie superior de la
+    Figura 2.4-1: con el mismo q y G la combinación equivale a restar 0.8 al
+    coeficiente superior, para ambos casos de presión a barlovento.
+    """
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=8,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=1,
+    )
+    resultados = edificio.resultados_sprfv
+    normal = enums.DireccionVientoMetodoDireccionalSprfv.NORMAL
+    for caso in (
+        enums.TipoPresionCubiertaBarloventoSprfv.NEGATIVA,
+        enums.TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+    ):
+        cp_cubierta = (
+            resultados.filtrar(
+                zona=enums.ZonaEdificio.CUBIERTA,
+                direccion=normal,
+                caso=caso,
+            )
+            .filtrar(posicion=enums.PosicionCubiertaAleroSprfv.BARLOVENTO)
+            .unica()
+            .cp
+        )
+        cp_alero = (
+            resultados.filtrar(
+                zona=enums.ZonaEdificio.ALERO,
+                direccion=normal,
+                caso=caso,
+            )
+            .filtrar(posicion=enums.PosicionCubiertaAleroSprfv.BARLOVENTO)
+            .unica()
+            .cp
+        )
+        assert cp_alero == pytest.approx(cp_cubierta - 0.8)
+
+
 def test_cubierta_aislada_fuera_de_lineamientos_es_rechazada():
     """El CIRSOC no cubre cubiertas aisladas a dos aguas con -5° < ángulo < 5°."""
     with pytest.raises(ErrorLineamientos, match="ángulo"):
