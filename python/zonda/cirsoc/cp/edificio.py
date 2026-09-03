@@ -1242,18 +1242,18 @@ class CubiertaComponentes:
         if self.angulo <= 45:
             return "Tabla C 5.3-5"
         raise excepciones.ErrorLineamientos(
-            "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
+            "El CIRSOC 102-2025 no provee lineamientos para calcular "
             "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas a dos aguas con ángulo > 45° (Figuras 5.3-2 E a G "
-            "pendientes de migrar)."
+            "de cubiertas a dos aguas con ángulo mayor que 45°."
         )
 
     def _referencia_gran_altura(self) -> str:
         """Determina la referencia de la figura para edificios de gran altura.
 
         Con h > 20 m la Nota 6 de la Figura 5.4-1 y el Art. 5.4.2 resuelven
-        las cubiertas con ángulo <= 7° con esa misma Figura; el resto (ángulos
-        mayores y los aleros) sigue pendiente de migrar en el 2025.
+        las cubiertas con ángulo <= 7° con esa misma Figura. En el resto de
+        los casos el reglamento 2025 no provee lineamientos de C&R (issue
+        #21).
 
         Returns:
             La referencia de la figura o tabla en el código.
@@ -1264,13 +1264,20 @@ class CubiertaComponentes:
         """
         if not self.es_alero and self.angulo <= 7:
             return "Figura 5.4-1"
-        raise excepciones.ErrorLineamientos(
-            "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
-            "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas de edificios con altura media mayor que 20 m y "
-            "ángulo mayor que 7° (Figuras 5.3-2 E a G pendientes de migrar "
-            "y el alero de gran altura por el Art. 5.7)."
-        )
+        if self.es_alero:
+            mensaje = (
+                "El CIRSOC 102-2025 no provee lineamientos para calcular "
+                "los coeficientes de presión para Componentes y Revestimientos "
+                "de aleros de edificios con altura media mayor que 20 m."
+            )
+        else:
+            mensaje = (
+                "El CIRSOC 102-2025 no provee lineamientos para calcular "
+                "los coeficientes de presión para Componentes y Revestimientos "
+                "de cubiertas de edificios con altura media mayor que 20 m y "
+                "ángulo mayor que 7°."
+            )
+        raise excepciones.ErrorLineamientos(mensaje)
 
     def _referencia_un_agua(self) -> str:
         """Determina la referencia de la figura para cubiertas a un agua.
@@ -1297,10 +1304,9 @@ class CubiertaComponentes:
         if self.angulo <= 30:
             return "Figura 5.3-5B"
         raise excepciones.ErrorLineamientos(
-            "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
+            "El CIRSOC 102-2025 no provee lineamientos para calcular "
             "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas a un agua con ángulo > 30° (figuras siguientes a la "
-            "5.3-5B pendientes de migrar)."
+            "de cubiertas a un agua con ángulo mayor que 30°."
         )
 
 
