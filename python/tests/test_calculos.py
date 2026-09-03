@@ -874,9 +874,38 @@ def test_cubierta_componentes_referencia_figura_5_3_5a():
         is None
     )
     with pytest.raises(ErrorLineamientos):
-        _ = _cubierta_componentes(3, angulo=11, tipo_cubierta=un_agua).referencia
-    with pytest.raises(ErrorLineamientos):
         _ = _cubierta_componentes(3, altura_media=21, tipo_cubierta=un_agua).referencia
+
+
+def test_cubierta_componentes_referencia_figura_5_3_5b():
+    """La cubierta a un agua con 10° < θ ≤ 30° y h ≤ 20 m usa la Figura 5.3-5B."""
+    un_agua = enums.TipoCubierta.UN_AGUA
+    assert (
+        _cubierta_componentes(3, angulo=11, tipo_cubierta=un_agua).referencia
+        == "Figura 5.3-5B"
+    )
+    assert (
+        _cubierta_componentes(3, angulo=30, tipo_cubierta=un_agua).referencia
+        == "Figura 5.3-5B"
+    )
+    assert (
+        _cubierta_componentes(
+            3, angulo=20, tipo_cubierta=un_agua, es_alero=True
+        ).referencia
+        == "Figura 5.3-5B"
+    )
+    # Límite: θ = 10° sigue en la 5.3-5A.
+    assert (
+        _cubierta_componentes(3, angulo=10, tipo_cubierta=un_agua).referencia
+        == "Figura 5.3-5A"
+    )
+    # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
+    assert (
+        _cubierta_componentes(3, angulo=20, tipo_cubierta=un_agua).distancias_zonas
+        is None
+    )
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(3, angulo=31, tipo_cubierta=un_agua).referencia
 
 
 def test_cubierta_componentes_referencia_tabla_c532_planas():
@@ -1146,6 +1175,69 @@ def test_cubierta_componentes_alero_figura_5_3_5a():
         zonas.TRES,
         zonas.TRES_PRIMA,
     ):
+        assert valores_alero[zona] == pytest.approx(valores_cubierta[zona])
+
+
+def test_cubierta_componentes_valores_figura_5_3_5b():
+    """Los GCp de la Figura 5.3-5B.
+
+    Los esperados salen de las fórmulas de la figura, que son otra forma de
+    escribir la interpolación logarítmica entre los extremos de cada zona.
+    Todas interpolan entre 1 y 10 m², así que la pendiente es el recorrido en
+    un orden de magnitud.
+    """
+    log10 = np.log10
+
+    def esperado(area: float) -> dict:
+        # zona: (extremo, cst, pendiente, tope).
+        pendientes = {
+            enums.ZonaComponenteCubiertaEdificio.UNO: (-1.3, -1.3, 0.2, -1.1),
+            enums.ZonaComponenteCubiertaEdificio.DOS: (-1.6, -1.6, 0.4, -1.2),
+            enums.ZonaComponenteCubiertaEdificio.TRES: (-2.9, -2.9, 0.9, -2.0),
+        }
+        negativos = {}
+        for zona, (extremo, cst, pendiente, tope) in pendientes.items():
+            if area <= 1:
+                negativos[zona] = extremo
+            elif area <= 10:
+                negativos[zona] = cst + pendiente * log10(area)
+            else:
+                negativos[zona] = tope
+        if area <= 1:
+            positivo = 0.4
+        elif area <= 10:
+            positivo = 0.4 - 0.1 * log10(area)
+        else:
+            positivo = 0.3
+        negativos[enums.ZonaComponenteCubiertaEdificio.TODAS] = positivo
+        return negativos
+
+    for area in (0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0):
+        valores_cp = _valores_por_zona(
+            _cubierta_componentes(
+                area, angulo=20, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+            )
+        )
+        assert valores_cp == pytest.approx(esperado(area), abs=0.001)
+
+
+def test_cubierta_componentes_alero_figura_5_3_5b():
+    """El alero de la Figura 5.3-5B usa la superficie superior de la cubierta.
+
+    Igual que en la Figura 5.3-5A: por el Art. 5.7 (pendiente, ver issue) el
+    alero toma los valores de la cubierta sin el positivo de la zona "todas".
+    """
+    cubierta = _cubierta_componentes(
+        5, angulo=20, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+    )
+    alero = _cubierta_componentes(
+        5, angulo=20, tipo_cubierta=enums.TipoCubierta.UN_AGUA, es_alero=True
+    )
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    valores_cubierta = _valores_por_zona(cubierta)
+    valores_alero = _valores_por_zona(alero)
+    assert zonas.TODAS not in valores_alero
+    for zona in (zonas.UNO, zonas.DOS, zonas.TRES):
         assert valores_alero[zona] == pytest.approx(valores_cubierta[zona])
 
 

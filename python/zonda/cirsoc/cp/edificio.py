@@ -821,15 +821,15 @@ class CubiertaComponentes:
     5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m), la Tabla C
     5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m), la Tabla C
     5.3-5 (Fig. 5.3-2D, 27° < ángulo <= 45° y altura media <= 20 m) y, para
-    cubiertas a un agua, la Figura 5.3-5A (3° < ángulo <= 10° y altura media
-    <= 20 m). El resto de la geometría (cubiertas a un agua con ángulo > 10°,
-    otros ángulos o alturas) todavía no tiene lineamientos 2025 migrados y
-    lanza ErrorLineamientos.
+    cubiertas a un agua, las Figuras 5.3-5A y 5.3-5B (3° < ángulo <= 10° y
+    10° < ángulo <= 30°, ambas con altura media <= 20 m). El resto de la
+    geometría (cubiertas a un agua con ángulo > 30°, otros ángulos o alturas)
+    todavía no tiene lineamientos 2025 migrados y lanza ErrorLineamientos.
 
-    TODO: el alero de las Tablas C 5.3-3, C 5.3-4, C 5.3-5 y de la Figura
-    5.3-5A debería resolverse por el Art. 5.7 del reglamento (superficie
-    superior + inferior de pared); hoy usa sólo la superficie superior (ver
-    issue).
+    TODO: el alero de las Tablas C 5.3-3, C 5.3-4, C 5.3-5 y de las Figuras
+    5.3-5A y 5.3-5B debería resolverse por el Art. 5.7 del reglamento
+    (superficie superior + inferior de pared); hoy usa sólo la superficie
+    superior (ver issue).
     """
 
     def __init__(
@@ -1017,6 +1017,27 @@ class CubiertaComponentes:
                     "area": (1, 10),
                 },
             },
+            # CIRSOC 102-2025 - Figura 5.3-5B (cubierta a un agua, 10° < ángulo
+            # <= 30° y altura media <= 20 m). Cada zona declara su rango de
+            # áreas.
+            "Figura 5.3-5B": {
+                ZonaComponenteCubiertaEdificio.UNO: {
+                    "cp": (-1.3, -1.1),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.DOS: {
+                    "cp": (-1.6, -1.2),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.TRES: {
+                    "cp": (-2.9, -2.0),
+                    "area": (1, 10),
+                },
+                ZonaComponenteCubiertaEdificio.TODAS: {
+                    "cp": (0.4, 0.3),
+                    "area": (1, 10),
+                },
+            },
         }
         if self.es_alero:
             # Tabla C 5.3-2, bloque "Negativo con voladizo". Las Zonas 1 y
@@ -1192,8 +1213,8 @@ class CubiertaComponentes:
         La Nota 5 de la Figura 5.3-5A envía los ángulos <= 3° a la Figura
         5.3-2A (Tabla C 5.3-2). La altura media de cubierta coincide con la
         altura de alero para ángulo <= 10° (ver geometría), así que la "a" de
-        la Figura 5.3-5A, que mide con la altura de alero, se calcula bien con
-        la altura media.
+        las Figuras 5.3-5A y 5.3-5B, que miden con la altura de alero, se
+        calcula bien con la altura media.
 
         Returns:
             La referencia de la figura o tabla en el código.
@@ -1213,11 +1234,13 @@ class CubiertaComponentes:
             return "Tabla C 5.3-2"
         if self.angulo <= 10:
             return "Figura 5.3-5A"
+        if self.angulo <= 30:
+            return "Figura 5.3-5B"
         raise excepciones.ErrorLineamientos(
             "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
             "los coeficientes de presión para Componentes y Revestimientos "
-            "de cubiertas a un agua con ángulo > 10° (Figuras 5.3-5B a 5.3-6 "
-            "pendientes de migrar)."
+            "de cubiertas a un agua con ángulo > 30° (figuras siguientes a la "
+            "5.3-5B pendientes de migrar)."
         )
 
 

@@ -1084,6 +1084,8 @@ class PresionesComponentes(Geometria):
                 return self._cubierta_tabla_c_5_3_2_para_un_agua()
             if self._referencia_cubierta == "Figura 5.3-5A":
                 return self._cubierta_tabla_c_5_3_5a()
+            if self._referencia_cubierta == "Figura 5.3-5B":
+                return self._cubierta_tabla_c_5_3_5b()
             return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
@@ -1101,6 +1103,8 @@ class PresionesComponentes(Geometria):
                 return self._cubierta_tabla_c_5_3_2_para_un_agua()
             if self._referencia_cubierta == "Figura 5.3-5A":
                 return self._cubierta_tabla_c_5_3_5a()
+            if self._referencia_cubierta == "Figura 5.3-5B":
+                return self._cubierta_tabla_c_5_3_5b()
             return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
@@ -1439,6 +1443,58 @@ class PresionesComponentes(Geometria):
             ],
             ZonaComponenteCubiertaEdificio.UNO: [
                 ((a, ancho_total - dos_a), (dos_a, profundidad - dos_a)),
+            ],
+        }
+
+        return self._faldon_un_agua(rectangulos_zonas, punto_alero_inicio, inicio)
+
+    def _cubierta_tabla_c_5_3_5b(self):
+        """Determina las coordenadas de las zonas de la Figura 5.3-5B.
+
+        La cubierta a un agua para 10° < ángulo <= 30° reparte las zonas como
+        la "Figura 7A (cont.)" del CIRSOC 102-2005: la Zona 3 son los
+        rectángulos de 2a de ancho y 4a de profundidad contra la cumbrera en
+        las cabeceras; la Zona 2 la franja perimetral del resto -las dos
+        bandas de "a" de los bordes testeros, el tramo de cumbrera entre las
+        Zonas 3 y la franja de "a" a todo lo largo del alero-; la Zona 1 el
+        campo interior. Los rectángulos se arman en planta y se proyectan
+        sobre el faldón único.
+
+        Returns:
+            Las coordenadas de las zonas de la cubierta.
+        """
+        punto_alero_inicio = self._inicio_alero_cubierta_un_agua()
+        inicio = punto_alero_inicio[0]
+        ancho_total = self.ancho - inicio
+        profundidad = -self.longitud  # La longitud es negativa.
+
+        # Si el edificio es chico las bandas se solapan, así que la distancia
+        # "a" se recorta a la mitad de la menor dimensión en planta.
+        mitad_menor_dimension = min(ancho_total, profundidad) / 2
+        a = min(self._distancia_a, mitad_menor_dimension)
+
+        dos_a = 2 * a
+        cuatro_a = 4 * a
+
+        rectangulos_zonas = {
+            ZonaComponenteCubiertaEdificio.TRES: [
+                ((ancho_total - dos_a, ancho_total), (0, cuatro_a)),
+                (
+                    (ancho_total - dos_a, ancho_total),
+                    (profundidad - cuatro_a, profundidad),
+                ),
+            ],
+            ZonaComponenteCubiertaEdificio.DOS: [
+                ((a, ancho_total - dos_a), (0, a)),
+                ((a, ancho_total - dos_a), (profundidad - a, profundidad)),
+                (
+                    (ancho_total - dos_a, ancho_total),
+                    (cuatro_a, profundidad - cuatro_a),
+                ),
+                ((0, a), (0, profundidad)),
+            ],
+            ZonaComponenteCubiertaEdificio.UNO: [
+                ((a, ancho_total - dos_a), (a, profundidad - a)),
             ],
         }
 
