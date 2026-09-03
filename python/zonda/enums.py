@@ -98,21 +98,23 @@ class CasoCartel(Enum):
 class RegionCartel(Enum):
     """Las regiones del Caso C de la Figura 4.4-1.
 
-    El valor es ``(inicio, fin, etiqueta)``, con los límites medidos desde el
-    borde de barlovento en unidades de la altura s del cartel. Para B/s ≤ 10
-    la tabla agrupa desde 3s en ``REGION_3S_10S``; para B/s mayores separa esa
-    banda en ``REGION_3S_4S``, ``REGION_4S_5S``, ``REGION_5S_10S`` y
-    ``REGION_10S``.
+    El valor es ``(inicio, fin, numero)``, con los límites medidos desde el
+    borde de barlovento en unidades de la altura s del cartel y el número de
+    región contado desde el borde de barlovento en el orden en que la tabla de
+    la figura muestra las bandas. Para B/s ≤ 10 la tabla agrupa desde 3s en
+    ``REGION_3S_10S``, que queda como región 4; para B/s mayores esa banda se
+    separa en ``REGION_3S_4S``, ``REGION_4S_5S``, ``REGION_5S_10S`` y
+    ``REGION_10S``, que heredan los números 4 a 7.
     """
 
-    REGION_0_S = (0.0, 1.0, "0 a s")
-    REGION_S_2S = (1.0, 2.0, "s a 2s")
-    REGION_2S_3S = (2.0, 3.0, "2s a 3s")
-    REGION_3S_4S = (3.0, 4.0, "3s a 4s")
-    REGION_4S_5S = (4.0, 5.0, "4s a 5s")
-    REGION_5S_10S = (5.0, 10.0, "5s a 10s")
-    REGION_10S = (10.0, math.inf, "> 10s")
-    REGION_3S_10S = (3.0, 10.0, "3s a 10s")
+    REGION_0_S = (0.0, 1.0, 1)
+    REGION_S_2S = (1.0, 2.0, 2)
+    REGION_2S_3S = (2.0, 3.0, 3)
+    REGION_3S_4S = (3.0, 4.0, 4)
+    REGION_4S_5S = (4.0, 5.0, 5)
+    REGION_5S_10S = (5.0, 10.0, 6)
+    REGION_10S = (10.0, math.inf, 7)
+    REGION_3S_10S = (3.0, 10.0, 4)
 
     @property
     def inicio(self) -> float:
@@ -123,7 +125,7 @@ class RegionCartel(Enum):
         return self.value[1]
 
     @property
-    def etiqueta(self) -> str:
+    def numero(self) -> int:
         return self.value[2]
 
 

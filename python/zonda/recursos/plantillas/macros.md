@@ -128,7 +128,7 @@
 |:------:|:----:|:---------------------------:|:-----------:|:------------------------------:|
 {% for fila in filas_caso -%}
 {%- set limites = estructura.cf.limites_regiones[fila.region] %}
-| {{ fila.region.etiqueta }} ({{ '%.2f'|format(limites[0]) }} a {{ '%.2f'|format(limites[1]) }} m) | {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
+| {{ '%.2f'|format(limites[0]) }} a {{ '%.2f'|format(limites[1]) }} m | {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
 {% endfor %}
 {%- else -%}
 | C~f~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | Área (m^2^) | F ({{ unidades.fuerza.value }}) |

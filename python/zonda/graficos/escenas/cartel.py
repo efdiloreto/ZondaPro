@@ -99,7 +99,7 @@ class Presiones(PresionesMixin):
                 fila = presion_por_region[region]
                 actor.asignar_presion(
                     fila.presion,
-                    str_extra=f" - región {region.etiqueta}",
+                    str_extra=f" - región {region.numero}",
                     unidad=self.unidad_presion,
                 )
         else:
