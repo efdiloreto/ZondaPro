@@ -75,6 +75,82 @@ def _rango(
     return (total - fin, total - inicio) if opuesto else (inicio, fin)
 
 
+def _rectangulos_tabla_c_5_3_2(
+    ancho_total: float,
+    profundidad: float,
+    zona_3: float,
+    zona_2: float,
+    zona_1: float,
+) -> dict[
+    ZonaComponenteCubiertaEdificio,
+    list[tuple[tuple[float, float], tuple[float, float]]],
+]:
+    """Los rectángulos en planta de las zonas de la Figura 5.3-2A.
+
+    La Zona 3 es una "L" en cada esquina: un brazo de 0,2h de espesor y 0,6h
+    de largo sobre cada borde. Lo que queda de la esquina, hasta completar la
+    franja de 0,6h, sigue siendo Zona 2.
+
+    Args:
+        ancho_total: El ancho de la cubierta en planta, desde el borde exterior
+            del voladizo.
+        profundidad: La longitud de la cubierta en planta.
+        zona_3: El espesor de la "L" de la Zona 3 (0,2h).
+        zona_2: El ancho de la franja perimetral compartida.
+        zona_1: La distancia al borde donde termina la Zona 1.
+
+    Returns:
+        Los rectángulos en planta de cada zona.
+    """
+    zona_3_rectangulos = []
+    zona_2_esquinas = []
+    for x_opuesto in (False, True):
+        for z_opuesto in (False, True):
+            zona_3_rectangulos += [
+                (
+                    _rango(x_opuesto, 0, zona_2, ancho_total),
+                    _rango(z_opuesto, 0, zona_3, profundidad),
+                ),
+                (
+                    _rango(x_opuesto, 0, zona_3, ancho_total),
+                    _rango(z_opuesto, zona_3, zona_2, profundidad),
+                ),
+            ]
+            zona_2_esquinas.append(
+                (
+                    _rango(x_opuesto, zona_3, zona_2, ancho_total),
+                    _rango(z_opuesto, zona_3, zona_2, profundidad),
+                )
+            )
+
+    return {
+        ZonaComponenteCubiertaEdificio.TRES: zona_3_rectangulos,
+        ZonaComponenteCubiertaEdificio.DOS: [
+            # La franja perimetral de 0.6h, sin las "L" de las esquinas.
+            ((zona_2, ancho_total - zona_2), (0, zona_2)),
+            ((zona_2, ancho_total - zona_2), (profundidad - zona_2, profundidad)),
+            ((0, zona_2), (zona_2, profundidad - zona_2)),
+            ((ancho_total - zona_2, ancho_total), (zona_2, profundidad - zona_2)),
+            *zona_2_esquinas,
+        ],
+        ZonaComponenteCubiertaEdificio.UNO: [
+            ((zona_2, zona_1), (zona_2, profundidad - zona_2)),
+            (
+                (ancho_total - zona_1, ancho_total - zona_2),
+                (zona_2, profundidad - zona_2),
+            ),
+            ((zona_1, ancho_total - zona_1), (zona_2, zona_1)),
+            (
+                (zona_1, ancho_total - zona_1),
+                (profundidad - zona_1, profundidad - zona_2),
+            ),
+        ],
+        ZonaComponenteCubiertaEdificio.UNO_PRIMA: [
+            ((zona_1, ancho_total - zona_1), (zona_1, profundidad - zona_1)),
+        ],
+    }
+
+
 class Geometria:
     """Geometria.
 
@@ -1003,6 +1079,12 @@ class PresionesComponentes(Geometria):
         Returns:
             Las coordenadas de las zonas de la tabla que corresponda.
         """
+        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
+            if self._referencia_cubierta == "Tabla C 5.3-2":
+                return self._cubierta_tabla_c_5_3_2_para_un_agua()
+            if self._referencia_cubierta == "Figura 5.3-5A":
+                return self._cubierta_tabla_c_5_3_5a()
+            return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
         if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
@@ -1014,6 +1096,12 @@ class PresionesComponentes(Geometria):
     def _seleccionar_cubierta(self):
         if self._referencia_cubierta is None:
             return super().cubierta.__wrapped__(self, 0, self.longitud)
+        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
+            if self._referencia_cubierta == "Tabla C 5.3-2":
+                return self._cubierta_tabla_c_5_3_2_para_un_agua()
+            if self._referencia_cubierta == "Figura 5.3-5A":
+                return self._cubierta_tabla_c_5_3_5a()
+            return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
         if self._referencia_cubierta in ("Tabla C 5.3-3", "Tabla C 5.3-4"):
@@ -1234,6 +1322,158 @@ class PresionesComponentes(Geometria):
             "faldon der": dict(coords_faldon_der),
         }
 
+    def _inicio_alero_cubierta_un_agua(self):
+        """El punto de inicio del faldón único de una cubierta a un agua.
+
+        La cumbrera de una cubierta a un agua está del lado de la pared
+        derecha y el alero del lado de la izquierda, así que el faldón arranca
+        en el borde exterior del voladizo si existe (Nota 7) y sube hasta
+        (ancho, altura de cumbrera).
+
+        Returns:
+            El punto de inicio del faldón.
+        """
+        if self.alero_:
+            return tuple(
+                punto_sobre_vector(
+                    -self.alero_,
+                    (0, self.altura_alero),
+                    (self.ancho, self.altura_cumbrera),
+                )
+            )
+        return (0, self.altura_alero)
+
+    def _faldon_un_agua(
+        self,
+        rectangulos_zonas,
+        punto_alero_inicio,
+        inicio,
+    ):
+        """Proyecta los rectángulos en planta sobre el faldón único.
+
+        La cubierta a un agua tiene un solo faldón, sin cumbrera central, así
+        que cada rectángulo en planta se proyecta completo sobre el plano que
+        definen el punto de inicio (a la altura de alero) y el de fin (a la
+        altura de cumbrera, en x = ancho). Se devuelve bajo la clave "faldon
+        izq" para que cubierta() y alero() recorten contra el plano de la
+        pared: el techo queda con x >= 0 y el voladizo con x <= 0.
+
+        Args:
+            rectangulos_zonas: Los rectángulos en planta por zona.
+            punto_alero_inicio: El punto de inicio del faldón.
+            inicio: La coordenada x del punto de inicio en planta.
+
+        Returns:
+            Las coordenadas de las zonas de la cubierta.
+        """
+        coords = defaultdict(list)
+        for zona, rectangulos in rectangulos_zonas.items():
+            for (x_inicio, x_fin), (z_inicio, z_fin) in rectangulos:
+                if x_fin - x_inicio < TOLERANCIA or z_fin - z_inicio < TOLERANCIA:
+                    continue
+                coords[zona].append(
+                    coords_zona_cubierta_desde_proyeccion(
+                        (inicio + x_inicio, inicio + x_fin),
+                        punto_alero_inicio,
+                        (self.ancho, self.altura_cumbrera),
+                        -z_inicio,
+                        -z_fin,
+                    )
+                )
+        return {"faldon izq": dict(coords)}
+
+    def _cubierta_tabla_c_5_3_5a(self):
+        """Determina las coordenadas de las zonas de la Figura 5.3-5A.
+
+        La cubierta a un agua para 3° < ángulo <= 10° reparte las zonas como
+        la "Figura 7A" del CIRSOC 102-2005: las Zonas 3' y 2' están contra el
+        borde de la cumbrera (el de la pared derecha) y las Zonas 3 y 2 contra
+        el borde del alero. La Zona 3 son los cuadrados de 2a de lado de las
+        esquinas del alero; la Zona 3' los de la cumbrera, pero de 4a de
+        profundidad; la Zona 2 la franja de ancho a que corre entre las dos
+        Zonas 3; la Zona 2' el resto de la franja perimetral; la Zona 1 el
+        campo interior. Los rectángulos se arman en planta y se proyectan
+        sobre el faldón único.
+
+        Returns:
+            Las coordenadas de las zonas de la cubierta.
+        """
+        punto_alero_inicio = self._inicio_alero_cubierta_un_agua()
+        inicio = punto_alero_inicio[0]
+        ancho_total = self.ancho - inicio
+        profundidad = -self.longitud  # La longitud es negativa.
+
+        # Si el edificio es chico las bandas se solapan, así que la distancia
+        # "a" se recorta a la mitad de la menor dimensión en planta.
+        mitad_menor_dimension = min(ancho_total, profundidad) / 2
+        a = min(self._distancia_a, mitad_menor_dimension)
+
+        dos_a = 2 * a
+        cuatro_a = 4 * a
+
+        rectangulos_zonas = {
+            ZonaComponenteCubiertaEdificio.TRES_PRIMA: [
+                ((ancho_total - dos_a, ancho_total), (0, cuatro_a)),
+                (
+                    (ancho_total - dos_a, ancho_total),
+                    (profundidad - cuatro_a, profundidad),
+                ),
+            ],
+            ZonaComponenteCubiertaEdificio.DOS_PRIMA: [
+                ((dos_a, ancho_total - dos_a), (0, dos_a)),
+                (
+                    (dos_a, ancho_total - dos_a),
+                    (profundidad - dos_a, profundidad),
+                ),
+                (
+                    (ancho_total - dos_a, ancho_total),
+                    (cuatro_a, profundidad - cuatro_a),
+                ),
+            ],
+            ZonaComponenteCubiertaEdificio.TRES: [
+                ((0, dos_a), (0, dos_a)),
+                ((0, dos_a), (profundidad - dos_a, profundidad)),
+            ],
+            ZonaComponenteCubiertaEdificio.DOS: [
+                ((0, a), (dos_a, profundidad - dos_a)),
+            ],
+            ZonaComponenteCubiertaEdificio.UNO: [
+                ((a, ancho_total - dos_a), (dos_a, profundidad - dos_a)),
+            ],
+        }
+
+        return self._faldon_un_agua(rectangulos_zonas, punto_alero_inicio, inicio)
+
+    def _cubierta_tabla_c_5_3_2_para_un_agua(self):
+        """Determina las coordenadas de las zonas de la Figura 5.3-2A a un agua.
+
+        La Nota 5 de la Figura 5.3-5A envía las cubiertas a un agua con ángulo
+        <= 3° a la Figura 5.3-2A. Las zonas son las mismas de
+        _cubierta_tabla_c_5_3_2, pero proyectadas sobre el faldón único, sin
+        partir en la cumbrera.
+
+        Returns:
+            Las coordenadas de las zonas de la cubierta.
+        """
+        punto_alero_inicio = self._inicio_alero_cubierta_un_agua()
+        inicio = punto_alero_inicio[0]
+        ancho_total = self.ancho - inicio
+        profundidad = -self.longitud  # La longitud es negativa.
+
+        # Si el edificio es chico las franjas se solapan, así que se recortan a
+        # la mitad de la menor dimensión en planta.
+        mitad_menor_dimension = min(ancho_total, profundidad) / 2
+        zona_3, zona_2, zona_1 = (
+            min(distancia, mitad_menor_dimension)
+            for distancia in self._distancias_zonas_cubierta
+        )
+
+        rectangulos_zonas = _rectangulos_tabla_c_5_3_2(
+            ancho_total, profundidad, zona_3, zona_2, zona_1
+        )
+
+        return self._faldon_un_agua(rectangulos_zonas, punto_alero_inicio, inicio)
+
     def _cubierta_tabla_c_5_3_2(self):
         """Determina las coordenadas de las zonas de la Figura 5.3-2A.
 
@@ -1275,56 +1515,9 @@ class PresionesComponentes(Geometria):
             for distancia in self._distancias_zonas_cubierta
         )
 
-        # La Zona 3 es una "L" en cada esquina: un brazo de 0.2h de espesor y
-        # 0.6h de largo sobre cada borde. Lo que queda de la esquina, hasta
-        # completar la franja de 0.6h, sigue siendo Zona 2.
-        zona_3_rectangulos = []
-        zona_2_esquinas = []
-        for x_opuesto in (False, True):
-            for z_opuesto in (False, True):
-                zona_3_rectangulos += [
-                    (
-                        _rango(x_opuesto, 0, zona_2, ancho_total),
-                        _rango(z_opuesto, 0, zona_3, profundidad),
-                    ),
-                    (
-                        _rango(x_opuesto, 0, zona_3, ancho_total),
-                        _rango(z_opuesto, zona_3, zona_2, profundidad),
-                    ),
-                ]
-                zona_2_esquinas.append(
-                    (
-                        _rango(x_opuesto, zona_3, zona_2, ancho_total),
-                        _rango(z_opuesto, zona_3, zona_2, profundidad),
-                    )
-                )
-
-        rectangulos_zonas = {
-            ZonaComponenteCubiertaEdificio.TRES: zona_3_rectangulos,
-            ZonaComponenteCubiertaEdificio.DOS: [
-                # La franja perimetral de 0.6h, sin las "L" de las esquinas.
-                ((zona_2, ancho_total - zona_2), (0, zona_2)),
-                ((zona_2, ancho_total - zona_2), (profundidad - zona_2, profundidad)),
-                ((0, zona_2), (zona_2, profundidad - zona_2)),
-                ((ancho_total - zona_2, ancho_total), (zona_2, profundidad - zona_2)),
-                *zona_2_esquinas,
-            ],
-            ZonaComponenteCubiertaEdificio.UNO: [
-                ((zona_2, zona_1), (zona_2, profundidad - zona_2)),
-                (
-                    (ancho_total - zona_1, ancho_total - zona_2),
-                    (zona_2, profundidad - zona_2),
-                ),
-                ((zona_1, ancho_total - zona_1), (zona_2, zona_1)),
-                (
-                    (zona_1, ancho_total - zona_1),
-                    (profundidad - zona_1, profundidad - zona_2),
-                ),
-            ],
-            ZonaComponenteCubiertaEdificio.UNO_PRIMA: [
-                ((zona_1, ancho_total - zona_1), (zona_1, profundidad - zona_1)),
-            ],
-        }
+        rectangulos_zonas = _rectangulos_tabla_c_5_3_2(
+            ancho_total, profundidad, zona_3, zona_2, zona_1
+        )
 
         x_cumbrera = mitad_ancho - inicio
         coords_faldon_izq = defaultdict(list)

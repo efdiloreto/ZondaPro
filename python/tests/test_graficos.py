@@ -729,6 +729,72 @@ def _edificio_dos_aguas_angulo_muy_empinado(alero: float = 0):
     )
 
 
+def _edificio_un_agua_angulo_bajo(alero: float = 0):
+    """Un edificio de 30 x 40 con cubierta a un agua de θ ≈ 5.7°.
+
+    Con altura de alero 8 m y cumbrera a 11 m la luz de 30 m da un ángulo en
+    el rango de la Figura 5.3-5A (3° < θ ≤ 10°), y la distancia "a" queda en
+    3 m (0,1 de la menor dimensión horizontal contra 0,4h, con h = 8 m).
+
+    Args:
+        alero: La dimensión del alero.
+
+    Returns:
+        El edificio, con un componente de cubierta cargado.
+    """
+    from zonda.cirsoc import Edificio
+
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=11,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=alero,
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+def _edificio_un_agua_angulo_muy_bajo(alero: float = 0):
+    """Un edificio de 30 x 40 con cubierta a un agua de θ ≈ 0.8°.
+
+    Con altura de alero 8 m y cumbrera a 8.4 m la Nota 5 de la Figura 5.3-5A
+    manda estos ángulos a la Figura 5.3-2A: las distancias de las zonas son
+    las de la Tabla C 5.3-2 (0,2h, 0,6h y 1,2h, con h = 8 m).
+
+    Args:
+        alero: La dimensión del alero.
+
+    Returns:
+        El edificio, con un componente de cubierta cargado.
+    """
+    from zonda.cirsoc import Edificio
+
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=8.4,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=alero,
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
 def test_zonas_de_componentes_de_la_tabla_c_5_3_3(qapp):
     """Las zonas de la Figura 5.3-2B cubren la cubierta sin huecos ni solapes.
 
@@ -953,6 +1019,132 @@ def test_la_escena_de_componentes_pinta_todas_las_zonas_de_la_tabla_c_5_3_5(qapp
         for actor in actores_zona:
             assert actor.flecha.texto, f"zona {zona.value} sin presión"
     assert set(director.actores_cubierta) == {zonas.UNO, zonas.DOS, zonas.TRES}
+
+
+def test_zonas_de_componentes_de_la_figura_5_3_5a(qapp):
+    """Las zonas de la Figura 5.3-5A cubren la cubierta a un agua sin huecos.
+
+    La Zona 3 son los cuadrados de 2a de lado de las esquinas del borde de
+    alero y la Zona 3' los de la cumbrera, de 4a de profundidad; la Zona 2 la
+    franja de ancho a entre las dos Zonas 3 y la Zona 2' el resto de la franja
+    perimetral; la Zona 1 el campo interior. Las áreas se miden en planta y se
+    llevan al plano del faldón único, cuya inclinación es la flecha de 3 m
+    sobre los 30 m de luz.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_un_agua_angulo_bajo()
+    )
+    areas = _areas_por_zona(director.actores_cubierta)
+
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    assert set(areas) == {
+        zonas.UNO,
+        zonas.DOS,
+        zonas.DOS_PRIMA,
+        zonas.TRES,
+        zonas.TRES_PRIMA,
+    }
+
+    inclinacion = np.hypot(3, 30) / 30
+    ancho_total = 30.0
+    profundidad = 40.0
+    a = 3.0
+    esperadas = {
+        # Dos cuadrados de 2a de lado y 4a de profundidad contra la cumbrera.
+        zonas.TRES_PRIMA: 2 * (2 * a) * (4 * a),
+        # El resto de la franja perimetral: dos bandas de 2a a los bordes
+        # testeros y el tramo de 2a de ancho contra la cumbrera.
+        zonas.DOS_PRIMA: 2 * (2 * a) * (ancho_total - 4 * a)
+        + (2 * a) * (profundidad - 8 * a),
+        # Dos cuadrados de 2a de lado contra el alero.
+        zonas.TRES: 2 * (2 * a) * (2 * a),
+        # La franja de "a" de ancho entre las dos Zonas 3.
+        zonas.DOS: a * (profundidad - 4 * a),
+        # El campo interior.
+        zonas.UNO: (ancho_total - 3 * a) * (profundidad - 4 * a),
+    }
+    for zona, area_en_planta in esperadas.items():
+        assert areas[zona] == pytest.approx(area_en_planta * inclinacion)
+    assert sum(areas.values()) == pytest.approx(ancho_total * profundidad * inclinacion)
+
+
+def test_zonas_de_componentes_de_la_figura_5_3_5a_con_alero(qapp):
+    """Con voladizo las distancias se miden desde su borde exterior (Nota 7).
+
+    La cubierta a un agua sigue cubierta por completo y los actores del alero
+    suman el área del voladizo, que es de 1 m sobre el plano del faldón único.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(),
+        TablaColores(-500, 500),
+        _edificio_un_agua_angulo_bajo(alero=1),
+    )
+    areas_cubierta = _areas_por_zona(director.actores_cubierta)
+    areas_alero = _areas_por_zona(director.actores_alero)
+
+    faldon = np.hypot(3, 30)
+    assert sum(areas_cubierta.values()) == pytest.approx(faldon * 40)
+    assert sum(areas_alero.values()) == pytest.approx(1 * 40)
+
+
+def test_la_escena_de_componentes_pinta_todas_las_zonas_de_la_figura_5_3_5a(qapp):
+    """Cada zona de la Figura 5.3-5A recibe su presión en la escena."""
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesComponentes(
+        escena, _edificio_un_agua_angulo_bajo(), enums.Unidad.N
+    )
+    presiones.actualizar_componente_cubierta("Correa")
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    director = presiones.director
+    for zona, actores_zona in director.actores_cubierta.items():
+        for actor in actores_zona:
+            assert actor.flecha.texto, f"zona {zona.value} sin presión"
+    assert set(director.actores_cubierta) == {
+        zonas.UNO,
+        zonas.DOS,
+        zonas.DOS_PRIMA,
+        zonas.TRES,
+        zonas.TRES_PRIMA,
+    }
+
+
+def test_zonas_de_componentes_de_la_tabla_c_5_3_2_a_un_agua(qapp):
+    """Con θ ≤ 3° la cubierta a un agua reparte como la Figura 5.3-2A.
+
+    La Nota 5 de la Figura 5.3-5A manda esos ángulos a la Figura 5.3-2A, sobre
+    el faldón único: la Zona 3 son cuatro "L" de 0,2h en las esquinas, la 2 la
+    franja perimetral de 0,6h, la 1 la franja de 0,6h a 1,2h y la 1' el
+    interior.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_un_agua_angulo_muy_bajo()
+    )
+    areas = _areas_por_zona(director.actores_cubierta)
+
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    assert set(areas) == {zonas.UNO_PRIMA, zonas.UNO, zonas.DOS, zonas.TRES}
+
+    # Las áreas se calculan en planta y se llevan al plano del faldón único,
+    # cuya inclinación es la flecha de 0.4 m sobre los 30 m de luz.
+    inclinacion = np.hypot(0.4, 30) / 30
+    zona_3 = 4 * (2 * 1.6 * 4.8 - 1.6**2)
+    esperadas = {
+        zonas.TRES: zona_3,
+        zonas.DOS: 30 * 40 - 20.4 * 30.4 - zona_3,
+        zonas.UNO: 20.4 * 30.4 - 10.8 * 20.8,
+        zonas.UNO_PRIMA: 10.8 * 20.8,
+    }
+    for zona, area_en_planta in esperadas.items():
+        assert areas[zona] == pytest.approx(area_en_planta * inclinacion)
+    assert sum(areas.values()) == pytest.approx(30 * 40 * inclinacion)
 
 
 def test_la_escena_lee_el_positivo_por_zona_con_parapeto(qapp):

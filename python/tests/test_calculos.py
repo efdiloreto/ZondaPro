@@ -821,10 +821,6 @@ def test_cubierta_componentes_referencia_tabla_c533():
         _ = _cubierta_componentes(3, angulo=46).referencia
     with pytest.raises(ErrorLineamientos):
         _ = _cubierta_componentes(3, altura_media=21).referencia
-    with pytest.raises(ErrorLineamientos):
-        _ = _cubierta_componentes(
-            3, tipo_cubierta=enums.TipoCubierta.UN_AGUA
-        ).referencia
 
 
 def test_cubierta_componentes_referencia_tabla_c534():
@@ -851,6 +847,36 @@ def test_cubierta_componentes_referencia_tabla_c535():
     assert _cubierta_componentes(3, angulo=27).referencia == "Tabla C 5.3-4"
     # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
     assert _cubierta_componentes(3, angulo=36).distancias_zonas is None
+
+
+def test_cubierta_componentes_referencia_figura_5_3_5a():
+    """La cubierta a un agua con 3° < θ ≤ 10° y h ≤ 20 m usa la Figura 5.3-5A."""
+    un_agua = enums.TipoCubierta.UN_AGUA
+    assert _cubierta_componentes(3, tipo_cubierta=un_agua).referencia == "Figura 5.3-5A"
+    assert (
+        _cubierta_componentes(3, angulo=10, tipo_cubierta=un_agua).referencia
+        == "Figura 5.3-5A"
+    )
+    assert (
+        _cubierta_componentes(
+            3, angulo=4, tipo_cubierta=un_agua, es_alero=True
+        ).referencia
+        == "Figura 5.3-5A"
+    )
+    # Límite: θ = 3° sigue en la 5.3-2 (Nota 5 de la Figura 5.3-5A).
+    assert (
+        _cubierta_componentes(3, angulo=3, tipo_cubierta=un_agua).referencia
+        == "Tabla C 5.3-2"
+    )
+    # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
+    assert (
+        _cubierta_componentes(3, angulo=4, tipo_cubierta=un_agua).distancias_zonas
+        is None
+    )
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(3, angulo=11, tipo_cubierta=un_agua).referencia
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(3, altura_media=21, tipo_cubierta=un_agua).referencia
 
 
 def test_cubierta_componentes_referencia_tabla_c532_planas():
@@ -1048,6 +1074,78 @@ def test_cubierta_componentes_alero_tabla_c535():
     valores_alero = _valores_por_zona(alero)
     assert zonas.TODAS not in valores_alero
     for zona in (zonas.UNO, zonas.DOS, zonas.TRES):
+        assert valores_alero[zona] == pytest.approx(valores_cubierta[zona])
+
+
+def test_cubierta_componentes_valores_figura_5_3_5a():
+    """Los GCp de la Figura 5.3-5A.
+
+    Los esperados salen de las fórmulas de la figura, que son otra forma de
+    escribir la interpolación logarítmica entre los extremos de cada zona. La
+    Zona 1 es constante en -1,1 para todo el rango de áreas (0,1 a 100 m²); el
+    resto interpola entre 1 y 10 m².
+    """
+    log10 = np.log10
+
+    def esperado(area: float) -> dict:
+        negativos = {enums.ZonaComponenteCubiertaEdificio.UNO: -1.1}
+        # zona: (extremo, cst, pendiente, tope). Todas interpolan entre 1 y
+        # 10 m², así que la pendiente es el recorrido en un orden de magnitud.
+        pendientes = {
+            enums.ZonaComponenteCubiertaEdificio.DOS: (-1.3, -1.3, 0.1, -1.2),
+            enums.ZonaComponenteCubiertaEdificio.DOS_PRIMA: (-1.6, -1.6, 0.1, -1.5),
+            enums.ZonaComponenteCubiertaEdificio.TRES: (-1.8, -1.8, 0.6, -1.2),
+            enums.ZonaComponenteCubiertaEdificio.TRES_PRIMA: (-2.6, -2.6, 1.0, -1.6),
+        }
+        for zona, (extremo, cst, pendiente, tope) in pendientes.items():
+            if area <= 1:
+                negativos[zona] = extremo
+            elif area <= 10:
+                negativos[zona] = cst + pendiente * log10(area)
+            else:
+                negativos[zona] = tope
+        if area <= 1:
+            positivo = 0.3
+        elif area <= 10:
+            positivo = 0.3 - 0.1 * log10(area)
+        else:
+            positivo = 0.2
+        negativos[enums.ZonaComponenteCubiertaEdificio.TODAS] = positivo
+        return negativos
+
+    for area in (0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 100.0):
+        valores_cp = _valores_por_zona(
+            _cubierta_componentes(
+                area, angulo=8, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+            )
+        )
+        assert valores_cp == pytest.approx(esperado(area), abs=0.001)
+
+
+def test_cubierta_componentes_alero_figura_5_3_5a():
+    """El alero de la Figura 5.3-5A usa la superficie superior de la cubierta.
+
+    La Figura no menciona el voladizo; por el Art. 5.7 (pendiente, ver issue)
+    el alero toma los valores de la cubierta sin el positivo de la zona
+    "todas", igual que en las Tablas C 5.3-3, 5.3-4 y 5.3-5.
+    """
+    cubierta = _cubierta_componentes(
+        5, angulo=8, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+    )
+    alero = _cubierta_componentes(
+        5, angulo=8, tipo_cubierta=enums.TipoCubierta.UN_AGUA, es_alero=True
+    )
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    valores_cubierta = _valores_por_zona(cubierta)
+    valores_alero = _valores_por_zona(alero)
+    assert zonas.TODAS not in valores_alero
+    for zona in (
+        zonas.UNO,
+        zonas.DOS,
+        zonas.DOS_PRIMA,
+        zonas.TRES,
+        zonas.TRES_PRIMA,
+    ):
         assert valores_alero[zona] == pytest.approx(valores_cubierta[zona])
 
 
