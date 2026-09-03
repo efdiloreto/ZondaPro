@@ -27,7 +27,7 @@ from zonda.enums import CasoCartel
 if TYPE_CHECKING:
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
-    from zonda.enums import CategoriaEstructura, CategoriaExposicion, RegionCartel
+    from zonda.enums import CategoriaExposicion, RegionCartel
 
 
 class Cartel(PresionesBase):
@@ -40,7 +40,6 @@ class Cartel(PresionesBase):
     def __init__(
         self,
         altura: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: float,
@@ -55,7 +54,6 @@ class Cartel(PresionesBase):
         Args:
             altura: La altura h a la que se evalúa la presión dinámica: la punta
                 del cartel según la Figura 4.4-1.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de Rafaga.
             factor_topografico: El factor topográfico correspondiente a la altura.
@@ -68,7 +66,6 @@ class Cartel(PresionesBase):
         """
         super().__init__(
             altura,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -150,7 +147,6 @@ class Cartel(PresionesBase):
     def desde_cartel(
         cls,
         cartel: geometria.Cartel,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: float,
@@ -162,7 +158,6 @@ class Cartel(PresionesBase):
 
         Args:
             cartel: Una instancia de Cartel.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de Rafaga.
             factor_topografico: El factor topográfico correspondiente a la altura.
@@ -176,7 +171,6 @@ class Cartel(PresionesBase):
         }
         return cls(
             cartel.altura_superior,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
