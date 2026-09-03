@@ -413,6 +413,30 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
                 self._combobox_componentes_paredes, numero_filas, 1
             )
 
+            # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a
+            # la altura elegida (Nota 4), en los dos modos del signo.
+            if self.grafico.escena.por_altura_paredes:
+                self._combobox_alturas_paredes = QtWidgets.QComboBox()
+                for altura in self.grafico.escena.alturas_presiones_paredes:
+                    self._combobox_alturas_paredes.addItem(f"{altura:.2f} m", altura)
+                self._combobox_alturas_paredes.setCurrentIndex(
+                    self._combobox_alturas_paredes.count() - 1
+                )
+                self._combobox_alturas_paredes.currentTextChanged.connect(
+                    self._actualizar_altura_paredes
+                )
+
+                numero_filas += 1
+                self._layout_parametros.addWidget(
+                    QtWidgets.QLabel("Altura Presión Paredes"),
+                    numero_filas,
+                    0,
+                    QtCore.Qt.AlignmentFlag.AlignRight,
+                )
+                self._layout_parametros.addWidget(
+                    self._combobox_alturas_paredes, numero_filas, 1
+                )
+
         numero_filas = self._layout_parametros.rowCount()
         self._layout_parametros.setRowStretch(numero_filas, 1)
 
@@ -430,6 +454,8 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
             self.grafico.escena.actualizar_componente_pared(
                 self._combobox_componentes_paredes.currentText()
             )
+            if hasattr(self, "_combobox_alturas_paredes"):
+                self._actualizar_altura_paredes()
 
         if hasattr(self, "_combobox_componentes_cubierta"):
             self.grafico.escena.actualizar_componente_cubierta(
@@ -437,6 +463,17 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
             )
 
         self.setLayout(layout_principal)
+
+    def _actualizar_altura_paredes(self) -> None:
+        """Actualiza la altura a la que se evalúan las paredes.
+
+        Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a la
+        altura elegida (Nota 4), tanto en la presión positiva como en la
+        negativa.
+        """
+        self.grafico.escena.actualizar_altura_paredes(
+            self._combobox_alturas_paredes.currentData()
+        )
 
 
 class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):

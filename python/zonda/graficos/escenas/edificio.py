@@ -460,6 +460,13 @@ class PresionesComponentes(PresionesMixin):
         )
         self._alero = filas_alero.indexar("componente", "zona_componente")
 
+        # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a cada altura
+        # (Nota 4), así que la misma clave agrupa varias filas y el valor
+        # mostrado depende de la altura elegida.
+        self.por_altura_paredes = any(
+            len(filas) > 1 for filas in self._paredes.values()
+        )
+
         tabla_colores = TablaColores(
             *(
                 convertir_unidad(presion, self.unidad)
@@ -500,8 +507,24 @@ class PresionesComponentes(PresionesMixin):
             TipoPresionComponentesParedesCubierta.NEGATIVA
         )
         self._componente_actual_pared = self._componente_actual_cubierta = None
+        alturas_paredes = self.alturas_presiones_paredes
+        self._altura_paredes_actual = alturas_paredes[-1] if alturas_paredes else None
 
         self._actores_presion = self.escena.actores_presion
+
+    @property
+    def alturas_presiones_paredes(self) -> tuple[float, ...]:
+        """Las alturas a las que se evalúan las paredes.
+
+        Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a cada
+        altura de la estructura (Nota 4), en los dos modos del signo.
+
+        Returns:
+            Las alturas, de menor a mayor. Vacío si las paredes no varían con
+            la altura.
+        """
+        alturas = {fila.q.altura for filas in self._paredes.values() for fila in filas}
+        return tuple(sorted(alturas))
 
     def actualizar_gcpi(self, indice_gcpi: int) -> None:
         """Actualiza el factor de presión interna actual para todos los actores.
@@ -553,8 +576,27 @@ class PresionesComponentes(PresionesMixin):
             self._actualizar_alero()
         self._actualizar_titulo()
 
+    def actualizar_altura_paredes(self, altura: float) -> None:
+        """Actualiza la altura a la que se evalúan las paredes.
+
+        Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a la
+        altura elegida (Nota 4), tanto los valores positivos como los
+        negativos.
+
+        Args:
+            altura: La altura a la que actualizar la presión.
+        """
+        self._altura_paredes_actual = altura
+        if self._componentes_paredes is not None:
+            self._actualizar_paredes()
+        self._actualizar_titulo()
+
     def _actualizar_paredes(self) -> None:
         """Actualiza las presiones de los actores de paredes."""
+        por_altura = self.por_altura_paredes
+        str_extra = ""
+        if por_altura and self._altura_paredes_actual is not None:
+            str_extra = f"({self._altura_paredes_actual:.2f} m)"
         for zonas in self._actores_paredes.values():
             for zona, actores in zonas.items():
                 filas = self._filas_zona(
@@ -565,12 +607,35 @@ class PresionesComponentes(PresionesMixin):
                 )
                 if filas is None:
                     continue
-                presion = filas.unica().presion(self._gcpi_actual)
+                presion = self._presion_filas_paredes(filas, por_altura)
                 if zona == ZonaComponenteParedEdificio.CINCO:
                     for actor in actores:
-                        actor.asignar_presion(presion=presion, unidad=self.unidad)
+                        actor.asignar_presion(
+                            presion=presion, unidad=self.unidad, str_extra=str_extra
+                        )
                 else:
-                    actores.asignar_presion(presion=presion, unidad=self.unidad)
+                    actores.asignar_presion(
+                        presion=presion, unidad=self.unidad, str_extra=str_extra
+                    )
+
+    def _presion_filas_paredes(self, filas: Any, por_altura: bool) -> float:
+        """La presión de las filas de una zona de pared.
+
+        Con la Figura 5.4-1 (h > 20 m) las paredes traen una fila por altura y
+        se toma la de la altura actual; el resto de los casos tiene una única
+        fila.
+
+        Args:
+            filas: La tabla de filas de la zona para el tipo de presión actual.
+            por_altura: Si el valor depende de la altura.
+
+        Returns:
+            La presión para el tipo de presión interna actual.
+        """
+        if not por_altura or len(filas) == 1:
+            return filas.unica().presion(self._gcpi_actual)
+        por_altura_filas = {fila.q.altura: fila for fila in filas}
+        return por_altura_filas[self._altura_paredes_actual].presion(self._gcpi_actual)
 
     def _filas_zona(
         self,

@@ -21,6 +21,7 @@ import shutil
 
 import pytest
 
+from zonda import enums
 from zonda.enums import Unidad
 from zonda.reportes import Reporte, env, render_plantilla
 
@@ -67,6 +68,37 @@ def test_reporte_edificio_con_parapeto_distingue_el_positivo_por_zona(
     texto = Reporte("edificio.md", edificio_con_parapeto, UNIDADES)._texto_md
     assert "2 (positiva)" in texto
     assert "3 (positiva)" in texto
+
+
+def test_reporte_edificio_gran_altura_resuelve_las_paredes_por_altura():
+    """Con h > 20 m la Figura 5.4-1 evalúa las paredes con qz a cada altura
+    (Nota 4), tanto las positivas como las negativas.
+
+    Las Zonas 4, 5 y "todas" de pared viajan con varias alturas y entran al
+    bloque por altura del reporte; la cubierta queda con un valor único qh.
+    """
+    from zonda.cirsoc import Edificio
+
+    edificio = Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=22,
+        altura_cumbrera=23,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+    texto = Reporte("edificio.md", edificio, UNIDADES)._texto_md
+    assert "Figura 5.4-1" in texto
+    assert "q~z~" in texto
+    assert "Viga" in texto
 
 
 def test_reporte_cartel(cartel):

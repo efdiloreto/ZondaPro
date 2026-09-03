@@ -630,6 +630,40 @@ def test_zonas_de_componentes_de_la_tabla_c_5_3_2_con_alero(qapp):
     assert sum(areas_alero.values()) == pytest.approx(2 * 1 * 40)
 
 
+def _edificio_dos_aguas_gran_altura(alero: float = 0):
+    """Un edificio de 30 x 40 con cubierta a dos aguas de h > 20 m (Fig. 5.4-1).
+
+    Con altura de alero 22 m y cumbrera a 23 m la semiluz de 15 m da un ángulo
+    de unos 3.8° y una altura media de 22.5 m: aplica la Figura 5.4-1 con la
+    distancia "a" en 3 m (0,1 de la menor dimensión horizontal contra 0,4h).
+
+    Args:
+        alero: La dimensión del alero.
+
+    Returns:
+        El edificio, con componentes de paredes y cubierta cargados.
+    """
+    from zonda.cirsoc import Edificio
+
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=22,
+        altura_cumbrera=23,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        categoria=enums.CategoriaEstructura.II,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=alero,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
 def _edificio_dos_aguas_angulo_medio(alero: float = 0):
     """Un edificio de 30 x 40 con cubierta a dos aguas de θ ≈ 7.6°.
 
@@ -902,6 +936,139 @@ def test_la_escena_de_componentes_pinta_todas_las_zonas_de_la_tabla_c_5_3_3(qapp
         for actor in actores_zona:
             assert actor.flecha.texto, f"zona {zona.value} sin presión"
     assert set(director.actores_cubierta) == {zonas.UNO, zonas.DOS, zonas.TRES}
+
+
+def _actores_de(valor):
+    """Una vista de los actores de un grupo, sea uno solo o varios.
+
+    El director agrupa la Zona 4 como un actor único y la Zona 5 como un par
+    (un listón por borde).
+
+    Args:
+        valor: El actor o la tupla de actores del grupo.
+
+    Yields:
+        Cada actor del grupo.
+    """
+    if isinstance(valor, (list, tuple, frozenset)):
+        yield from valor
+    else:
+        yield valor
+
+
+def test_zonas_de_componentes_de_la_figura_5_4_1(qapp):
+    """Las zonas de la Figura 5.4-1 cubren la cubierta sin huecos ni solapes.
+
+    Con la distancia "a" de 3 m, la Zona 3 son las "L" perimetrales de "a" de
+    ancho junto a los bordes, la Zona 2 la franja de "2a" que le sigue y la
+    Zona 1 el interior. Las áreas se miden en planta y se llevan al plano del
+    faldón, cuya inclinación es la flecha de 1 m sobre la semiluz de 15 m.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_dos_aguas_gran_altura()
+    )
+    areas = _areas_por_zona(director.actores_cubierta)
+
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    assert set(areas) == {zonas.UNO, zonas.DOS, zonas.TRES}
+
+    inclinacion = np.hypot(1, 15) / 15
+    a = 3.0
+    ancho_planta = 30.0
+    profundidad = 40.0
+    esperadas = {
+        # Cuatro "L" de las esquinas: cada una de dos brazos de "a" de espesor
+        # y "2a"+"a" de largo, que en la suma dan 3 "a" cuadradas por esquina.
+        zonas.TRES: 12 * a**2,
+        # Franja de "2a" que sigue a las "L", rodeando el interior.
+        zonas.DOS: 2 * a * (ancho_planta + profundidad - 8 * a),
+        zonas.UNO: (ancho_planta - 2 * a) * (profundidad - 2 * a),
+    }
+    for zona, area_en_planta in esperadas.items():
+        assert areas[zona] == pytest.approx(area_en_planta * inclinacion)
+    assert sum(areas.values()) == pytest.approx(
+        ancho_planta * profundidad * inclinacion
+    )
+
+
+def test_zonas_de_paredes_de_la_figura_5_4_1(qapp):
+    """Las Zonas 4 y 5 dividen las paredes de la Figura 5.4-1 sin huecos.
+
+    Sobre cada pared, la Zona 4 es el ancho central y la Zona 5 los listones
+    de "a" de los bordes: entre las dos cubren la pared completa. Las de
+    frente y contrafrente son las que llevan el triángulo del frontón: el
+    rectángulo hasta el alero más el triángulo de la pendiente.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_dos_aguas_gran_altura()
+    )
+    paredes = director.obtener_paredes()
+    zonas = enums.ZonaComponenteParedEdificio
+    areas_por_pared = {
+        pared: {
+            zona: sum(actor._poligono.area() for actor in _actores_de(actores))
+            for zona, actores in zonas_actor.items()
+        }
+        for pared, zonas_actor in paredes.items()
+    }
+    for areas in areas_por_pared.values():
+        assert set(areas) == {zonas.CUATRO, zonas.CINCO}
+        assert areas[zonas.CUATRO] > 0
+        assert areas[zonas.CINCO] > 0
+
+    # Frente y contrafrente: rectángulo de 30 x 22 hasta el alero más el
+    # frontón de 1 m de flecha sobre la luz de 30 m.
+    frente = 30 * 22 + 0.5 * 30 * 1
+    for pared in (
+        enums.ParedEdificioSprfv.BARLOVENTO,
+        enums.ParedEdificioSprfv.SOTAVENTO,
+    ):
+        assert sum(areas_por_pared[pared].values()) == pytest.approx(frente)
+
+
+def test_la_escena_de_componentes_pinta_todas_las_zonas_de_la_figura_5_4_1(qapp):
+    """Cada zona de la Figura 5.4-1 recibe su presión en la escena.
+
+    Las paredes se evalúan con qz a la altura elegida (Nota 4) tanto en la
+    presión positiva como en la negativa: la escena expone las alturas y al
+    cambiarlas repinta todas las paredes en los dos modos del signo.
+    """
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesComponentes(
+        escena, _edificio_dos_aguas_gran_altura(), enums.Unidad.N
+    )
+    presiones.actualizar_componente_pared("Viga")
+    presiones.actualizar_componente_cubierta("Correa")
+
+    zonas = enums.ZonaComponenteParedEdificio
+    director = presiones.director
+    for pared, zonas_actor in director.actores_paredes.items():
+        for zona, actores in zonas_actor.items():
+            for actor in _actores_de(actores):
+                assert actor.flecha.texto, (
+                    f"pared {pared} zona {zona.value} sin presión"
+                )
+
+    assert presiones.por_altura_paredes
+    alturas = presiones.alturas_presiones_paredes
+    assert alturas and alturas[-1] == pytest.approx(23)
+
+    # La altura de qz cambia el valor de las paredes en los dos modos.
+    for tipo in enums.TipoPresionComponentesParedesCubierta:
+        presiones.actualizar_tipo_presion(tipo)
+        actor_4 = director.actores_paredes[enums.ParedEdificioSprfv.BARLOVENTO][
+            zonas.CUATRO
+        ]
+        presiones.actualizar_altura_paredes(alturas[0])
+        assert f"({alturas[0]:.2f} m)" in actor_4.flecha.texto
+        presiones.actualizar_altura_paredes(alturas[-1])
+        assert f"({alturas[-1]:.2f} m)" in actor_4.flecha.texto
 
 
 def test_zonas_de_componentes_de_la_tabla_c_5_3_4(qapp):

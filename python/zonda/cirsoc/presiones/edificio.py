@@ -447,7 +447,27 @@ class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
     """ParedesComponentes.
 
     Determina las presiones para componentes y revestimientos de paredes.
+
+    Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a cada
+    altura, tanto las positivas como las negativas (Nota 4): el valor de la
+    presión varía con la altura.
     """
+
+    @cached_property
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones sobre los componentes de las paredes.
+
+        Returns:
+            Una fila por cada coeficiente, o una por altura en las paredes de
+            la Figura 5.4-1.
+        """
+        filas = []
+        for entrada in self.cp.entradas:
+            if entrada.referencia == "Figura 5.4-1":
+                filas += [self._fila(entrada, q, 1.0) for q in self.presiones_velocidad]
+            else:
+                filas.append(self._fila(entrada, self.q_media, 1.0))
+        return tuple(filas)
 
 
 class Cubierta:

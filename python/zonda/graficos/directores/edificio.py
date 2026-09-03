@@ -1086,6 +1086,8 @@ class PresionesComponentes(Geometria):
                 return self._cubierta_tabla_c_5_3_5a()
             if self._referencia_cubierta == "Figura 5.3-5B":
                 return self._cubierta_tabla_c_5_3_5b()
+            if self._referencia_cubierta == "Figura 5.4-1":
+                return self._cubierta_figura_5_4_1()
             return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
@@ -1093,6 +1095,8 @@ class PresionesComponentes(Geometria):
             return self._cubierta_tabla_c_5_3_3()
         if self._referencia_cubierta == "Tabla C 5.3-5":
             return self._cubierta_tabla_c_5_3_5()
+        if self._referencia_cubierta == "Figura 5.4-1":
+            return self._cubierta_figura_5_4_1()
         return {}
 
     def _seleccionar_cubierta(self):
@@ -1105,6 +1109,8 @@ class PresionesComponentes(Geometria):
                 return self._cubierta_tabla_c_5_3_5a()
             if self._referencia_cubierta == "Figura 5.3-5B":
                 return self._cubierta_tabla_c_5_3_5b()
+            if self._referencia_cubierta == "Figura 5.4-1":
+                return self._cubierta_figura_5_4_1()
             return {}
         if self._referencia_cubierta == "Tabla C 5.3-2":
             return self._cubierta_tabla_c_5_3_2()
@@ -1112,7 +1118,157 @@ class PresionesComponentes(Geometria):
             return self._cubierta_tabla_c_5_3_3()
         if self._referencia_cubierta == "Tabla C 5.3-5":
             return self._cubierta_tabla_c_5_3_5()
+        if self._referencia_cubierta == "Figura 5.4-1":
+            return self._cubierta_figura_5_4_1()
         return {}
+
+    def _cubierta_figura_5_4_1(self):
+        """Determina las coordenadas de las zonas de la Figura 5.4-1.
+
+        La Figura 5.4-1 (la reemplazante de la Figura 8 del 2005) reparte las
+        zonas con la distancia "a": la Zona 3 es la franja de "a" de ancho de
+        los bordes perimetrales (la "L" que corre por las paredes y el borde
+        de la cumbrera), la Zona 2 la franja de "2a" que le sigue y la Zona 1
+        el interior. Los rectángulos se arman en planta y se parten en la
+        cumbrera para proyectarlos sobre cada faldón.
+
+        Returns:
+            Las coordenadas de las zonas de cada faldón.
+        """
+        es_cubierta_un_agua = self.tipo_cubierta == TipoCubierta.UN_AGUA
+
+        mitad_ancho = self.ancho / 2
+        punto_mitad = (mitad_ancho, self.altura_cumbrera)
+
+        if es_cubierta_un_agua:
+            punto_mitad = (mitad_ancho, (self.altura_cumbrera + self.altura_alero) / 2)
+
+        if self.alero_:
+            punto_alero_inicio = tuple(
+                punto_sobre_vector(-self.alero_, (0, self.altura_alero), punto_mitad)
+            )
+            punto_alero_fin = (
+                self.ancho + abs(punto_alero_inicio[0]),
+                punto_alero_inicio[1],
+            )
+        else:
+            punto_alero_inicio = (0, self.altura_alero)
+            punto_alero_fin = (self.ancho, self.altura_alero)
+
+        if es_cubierta_un_agua:
+            punto_alero_fin = (self.ancho, self.altura_cumbrera)
+
+        dos_distancia_a = 2 * self._distancia_a
+
+        zonas_z = (
+            (0, -self._distancia_a),
+            (-self._distancia_a, -dos_distancia_a),
+            (-dos_distancia_a, self.longitud + dos_distancia_a),
+            (self.longitud + dos_distancia_a, self.longitud + self._distancia_a),
+            (self.longitud + self._distancia_a, self.longitud),
+        )
+
+        inicio = punto_alero_inicio[0]
+        fin = punto_alero_fin[0]
+
+        a_inicial_1 = inicio + self._distancia_a
+        a_inicial_2 = inicio + dos_distancia_a
+        a_final_1 = fin - self._distancia_a
+        a_final_2 = fin - dos_distancia_a
+
+        zonas_x = (
+            (inicio, a_inicial_1),
+            (inicio, a_inicial_2),
+            (a_inicial_1, a_inicial_2),
+            (a_inicial_2, mitad_ancho),
+            (mitad_ancho, a_final_2),
+            (a_final_2, a_final_1),
+            (a_final_2, fin),
+            (a_final_1, fin),
+        )
+
+        zonas_3_extremo_izq = zonas_x[1:2]
+        zonas_3_extremo_der = zonas_x[6:7]
+        zonas_3_centro_izq = zonas_x[:1]
+        zonas_3_centro_der = zonas_x[-1:]
+        zonas_2_centro_izq = zonas_3_centro_izq
+        zonas_2_centro_der = zonas_3_centro_der
+        zonas_2_extremo_izq = zonas_x[3:4]
+        zonas_2_extremo_der = zonas_x[4:5]
+        zona_1_izq = (a_inicial_1, mitad_ancho)
+        zona_1_der = (mitad_ancho, a_final_1)
+
+        coords_zonas_3_faldon_izq = []
+        coords_zonas_3_faldon_der = []
+        for i, (z_inicio, z_fin) in enumerate(zonas_z[:2] + zonas_z[3:]):
+            if i in (0, 3):
+                zonas_x_izq = zonas_3_extremo_izq
+                zonas_x_der = zonas_3_extremo_der
+            else:
+                zonas_x_izq = zonas_3_centro_izq
+                zonas_x_der = zonas_3_centro_der
+            for zona in zonas_x_izq:
+                coords_zonas_3_faldon_izq.append(
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
+                )
+            for zona in zonas_x_der:
+                coords_zonas_3_faldon_der.append(
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
+                )
+
+        coords_zonas_2_faldon_izq = []
+        coords_zonas_2_faldon_der = []
+        for i, (z_inicio, z_fin) in enumerate(
+            zonas_z[:1] + zonas_z[2:3] + zonas_z[-1:]
+        ):
+            if i == 1:
+                zonas_x_izq = zonas_2_centro_izq
+                zonas_x_der = zonas_2_centro_der
+            else:
+                zonas_x_izq = zonas_2_extremo_izq
+                zonas_x_der = zonas_2_extremo_der
+            for zona in zonas_x_izq:
+                coords_zonas_2_faldon_izq.append(
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_alero_inicio, punto_mitad, z_inicio, z_fin
+                    )
+                )
+            for zona in zonas_x_der:
+                coords_zonas_2_faldon_der.append(
+                    coords_zona_cubierta_desde_proyeccion(
+                        zona, punto_mitad, punto_alero_fin, z_inicio, z_fin
+                    )
+                )
+        coords_zona_1_faldon_izq = coords_zona_cubierta_desde_proyeccion(
+            zona_1_izq,
+            punto_alero_inicio,
+            punto_mitad,
+            -self._distancia_a,
+            self.longitud + self._distancia_a,
+        )
+        coords_zona_1_faldon_der = coords_zona_cubierta_desde_proyeccion(
+            zona_1_der,
+            punto_mitad,
+            punto_alero_fin,
+            -self._distancia_a,
+            self.longitud + self._distancia_a,
+        )
+
+        coords_faldon_izq = {
+            ZonaComponenteCubiertaEdificio.TRES: coords_zonas_3_faldon_izq,
+            ZonaComponenteCubiertaEdificio.DOS: coords_zonas_2_faldon_izq,
+            ZonaComponenteCubiertaEdificio.UNO: (coords_zona_1_faldon_izq,),
+        }
+        coords_faldon_der = {
+            ZonaComponenteCubiertaEdificio.TRES: coords_zonas_3_faldon_der,
+            ZonaComponenteCubiertaEdificio.DOS: coords_zonas_2_faldon_der,
+            ZonaComponenteCubiertaEdificio.UNO: (coords_zona_1_faldon_der,),
+        }
+        return {"faldon izq": coords_faldon_izq, "faldon der": coords_faldon_der}
 
     def _cubierta_tabla_c_5_3_3(self):
         """Determina las coordenadas de las zonas de las Figuras 5.3-2B y C.

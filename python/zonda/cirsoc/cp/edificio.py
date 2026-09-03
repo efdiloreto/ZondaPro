@@ -109,6 +109,13 @@ def calcular_cp_componente(
 CP_POSITIVO_PAREDES = (1.0, 0.7)
 AREAS_COMPONENTES_PAREDES = (1.0, 50.0)
 
+# CIRSOC 102-2025 - Figura 5.4-1 (h > 20 m): el GCp positivo de las paredes de
+# C&R de edificios de gran altura, con su rango de áreas. Con los valores
+# positivos se debe usar qz y con los negativos qh (Nota 4), así que la
+# presión resuelve el positivo altura por altura.
+CP_POSITIVO_PAREDES_GRAN_ALTURA = (0.9, 0.6)
+AREAS_COMPONENTES_PAREDES_GRAN_ALTURA = (2.0, 50.0)
+
 
 def cp_positivo_paredes(area_componente: float, angulo_cubierta: float) -> float:
     """El GCp positivo de las Zonas de pared 4 y 5 de la Tabla C 5.3-1.
@@ -256,14 +263,14 @@ class ParedesComponentes:
 
     Determina los coeficientes de presión de paredes de edificio para Componentes y Revestimientos.
 
-    TODO: La rama de gran altura de C&R (Fig. 5.3-1 para h > 20 m) sigue
-    pendiente de migrar a CIRSOC 102-2025: la Tabla C 5.3-1 sólo cubre hasta
-    20 m, y más allá se lanza ErrorLineamientos.
+    La Tabla C 5.3-1 cubre hasta 20 m de altura media y la Figura 5.4-1 desde
+    ahí en adelante: es la reemplazante de la Figura 8 del CIRSOC 102-2005,
+    con los mismos valores y la misma distribución de Zonas 4 y 5.
 
     TODO (#9): falta la zona 4+ de la superficie inferior de los edificios
-    separados del suelo (Nota 8 de las figuras de C&R, Figura 5.3-1A). El dato
-    de entrada existe -la elevación del edificio-, y el valor es el positivo de
-    la zona 4, que ya devuelve ``cp_positivo_paredes``.
+    separados del suelo (Figura 5.4-1A). El dato de entrada existe -la
+    elevación del edificio-, y el valor es el positivo de la zona 4, que ya
+    devuelve ``cp_positivo_paredes``.
     """
 
     def __init__(
@@ -289,37 +296,41 @@ class ParedesComponentes:
         self.altura_media = altura_media
         self.angulo_cubierta = angulo_cubierta
         self.componentes = componentes
-        self.referencia = "Tabla C 5.3-1"
+        if self.altura_media <= 20:
+            self.referencia = "Tabla C 5.3-1"
+        else:
+            self.referencia = "Figura 5.4-1"
 
     @cached_property
     def entradas(self) -> tuple[EntradaCp, ...]:
         """Determina los coeficientes de presión para componentes y revestimientos.
 
+        La Figura 5.4-1 (h > 20 m) da un solo valor positivo para todas las
+        paredes, que se evalúa con qz altura por altura (Nota 4); los negativos
+        se evalúan con qh. La rama baja no cambia de tabla por pared.
+
         Returns:
             Un coeficiente por cada componente y zona. Ninguno si no se
             cargaron componentes.
-
-        Raises:
-            ErrorLineamientos: Cuando la altura media supera 20 m, alcance de
-                la Tabla C 5.3-1: la rama de gran altura del 2025 aún no está
-                migrada.
         """
         if self.componentes is None:
             return ()
-        if self.altura_media > 20:
-            raise excepciones.ErrorLineamientos(
-                "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
-                "los coeficientes de presión para Componentes y Revestimientos "
-                "de paredes de edificios con altura media mayor que 20 m "
-                "(la rama de gran altura está pendiente de migrar)."
-            )
-        caso_cp = {
-            ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
-            ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
-            ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES,
-        }
-        factor_reduccion = 0.9 if self.angulo_cubierta <= 10 else 1
-        area = AREAS_COMPONENTES_PAREDES
+        if self.referencia == "Tabla C 5.3-1":
+            caso_cp = {
+                ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
+                ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
+                ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES,
+            }
+            factor_reduccion = 0.9 if self.angulo_cubierta <= 10 else 1
+            area = AREAS_COMPONENTES_PAREDES
+        else:
+            caso_cp = {
+                ZonaComponenteParedEdificio.CUATRO: (-0.9, -0.7),
+                ZonaComponenteParedEdificio.CINCO: (-1.8, -1.0),
+                ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES_GRAN_ALTURA,
+            }
+            factor_reduccion = 1
+            area = AREAS_COMPONENTES_PAREDES_GRAN_ALTURA
         return tuple(
             EntradaCp(
                 zona=ZonaEdificio.PAREDES,
@@ -343,13 +354,18 @@ class ParedesComponentes:
 
         Excepción del Reglamento (Tabla C 5.3-1): para ángulo de cubierta de
         0° a 7° y dimensión horizontal mínima mayor que 90 m, la distancia "a"
-        se limita a un máximo de 0,8 veces la altura media.
+        se limita a un máximo de 0,8 veces la altura media. La Figura 5.4-1 no
+        tiene esa excepción.
 
         Returns:
             El valor de distancia "a" del edificio.
         """
         a = distancia_a(self.ancho, self.longitud, self.altura_media)
-        if 0 <= self.angulo_cubierta <= 7 and min(self.ancho, self.longitud) > 90:
+        if (
+            self.referencia == "Tabla C 5.3-1"
+            and 0 <= self.angulo_cubierta <= 7
+            and min(self.ancho, self.longitud) > 90
+        ):
             a = min(a, 0.8 * self.altura_media)
         return a
 
@@ -820,16 +836,18 @@ class CubiertaComponentes:
     cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m), la Tabla C
     5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m), la Tabla C
     5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m), la Tabla C
-    5.3-5 (Fig. 5.3-2D, 27° < ángulo <= 45° y altura media <= 20 m) y, para
+    5.3-5 (Fig. 5.3-2D, 27° < ángulo <= 45° y altura media <= 20 m), para
     cubiertas a un agua, las Figuras 5.3-5A y 5.3-5B (3° < ángulo <= 10° y
-    10° < ángulo <= 30°, ambas con altura media <= 20 m). El resto de la
-    geometría (cubiertas a un agua con ángulo > 30°, otros ángulos o alturas)
-    todavía no tiene lineamientos 2025 migrados y lanza ErrorLineamientos.
+    10° < ángulo <= 30°, ambas con altura media <= 20 m) y, para edificios con
+    altura media mayor que 20 m y ángulo <= 7°, la Figura 5.4-1 (paredes y
+    cubierta, Nota 6 del Art. 5.4.2). El resto de la geometría (cubiertas a un
+    agua con ángulo > 30°, otros ángulos o alturas) todavía no tiene
+    lineamientos 2025 migrados y lanza ErrorLineamientos.
 
     TODO: el alero de las Tablas C 5.3-3, C 5.3-4, C 5.3-5 y de las Figuras
     5.3-5A y 5.3-5B debería resolverse por el Art. 5.7 del reglamento
     (superficie superior + inferior de pared); hoy usa sólo la superficie
-    superior (ver issue).
+    superior (ver issue). El alero de gran altura (Art. 5.7) sigue pendiente.
     """
 
     def __init__(
@@ -1038,6 +1056,24 @@ class CubiertaComponentes:
                     "area": (1, 10),
                 },
             },
+            # CIRSOC 102-2025 - Figura 5.4-1 (h > 20 m y ángulo <= 7°): los GCp
+            # de cubierta de C&R de edificios de gran altura, la reemplazante
+            # de la Figura 8 del 2005. La cubierta no lleva positivo. El
+            # rango de áreas es el de la Figura, (1, 50).
+            "Figura 5.4-1": {
+                ZonaComponenteCubiertaEdificio.UNO: {
+                    "cp": (-1.4, -0.9),
+                    "area": (1, 50),
+                },
+                ZonaComponenteCubiertaEdificio.DOS: {
+                    "cp": (-2.3, -1.6),
+                    "area": (1, 50),
+                },
+                ZonaComponenteCubiertaEdificio.TRES: {
+                    "cp": (-3.2, -2.3),
+                    "area": (1, 50),
+                },
+            },
         }
         if self.es_alero:
             # Tabla C 5.3-2, bloque "Negativo con voladizo". Las Zonas 1 y
@@ -1072,11 +1108,21 @@ class CubiertaComponentes:
         if self.es_alero:
             caso_cp.pop(ZonaComponenteCubiertaEdificio.TODAS, None)
 
-        # CIRSOC 102-2025 (Fig. 5.3-2A - Nota 5, que pide parapeto de 1 m o
-        # más): la Zona 3 negativa iguala a la Zona 2. La positiva la agrega
-        # _entradas_positivas_nota_parapeto. La Tabla C 5.3-3 no trae nota de
-        # parapeto.
-        aplica_nota_parapeto = self.referencia == "Tabla C 5.3-2" and self.parapeto >= 1
+        # CIRSOC 102-2025 - Nota de parapeto: la Fig. 5.3-2A (Nota 5) y la
+        # Fig. 5.4-1 (Nota 7) igualan la Zona 3 negativa a la Zona 2; la
+        # primera pide parapeto de 1 m o más y la segunda, además, ángulo
+        # <= 10°. El positivo propio de las Zonas 2 y 3 lo agrega
+        # _entradas_positivas_nota_parapeto y es de la Fig. 5.3-2A
+        # solamente: la 5.4-1 no lleva positivo de cubierta. La Tabla C 5.3-3
+        # no trae nota de parapeto.
+        if self.referencia == "Tabla C 5.3-2":
+            aplica_nota_parapeto = self.parapeto >= 1
+        else:
+            aplica_nota_parapeto = (
+                self.referencia == "Figura 5.4-1"
+                and self.parapeto >= 1
+                and self.angulo <= 10
+            )
         if aplica_nota_parapeto:
             caso_cp[ZonaComponenteCubiertaEdificio.TRES] = caso_cp[
                 ZonaComponenteCubiertaEdificio.DOS
@@ -1186,12 +1232,7 @@ class CubiertaComponentes:
         if self.tipo_cubierta == TipoCubierta.UN_AGUA:
             return self._referencia_un_agua()
         if self.altura_media > 20:
-            raise excepciones.ErrorLineamientos(
-                "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
-                "los coeficientes de presión para Componentes y Revestimientos "
-                "de cubiertas de edificios con altura media mayor que 20 m "
-                "(Figuras 5.3-2 E a G pendientes de migrar)."
-            )
+            return self._referencia_gran_altura()
         if self.angulo <= 7:
             return "Tabla C 5.3-2"
         if self.angulo <= 20:
@@ -1205,6 +1246,30 @@ class CubiertaComponentes:
             "los coeficientes de presión para Componentes y Revestimientos "
             "de cubiertas a dos aguas con ángulo > 45° (Figuras 5.3-2 E a G "
             "pendientes de migrar)."
+        )
+
+    def _referencia_gran_altura(self) -> str:
+        """Determina la referencia de la figura para edificios de gran altura.
+
+        Con h > 20 m la Nota 6 de la Figura 5.4-1 y el Art. 5.4.2 resuelven
+        las cubiertas con ángulo <= 7° con esa misma Figura; el resto (ángulos
+        mayores y los aleros) sigue pendiente de migrar en el 2025.
+
+        Returns:
+            La referencia de la figura o tabla en el código.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                reglamento 2025 para componentes y revestimientos de cubierta.
+        """
+        if not self.es_alero and self.angulo <= 7:
+            return "Figura 5.4-1"
+        raise excepciones.ErrorLineamientos(
+            "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
+            "los coeficientes de presión para Componentes y Revestimientos "
+            "de cubiertas de edificios con altura media mayor que 20 m y "
+            "ángulo mayor que 7° (Figuras 5.3-2 E a G pendientes de migrar "
+            "y el alero de gran altura por el Art. 5.7)."
         )
 
     def _referencia_un_agua(self) -> str:
@@ -1224,12 +1289,7 @@ class CubiertaComponentes:
                 reglamento 2025 para componentes y revestimientos de cubierta.
         """
         if self.altura_media > 20:
-            raise excepciones.ErrorLineamientos(
-                "El CIRSOC 102-2025 aún no provee lineamientos para calcular "
-                "los coeficientes de presión para Componentes y Revestimientos "
-                "de cubiertas de edificios con altura media mayor que 20 m "
-                "(Figuras 5.3-3 a 5.3-6 pendientes de migrar)."
-            )
+            return self._referencia_gran_altura()
         if self.angulo <= 3:
             return "Tabla C 5.3-2"
         if self.angulo <= 10:

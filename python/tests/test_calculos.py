@@ -645,12 +645,11 @@ def _paredes_componentes(
 
 
 def test_paredes_componentes_referencia_nueva_tabla():
-    """La rama baja usa Tabla C 5.3-1; un edificio alto sale de lineamientos."""
+    """La rama baja usa Tabla C 5.3-1; un edificio alto la Figura 5.4-1."""
     bajo = _paredes_componentes(3)
     assert bajo.referencia == "Tabla C 5.3-1"
     alto = _paredes_componentes(3, altura_media=25)
-    with pytest.raises(ErrorLineamientos):
-        _ = alto.entradas
+    assert alto.referencia == "Figura 5.4-1"
 
 
 def test_paredes_componentes_valores_tabla_c531():
@@ -750,6 +749,55 @@ def test_paredes_componentes_excepcion_distancia_a():
     assert edificio_8.distancia_a == a_sin_excepcion
 
 
+def test_paredes_componentes_valores_figura_5_4_1():
+    """Valores GCp de la Figura 5.4-1 (h > 20 m), extremos y rampa log.
+
+    El positivo viaja en la zona "todas" con la rampa (0.9 → 0.6) para
+    A ∈ [2, 50] y sin el descuento 0.9 de la rama baja; los negativos de las
+    Zonas 4 y 5, (-0.9 → -0.7) y (-1.8 → -1.0), con el mismo rango de áreas.
+    Referencia reglamentaria fija.
+    """
+    log10 = np.log10
+
+    def esperado(cps: tuple[float, float], area: float) -> float:
+        primer_cp, ultimo_cp = cps
+        primer_area, ultima_area = 2.0, 50.0
+        if area <= primer_area:
+            return primer_cp
+        if area >= ultima_area:
+            return ultimo_cp
+        g = (ultimo_cp - primer_cp) / log10(ultima_area / primer_area)
+        return primer_cp + g * log10(area / primer_area)
+
+    casos = (
+        (0.5, (0.9, 0.6), (-0.9, -0.7), (-1.8, -1.0)),
+        (3.0, (0.9, 0.6), (-0.9, -0.7), (-1.8, -1.0)),
+        (60.0, (0.9, 0.6), (-0.9, -0.7), (-1.8, -1.0)),
+    )
+    for area, pos, n4, n5 in casos:
+        paredes = _paredes_componentes(area, altura_media=25, angulo=5)
+        valores_cp = {
+            entrada.zona_componente: entrada.valor for entrada in paredes.entradas
+        }
+        assert len(valores_cp) == 3
+        assert valores_cp[enums.ZonaComponenteParedEdificio.TODAS] == pytest.approx(
+            esperado(pos, area)
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CUATRO] == pytest.approx(
+            esperado(n4, area)
+        )
+        assert valores_cp[enums.ZonaComponenteParedEdificio.CINCO] == pytest.approx(
+            esperado(n5, area)
+        )
+
+
+def test_paredes_componentes_gran_altura_no_aplica_excepcion_distancia_a():
+    """La excepción de "a" a 0,8·h es de la Tabla C 5.3-1, no de la 5.4-1."""
+    a_sin_excepcion = distancia_a(95, 120, 25)
+    alto = _paredes_componentes(2, ancho=95, longitud=120, altura_media=25, angulo=5)
+    assert alto.distancia_a == a_sin_excepcion
+
+
 def _cubierta_componentes(
     area: float,
     *,
@@ -820,7 +868,7 @@ def test_cubierta_componentes_referencia_tabla_c533():
     with pytest.raises(ErrorLineamientos):
         _ = _cubierta_componentes(3, angulo=46).referencia
     with pytest.raises(ErrorLineamientos):
-        _ = _cubierta_componentes(3, altura_media=21).referencia
+        _ = _cubierta_componentes(3, altura_media=21, angulo=8).referencia
 
 
 def test_cubierta_componentes_referencia_tabla_c534():
@@ -874,7 +922,75 @@ def test_cubierta_componentes_referencia_figura_5_3_5a():
         is None
     )
     with pytest.raises(ErrorLineamientos):
-        _ = _cubierta_componentes(3, altura_media=21, tipo_cubierta=un_agua).referencia
+        _ = _cubierta_componentes(
+            3, altura_media=21, angulo=8, tipo_cubierta=un_agua
+        ).referencia
+
+
+def test_cubierta_componentes_referencia_figura_5_4_1():
+    """La cubierta con h > 20 m y θ ≤ 7° usa la Figura 5.4-1 (Nota 6)."""
+    assert _cubierta_componentes(3, altura_media=21).referencia == "Figura 5.4-1"
+    assert (
+        _cubierta_componentes(
+            3, altura_media=25, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+        ).referencia
+        == "Figura 5.4-1"
+    )
+    # Los ángulos mayores a 7° y los aleros de gran altura quedan sin
+    # lineamientos 2025.
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(3, altura_media=21, angulo=8).referencia
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(3, altura_media=21, es_alero=True).referencia
+    with pytest.raises(ErrorLineamientos):
+        _ = _cubierta_componentes(
+            3, altura_media=21, angulo=8, tipo_cubierta=enums.TipoCubierta.UN_AGUA
+        ).referencia
+    # Las zonas se miden con la distancia "a", no con h como en la 5.3-2.
+    assert _cubierta_componentes(3, altura_media=21).distancias_zonas is None
+
+
+def test_cubierta_componentes_valores_figura_5_4_1():
+    """Valores GCp de cubierta de la Figura 5.4-1 (h > 20 m).
+
+    Las Zonas 1, 2 y 3 con sus rampas log (-1.4 → -0.9, -2.3 → -1.6 y
+    -3.2 → -2.3) para A ∈ [1, 50] y sin valor positivo. Con parapeto de 1 m
+    o más y θ ≤ 10° la Zona 3 negativa iguala a la Zona 2 (Nota 7).
+    """
+    log10 = np.log10
+
+    def esperado(cps: tuple[float, float], area: float) -> float:
+        primer_cp, ultimo_cp = cps
+        if area <= 1:
+            return primer_cp
+        if area >= 50:
+            return ultimo_cp
+        g = (ultimo_cp - primer_cp) / log10(50)
+        return primer_cp + g * log10(area)
+
+    zonas = enums.ZonaComponenteCubiertaEdificio
+    casos = (
+        (0.5, (-1.4, -0.9), (-2.3, -1.6), (-3.2, -2.3)),
+        (3.0, (-1.4, -0.9), (-2.3, -1.6), (-3.2, -2.3)),
+        (60.0, (-1.4, -0.9), (-2.3, -1.6), (-3.2, -2.3)),
+    )
+    for area, n1, n2, n3 in casos:
+        valores = _valores_por_zona(_cubierta_componentes(area, altura_media=21))
+        assert dict(valores) == {
+            zonas.UNO: pytest.approx(esperado(n1, area)),
+            zonas.DOS: pytest.approx(esperado(n2, area)),
+            zonas.TRES: pytest.approx(esperado(n3, area)),
+        }
+
+    # Nota 7: parapeto ≥ 1 m (y θ ≤ 10°, que acá siempre se cumple) → la
+    # Zona 3 negativa iguala a la Zona 2.
+    con_parapeto = _valores_por_zona(
+        _cubierta_componentes(3, altura_media=21, parapeto=1)
+    )
+    assert con_parapeto[zonas.TRES] == pytest.approx(con_parapeto[zonas.DOS])
+    # Sin parapeto la Zona 3 mantiene su propia curva.
+    sin_parapeto = _valores_por_zona(_cubierta_componentes(3, altura_media=21))
+    assert sin_parapeto[zonas.TRES] != pytest.approx(sin_parapeto[zonas.DOS])
 
 
 def test_cubierta_componentes_referencia_figura_5_3_5b():
