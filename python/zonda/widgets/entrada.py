@@ -20,7 +20,6 @@ from PyQt6 import QtCore, QtWidgets
 from zonda import excepciones
 from zonda.cirsoc import geometria
 from zonda.enums import (
-    CategoriaEstructura,
     Cerramiento,
     Estructura,
     MetodoSprfv,
@@ -78,36 +77,6 @@ class WidgetLineEditAlturasPersonalizadas(QtWidgets.QLineEdit):
     def texto_crudo(self) -> str:
         """El texto tal cual lo escribió el usuario, sin convertir a números."""
         return super().text()
-
-
-class WidgetCategoria(QtWidgets.QGroupBox):
-    """WidgetCategoria.
-
-    Permite la selección de la categoria de la estructura.
-    """
-
-    def __init__(self):
-        super().__init__("Categoría")
-        self._combobox = QtWidgets.QComboBox()
-        for enum in CategoriaEstructura:
-            self._combobox.addItem(enum.value, enum)
-        self._combobox.setMinimumWidth(50)
-
-        layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Categoría de la Estructura"))
-        layout.addWidget(self._combobox)
-        layout.addStretch()
-
-        self.setLayout(layout)
-
-    def datos(self) -> CategoriaEstructura:
-        return self._combobox.currentData()
-
-    def cargar(self, categoria: CategoriaEstructura) -> None:
-        _seleccionar_dato(self._combobox, categoria)
-
-    def __call__(self) -> CategoriaEstructura:
-        return self.datos()
 
 
 class WidgetComponentes(QtWidgets.QTableWidget):
@@ -284,8 +253,6 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
 
         self._alturas_personalizadas = WidgetLineEditAlturasPersonalizadas()
 
-        self._categoria = WidgetCategoria()
-
         self._combobox_cerramiento = QtWidgets.QComboBox()
         for enum in (Cerramiento.CERRADO, Cerramiento.PARCIALMENTE_CERRADO):
             self._combobox_cerramiento.addItem(enum.value.title(), enum)
@@ -402,7 +369,6 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         box_cerramiento.setLayout(layout_cerramiento)
 
         layout_inputs = QtWidgets.QVBoxLayout()
-        layout_inputs.addWidget(self._categoria)
         layout_inputs.addWidget(box_estructura)
         layout_inputs.addWidget(box_aberturas)
         layout_inputs.addWidget(box_cerramiento)
@@ -516,7 +482,6 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         ):
             volumen_interno = None
         return dict(
-            categoria=self._categoria(),
             tipo_cubierta=self._combobox_tipo_cubierta.currentData(),
             alturas_personalizadas=self._alturas_personalizadas.text() or None,
             cerramiento=self._combobox_cerramiento.currentData(),
@@ -538,7 +503,6 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
             "alero": self._checkbox_alero.isChecked(),
             "parapeto": self._checkbox_parapeto.isChecked(),
             "alturas_personalizadas": self._alturas_personalizadas.texto_crudo(),
-            "categoria": self._categoria(),
             "cerramiento": self._combobox_cerramiento.currentData(),
             "aberturas": {
                 nombre: spinbox.value()
@@ -567,7 +531,6 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
             self._checkbox_alero.setChecked(estado["alero"])
             self._checkbox_parapeto.setChecked(estado["parapeto"])
             self._alturas_personalizadas.setText(estado["alturas_personalizadas"])
-            self._categoria.cargar(estado["categoria"])
             _seleccionar_dato(self._combobox_cerramiento, estado["cerramiento"])
             self._cargar_spinboxs(self._spinboxs_aberturas, estado["aberturas"])
             self._box_reduccion_gcpi.setChecked(estado["reducir_gcpi"])
@@ -864,8 +827,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         for enum in PosicionBloqueoCubierta:
             self._combobox_posicion_bloqueo.addItem(enum.value.title(), enum)
 
-        self._categoria = WidgetCategoria()
-
         self._grid_layout_geometria = QtWidgets.QGridLayout()
 
         self._grid_layout_geometria.addWidget(
@@ -883,8 +844,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
 
         for i, spinbox in enumerate(self._spinboxs.values()):
             self._grid_layout_geometria.addWidget(spinbox, i + 1, 1)
-
-        self._categoria = WidgetCategoria()
 
         self._spinbox_coeficiente_friccion = QtWidgets.QDoubleSpinBox()
         self._spinbox_coeficiente_friccion.setMinimum(0.001)
@@ -914,7 +873,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         box_superficie.setLayout(layout_friccion)
 
         layout_inputs = QtWidgets.QVBoxLayout()
-        layout_inputs.addWidget(self._categoria)
         layout_inputs.addWidget(box_estructura)
         layout_inputs.addWidget(box_superficie)
         layout_inputs.addStretch()
@@ -947,7 +905,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
             if spinbox.isEnabled()
         }
         return dict(
-            categoria=self._categoria(),
             tipo_cubierta=self._combobox_tipo_cubierta.currentData(),
             posicion_bloqueo=self._combobox_posicion_bloqueo.currentData(),
             coeficiente_friccion=self._spinbox_coeficiente_friccion.value(),
@@ -962,7 +919,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
                 nombre: spinbox.value() for nombre, spinbox in self._spinboxs.items()
             },
             "posicion_bloqueo": self._combobox_posicion_bloqueo.currentData(),
-            "categoria": self._categoria(),
             "coeficiente_friccion": self._spinbox_coeficiente_friccion.value(),
         }
 
@@ -975,7 +931,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
             _seleccionar_dato(
                 self._combobox_posicion_bloqueo, estado["posicion_bloqueo"]
             )
-            self._categoria.cargar(estado["categoria"])
             self._spinbox_coeficiente_friccion.setValue(
                 float(estado["coeficiente_friccion"])
             )
@@ -1041,14 +996,6 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
 
         self._alturas_personalizadas = WidgetLineEditAlturasPersonalizadas()
 
-        self._categoria = WidgetCategoria()
-
-        self._es_parapeto = QtWidgets.QCheckBox("Calcular como parapeto de edificio")
-        self._es_parapeto.setToolTip(
-            "Si se activa, se considera el parapeto actuando como un cartel apoyado"
-            " en forma continua en el terreno (relación de espacio libre s/h = 1)."
-        )
-
         self._epsilon = QtWidgets.QDoubleSpinBox()
         self._epsilon.setMinimum(0.70)
         self._epsilon.setMaximum(1.00)
@@ -1079,31 +1026,29 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
 
         grid_layout_geometria = QtWidgets.QGridLayout()
 
-        grid_layout_geometria.addWidget(self._es_parapeto, 0, 0, 1, 2)
-
         for i, texto in enumerate(textos_geometria):
             grid_layout_geometria.addWidget(
-                QtWidgets.QLabel(texto), i + 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
+                QtWidgets.QLabel(texto), i, 0, QtCore.Qt.AlignmentFlag.AlignRight
             )
 
         for i, spinbox in enumerate(self._spinboxs.values()):
-            grid_layout_geometria.addWidget(spinbox, i + 1, 1)
+            grid_layout_geometria.addWidget(spinbox, i, 1)
 
         grid_layout_geometria.addWidget(
             QtWidgets.QLabel("Área sólida / área bruta (ε)"),
-            5,
+            4,
             0,
             QtCore.Qt.AlignmentFlag.AlignRight,
         )
-        grid_layout_geometria.addWidget(self._epsilon, 5, 1)
-        grid_layout_geometria.addWidget(self._doble_cara, 6, 0, 1, 2)
+        grid_layout_geometria.addWidget(self._epsilon, 4, 1)
+        grid_layout_geometria.addWidget(self._doble_cara, 5, 0, 1, 2)
         grid_layout_geometria.addWidget(
             QtWidgets.QLabel("Esquina de retorno (Lr)"),
-            7,
+            6,
             0,
             QtCore.Qt.AlignmentFlag.AlignRight,
         )
-        grid_layout_geometria.addWidget(self._esquina_retorno, 7, 1)
+        grid_layout_geometria.addWidget(self._esquina_retorno, 6, 1)
 
         self.grafico = WidgetGraficoGeometria(Estructura.CARTEL)
         self._generar_escena()
@@ -1112,7 +1057,6 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         box_estructura.setLayout(grid_layout_geometria)
 
         layout_inputs = QtWidgets.QVBoxLayout()
-        layout_inputs.addWidget(self._categoria)
         layout_inputs.addWidget(box_estructura)
         layout_inputs.addStretch()
         layout_inputs.setContentsMargins(11, 0, 11, 0)
@@ -1145,8 +1089,6 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
             if spinbox.isEnabled()
         }
         return dict(
-            categoria=self._categoria(),
-            es_parapeto=self._es_parapeto.isChecked(),
             epsilon=self._epsilon.value(),
             doble_cara=self._doble_cara.isChecked(),
             esquina_retorno=self._esquina_retorno.value(),
@@ -1159,8 +1101,6 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
             "geometria": {
                 nombre: spinbox.value() for nombre, spinbox in self._spinboxs.items()
             },
-            "categoria": self._categoria(),
-            "es_parapeto": self._es_parapeto.isChecked(),
             "epsilon": self._epsilon.value(),
             "doble_cara": self._doble_cara.isChecked(),
             "esquina_retorno": self._esquina_retorno.value(),
@@ -1171,8 +1111,6 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         self._cargando = True
         try:
             self._cargar_spinboxs(self._spinboxs, estado["geometria"])
-            self._categoria.cargar(estado["categoria"])
-            self._es_parapeto.setChecked(estado["es_parapeto"])
             self._epsilon.setValue(estado["epsilon"])
             self._doble_cara.setChecked(estado["doble_cara"])
             self._esquina_retorno.setValue(estado["esquina_retorno"])

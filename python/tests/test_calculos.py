@@ -69,7 +69,6 @@ def test_edificio_factor_altitud(edificio: Edificio):
         altura_cumbrera=edificio.altura_cumbrera,
         tipo_cubierta=edificio.tipo_cubierta,
         cerramiento=edificio.cerramiento,
-        categoria=edificio.categoria,
         velocidad=edificio.velocidad,
         factor_g_simplificado=edificio.factor_g_simplificado,
         categoria_exp=edificio.categoria_exp,
@@ -99,7 +98,6 @@ def test_presion_dinamica_benchmark_calcpad():
         altura_cumbrera=20,
         tipo_cubierta=enums.TipoCubierta.PLANA,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=55.1,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
@@ -195,13 +193,6 @@ def test_cartel_cf_casos_ab_valores_de_tabla(
         altura_inferior, altura_neta, altura_superior, ancho, profundidad=1
     ).cf_casos_ab
     assert cf == pytest.approx(esperado)
-
-
-def test_cartel_parapeto_adopta_s_h_igual_a_1():
-    """El parapeto se considera cartel apoyado en el terreno, sin importar su elevación."""
-    cf = cp.Cartel(0, 2, 20, 2, profundidad=1, es_parapeto=True)
-    assert cf.relacion_espacio_libre == 1.0
-    assert cf.cf_casos_ab == pytest.approx(1.45)
 
 
 def test_cartel_cf_casos_ab_interpolacion():
@@ -326,7 +317,6 @@ def test_cartel_todas_las_categorias_de_exposicion(categoria_exp):
         altura_inferior=5,
         altura_superior=10,
         velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
         factor_g_simplificado=True,
         categoria_exp=categoria_exp,
         considerar_topografia=False,
@@ -357,7 +347,6 @@ def test_edificio_todos_los_tipos_de_cubierta(tipo_cubierta):
         altura_cumbrera=altura_cumbrera,
         tipo_cubierta=tipo_cubierta,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
@@ -387,7 +376,6 @@ def _edificio_angulo_pequeno(
         altura_cumbrera=altura_cumbrera,
         tipo_cubierta=tipo_cubierta,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
@@ -477,7 +465,6 @@ def test_cubierta_aislada_fuera_de_lineamientos_es_rechazada():
             tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
             coeficiente_friccion=0.02,
             velocidad=45,
-            categoria=enums.CategoriaEstructura.II,
             categoria_exp=enums.CategoriaExposicion.B,
             considerar_topografia=False,
         )
@@ -496,7 +483,6 @@ def test_cubierta_aislada_plana_no_tiene_lineamientos():
             tipo_cubierta=enums.TipoCubierta.PLANA,
             coeficiente_friccion=0.02,
             velocidad=45,
-            categoria=enums.CategoriaEstructura.II,
             categoria_exp=enums.CategoriaExposicion.B,
             considerar_topografia=False,
         )
@@ -1789,7 +1775,6 @@ def test_factor_reduccion_gcpi_gran_volumen():
         altura_cumbrera=8,
         tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
         cerramiento=enums.Cerramiento.PARCIALMENTE_CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,

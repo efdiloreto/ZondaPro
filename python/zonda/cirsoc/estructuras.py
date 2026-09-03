@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from zonda.cirsoc import cp, factores, geometria, presiones, resultados
 from zonda.cirsoc.factores import Rafaga, Topografia
 from zonda.enums import (
+    CategoriaEstructura,
     DireccionTopografia,
     Flexibilidad,
     MetodoSprfv,
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
         Tabla,
     )
     from zonda.enums import (
-        CategoriaEstructura,
         CategoriaExposicion,
         Cerramiento,
         PosicionBloqueoCubierta,
@@ -60,11 +60,9 @@ class Cartel:
         altura_inferior: float,
         altura_superior: float,
         velocidad: float,
-        categoria: CategoriaEstructura,
         factor_g_simplificado: bool,
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
-        es_parapeto: bool = False,
         epsilon: float = 1.0,
         doble_cara: bool = False,
         esquina_retorno: float = 0.0,
@@ -87,11 +85,9 @@ class Cartel:
             altura_inferior: La altura desde el suelo desde donde se consideran las presiones del viento sobre el cartel.
             altura_superior: La altura superior del cartel.
             velocidad: La velocidad del viento en m/s.
-            categoria: La categoría de la estructura.
             factor_g_simplificado: Indica si se debe usar 0.85 como valor del factor de ráfaga.
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
-            es_parapeto: Si es True, se considera que el cartel actua como parapeto de edificio.
             epsilon: La relación entre el área sólida y el área bruta del cartel (Nota 1
                 de la Figura 4.4-1). El valor 1.0 es un cartel sin aberturas.
             doble_cara: Si es True, el cartel es de doble cara con todos los lados
@@ -114,11 +110,9 @@ class Cartel:
         self.altura_inferior = altura_inferior
         self.altura_superior = altura_superior
         self.velocidad = velocidad
-        self.categoria = categoria
         self.factor_g_simplificado = factor_g_simplificado
         self.considerar_topografia = considerar_topografia
         self.categoria_exp = categoria_exp
-        self.es_parapeto = es_parapeto
         self.epsilon = epsilon
         self.doble_cara = doble_cara
         self.esquina_retorno = esquina_retorno
@@ -142,7 +136,6 @@ class Cartel:
         )
         self.cf = cp.Cartel.desde_cartel(
             self.geometria,
-            es_parapeto,
             epsilon,
             doble_cara,
             esquina_retorno,
@@ -171,7 +164,6 @@ class Cartel:
         )
         self.presiones = presiones.Cartel.desde_cartel(
             self.geometria,
-            categoria,
             velocidad,
             self.rafaga,
             self.topografia.factor[0],
@@ -209,7 +201,6 @@ class CubiertaAislada:
         tipo_cubierta: TipoCubierta,
         coeficiente_friccion: float,
         velocidad: float,
-        categoria: CategoriaEstructura,
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
         frecuencia: float = 1,
@@ -222,6 +213,7 @@ class CubiertaAislada:
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
         altitud: float = 0,
         factor_altitud: float | None = None,
+        categoria: CategoriaEstructura = CategoriaEstructura.II,
     ) -> None:
         """
 
@@ -236,7 +228,8 @@ class CubiertaAislada:
             tipo_cubierta: El tipo de cubierta.
             coeficiente_friccion: El coeficiente de friccion de la superficie de cubierta.
             velocidad: La velocidad del viento en m/s.
-            categoria: La categoría de la estructura.
+            categoria: La categoría de la estructura. Quedó sólo como dato del
+                modelo: el CIRSOC 102-2025 ya no la usa para calcular.
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
             frecuencia: La frecuencia natural de la estructura en hz.
@@ -310,7 +303,6 @@ class CubiertaAislada:
         )
         self.presiones = presiones.CubiertaAislada.desde_cubierta(
             self.geometria,
-            categoria,
             velocidad,
             self.rafaga,
             self.topografia.factor,
@@ -346,7 +338,6 @@ class Edificio:
         altura_cumbrera: float,
         tipo_cubierta: TipoCubierta,
         cerramiento: Cerramiento,
-        categoria: CategoriaEstructura,
         velocidad: float,
         factor_g_simplificado: bool,
         categoria_exp: CategoriaExposicion,
@@ -380,7 +371,6 @@ class Edificio:
             altura_cumbrera = altura_alero
         self.tipo_cubierta = tipo_cubierta
         self.cerramiento = cerramiento
-        self.categoria = categoria
         self.velocidad = velocidad
         self.factor_g_simplificado = factor_g_simplificado
         self.categoria_exp = categoria_exp
@@ -450,7 +440,6 @@ class Edificio:
         self.presiones = presiones.Edificio.desde_edificio(
             self.geometria,
             self.cp,
-            categoria,
             velocidad,
             self.rafaga,
             self.topografia.factor,

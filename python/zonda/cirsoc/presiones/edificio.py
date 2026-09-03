@@ -48,10 +48,7 @@ if TYPE_CHECKING:
     from zonda.cirsoc.cp import edificio as clases_cp_edificio
     from zonda.cirsoc.factores import Rafaga
     from zonda.cirsoc.resultados import EntradaCp, FilaEdificio
-    from zonda.enums import (
-        CategoriaEstructura,
-        CategoriaExposicion,
-    )
+    from zonda.enums import CategoriaExposicion
 
 GCPI_CERRAMIENTO = {
     Cerramiento.CERRADO: 0.18,
@@ -105,7 +102,6 @@ class PresionesEdificioBase(PresionesBase):
         self,
         alturas: np.ndarray,
         altura_media: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -122,7 +118,6 @@ class PresionesEdificioBase(PresionesBase):
         Args:
             alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -136,7 +131,6 @@ class PresionesEdificioBase(PresionesBase):
         """
         super().__init__(
             alturas,
-            categoria,
             velocidad,
             rafaga[DireccionVientoMetodoDireccionalSprfv.PARALELO],
             factor_topografico,
@@ -259,7 +253,6 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         self,
         alturas: np.ndarray,
         altura_media: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -272,7 +265,6 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         Args:
             alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -283,7 +275,6 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
         super().__init__(
             alturas,
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -306,7 +297,6 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
         altura_media: float,
         altura_alero: float,
         tipo_cubierta: TipoCubierta,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -325,7 +315,6 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -340,7 +329,6 @@ class ParedesSprfvMetodoDireccional(PresionesEdificioBase):
         super().__init__(
             alturas,
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -480,7 +468,6 @@ class Cubierta:
         self,
         alturas: np.ndarray,
         altura_media: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -498,7 +485,6 @@ class Cubierta:
         Args:
             alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -516,7 +502,6 @@ class Cubierta:
         comunes = (
             alturas,
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -548,7 +533,6 @@ class Alero:
         self,
         alturas: np.ndarray,
         altura_media: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -562,7 +546,6 @@ class Alero:
         Args:
             alturas: Las alturas de la estructura donde calcular las presiones.
             altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -576,7 +559,6 @@ class Alero:
         comunes = (
             alturas,
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -606,7 +588,6 @@ class Paredes:
         altura_media: float,
         altura_alero: float,
         tipo_cubierta: TipoCubierta,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -626,7 +607,6 @@ class Paredes:
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -646,7 +626,6 @@ class Paredes:
             altura_media,
             altura_alero,
             tipo_cubierta,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -680,7 +659,6 @@ class Edificio:
         altura_media: float,
         altura_alero: float,
         tipo_cubierta: TipoCubierta,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -701,7 +679,6 @@ class Edificio:
             altura_media: La altura media de la cubierta.
             altura_alero: La altura de alero del edificio.
             tipo_cubierta: El tipo de cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -718,7 +695,6 @@ class Edificio:
         self.cubierta = Cubierta(
             alturas,
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -736,7 +712,6 @@ class Edificio:
             altura_media,
             altura_alero,
             tipo_cubierta,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -753,7 +728,6 @@ class Edificio:
             self.alero = Alero(
                 alturas,
                 altura_media,
-                categoria,
                 velocidad,
                 rafaga,
                 factor_topografico,
@@ -798,7 +772,6 @@ class Edificio:
         cls,
         edificio: geometria.Edificio,
         cp: clases_cp_edificio.Edificio,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
         factor_topografico: Sequence[float],
@@ -813,7 +786,6 @@ class Edificio:
         Args:
             edificio: Una instancia de Edificio.
             cp: Un instancia de Edificio.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
             factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
@@ -828,7 +800,6 @@ class Edificio:
             edificio.cubierta.altura_media,
             edificio.cubierta.altura_alero,
             edificio.tipo_cubierta,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,

@@ -30,8 +30,6 @@ Parapeto: {{ '%.2f'|format(estructura.parapeto) }} m
 {% endif %}
 Tipo de cubierta: {{ estructura.geometria.tipo_cubierta.value|capitalize }}
 
-Categoría: {{ estructura.categoria.value }}
-
 Clasificación de cerramiento: {{ estructura.cerramiento.value|capitalize }}
 {%- endblock %}
 

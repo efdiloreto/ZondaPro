@@ -21,7 +21,6 @@ Altura de cumbrera: {{ '%.2f'|format(estructura.altura_cumbrera) }} m
 
 Tipo de cubierta: {{ estructura.geometria.tipo_cubierta.value|capitalize }}
 
-Categoría: {{ estructura.categoria.value }}
 {%- endblock %}
 
 {% block datos_rafaga -%}

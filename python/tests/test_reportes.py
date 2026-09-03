@@ -87,7 +87,6 @@ def test_reporte_edificio_gran_altura_resuelve_las_paredes_por_altura():
         altura_cumbrera=23,
         tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
@@ -118,8 +117,8 @@ def test_reporte_cartel(cartel):
     assert "Caso A" in texto
     assert "Caso B" in texto
     assert "Caso C" in texto
-    assert "0 a s (0.00 a 5.00 m)" in texto
-    assert "s a 2s (5.00 a 10.00 m)" in texto
+    assert "0.00 a 5.00 m" in texto
+    assert "5.00 a 10.00 m" in texto
     assert "La fuerza de diseño es la del Caso C." in texto
 
 
@@ -134,7 +133,6 @@ def test_reporte_cartel_sin_caso_c():
         altura_inferior=5,
         altura_superior=10,
         velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,

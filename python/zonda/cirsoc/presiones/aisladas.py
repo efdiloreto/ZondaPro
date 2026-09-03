@@ -28,10 +28,7 @@ if TYPE_CHECKING:
 
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
-    from zonda.enums import (
-        CategoriaEstructura,
-        CategoriaExposicion,
-    )
+    from zonda.enums import CategoriaExposicion
 
 
 class CubiertaAislada(PresionesBase):
@@ -43,7 +40,6 @@ class CubiertaAislada(PresionesBase):
     def __init__(
         self,
         altura_media: float,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: Sequence[float],
@@ -55,7 +51,6 @@ class CubiertaAislada(PresionesBase):
         """
         Args:
             altura_media: La altura media de la cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de la clase Ráfaga.
             cpn: Una instancia de CubiertaAislada.
@@ -66,7 +61,6 @@ class CubiertaAislada(PresionesBase):
         """
         super().__init__(
             altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,
@@ -111,7 +105,6 @@ class CubiertaAislada(PresionesBase):
     def desde_cubierta(
         cls,
         cubierta: geometria.Cubierta,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: Sequence[float],
@@ -124,7 +117,6 @@ class CubiertaAislada(PresionesBase):
 
         Args:
             cubierta: Una instancia de Cubierta.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de la clase Ráfaga.
             cpn: Una instancia de CubiertaAislada.
@@ -135,7 +127,6 @@ class CubiertaAislada(PresionesBase):
         """
         return cls(
             cubierta.altura_media,
-            categoria,
             velocidad,
             rafaga,
             factor_topografico,

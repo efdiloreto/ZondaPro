@@ -160,7 +160,6 @@ def test_resultados_edificio_plana_tiene_caso_cubierta_barlovento(qapp):
         altura_cumbrera=6,
         tipo_cubierta=enums.TipoCubierta.PLANA,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
@@ -275,12 +274,11 @@ def test_la_pantalla_de_entrada_va_y_vuelve_del_archivo(
     qapp, tmp_path, nombre, estructura
 ):
     from zonda import proyecto
-    from zonda.enums import CategoriaEstructura, Estructura
+    from zonda.enums import Estructura
     from zonda.widgets import entrada
 
     widget = getattr(entrada, nombre)()
     widget._spinboxs["ancho"].setValue(23.5)
-    widget._categoria.cargar(CategoriaEstructura.IV)
     esperado = widget.estado()
 
     archivo = tmp_path / f"proyecto{proyecto.EXTENSION}"

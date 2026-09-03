@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from zonda.cirsoc.resultados import PresionVelocidad
-from zonda.enums import CategoriaEstructura, CategoriaExposicion
+from zonda.enums import CategoriaExposicion
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,7 +46,6 @@ class PresionesBase:
     def __init__(
         self,
         alturas: float | Sequence[float] | np.ndarray,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: float | Sequence[float] | np.ndarray,
@@ -58,7 +57,6 @@ class PresionesBase:
 
         Args:
             alturas: La altura o las alturas de la estructura donde calcular las presiones.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de la clase Ráfaga.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
@@ -71,7 +69,6 @@ class PresionesBase:
             float(factor)
             for factor in np.broadcast_to(factor_topografico, len(self.alturas))
         )
-        self.categoria = categoria
         self.velocidad = velocidad
         self.rafaga = rafaga
         self.factor_direccionalidad = factor_direccionalidad
