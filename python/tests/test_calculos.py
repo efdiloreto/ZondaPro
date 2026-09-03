@@ -17,11 +17,13 @@
 
 """Smoke tests del motor de cálculo (zonda.cirsoc)."""
 
+from itertools import pairwise
+
 import numpy as np
 import pytest
 
 from zonda import enums
-from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
+from zonda.cirsoc import Cartel, CubiertaAislada, Edificio, cp
 from zonda.cirsoc.cp.edificio import (
     CubiertaComponentes,
     ParedesComponentes,
@@ -126,30 +128,210 @@ def test_presion_dinamica_benchmark_calcpad():
             assert p.valor == pytest.approx(qz_esp, abs=0.1)
 
 
+# --- Cartel: Figura 4.4-1 -------------------------------------------------
+
+
 def test_cartel_calcula(cartel: Cartel):
     assert cartel.presiones is not None
-    assert cartel.presiones.fuerza_total > 0
+    assert cartel.presiones.fuerzas_totales[enums.CasoCartel.CASO_A] > 0
+
+
+def test_cartel_la_presion_de_velocidad_se_evalua_a_la_punta(cartel: Cartel):
+    """La Ec. 4.4-1 usa qh evaluada a la altura h que define la Figura 4.4-1."""
+    fila = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_A).unica()
+    assert fila.q.altura == pytest.approx(cartel.altura_superior)
 
 
 def test_cartel_valores_de_referencia(cartel: Cartel):
     """Valores de referencia bajo constantes de exposición CIRSOC 102-2025.
 
-    Si numpy o el propio cálculo cambian de resultado, este test lo detecta.
+    El cartel tiene s = 5 m, B = 10 m y h = 10 m: s/h = 0.5 y B/s = 2, así que
+    el Caso A/B cae en la celda (0.5, 2) de la Figura 4.4-1 y el Caso C en las
+    celdas de la columna B/s = 2. Si numpy o el propio cálculo cambian de
+    resultado, este test lo detecta.
     """
-    esperado = [
-        631.41318036,
-        662.87042424,
-        690.68688402,
-        715.72370777,
-        738.56089877,
-        759.60586408,
-    ]
-    assert np.asarray(cartel.presiones.valores) == pytest.approx(esperado, rel=1e-6)
+    fila_a = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_A).unica()
+    assert fila_a.q.kz == pytest.approx(0.7058033400746822)
+    assert fila_a.q.valor == pytest.approx(744.7116314504742, rel=1e-6)
+    assert fila_a.cf == pytest.approx(1.70)
+    assert fila_a.presion == pytest.approx(1076.1083074459352, rel=1e-6)
+    assert fila_a.fuerza == pytest.approx(53805.41537229676, rel=1e-6)
+
+    fila_c = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_C)
+    assert [f.cf for f in fila_c] == pytest.approx([2.25, 1.50])
+    assert fila_c[0].presion == pytest.approx(1424.260995149032, rel=1e-6)
 
 
-def test_cartel_presiones_crecen_con_la_altura(cartel: Cartel):
-    valores = np.asarray(cartel.presiones.valores)
-    assert np.all(np.diff(valores) > 0)
+def test_cartel_casos_a_y_b_comparten_coeficiente_y_fuerza(cartel: Cartel):
+    """La tabla de la Figura 4.4-1 es común a los Casos A y B: sólo cambia
+    dónde actúa la fuerza resultante."""
+    fila_a = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_A).unica()
+    fila_b = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_B).unica()
+    assert fila_a.cf == fila_b.cf
+    assert fila_a.fuerza == fila_b.fuerza
+    assert fila_b.excentricidad == pytest.approx(0.2 * cartel.ancho)
+    assert fila_a.excentricidad is None
+
+
+@pytest.mark.parametrize(
+    ("altura_inferior", "altura_neta", "altura_superior", "ancho", "esperado"),
+    [
+        (0, 5, 5, 5, 1.45),  # s/h = 1, B/s = 1
+        (1, 9, 10, 18, 1.50),  # s/h = 0.9, B/s = 2
+        (3, 7, 10, 35, 1.55),  # s/h = 0.7, B/s = 5
+        (5, 5, 10, 10, 1.70),  # s/h = 0.5, B/s = 2
+        (7, 3, 10, 60, 1.85),  # s/h = 0.3, B/s = 20
+        (20, 5, 25, 20, 1.80),  # s/h = 0.2, B/s = 4
+        (35, 5, 40, 50, 1.85),  # s/h = 0.125 (fila ≤ 0.16), B/s = 10
+        (0, 5, 5, 500, 1.30),  # s/h = 1, B/s = 100 (columna ≥ 45)
+        (0, 5, 5, 0.1, 1.80),  # s/h = 1, B/s = 0.02 (columna ≤ 0.05)
+    ],
+)
+def test_cartel_cf_casos_ab_valores_de_tabla(
+    altura_inferior, altura_neta, altura_superior, ancho, esperado
+):
+    """Celdas y clamps de la tabla de los Casos A y B (Figura 4.4-1)."""
+    cf = cp.Cartel(
+        altura_inferior, altura_neta, altura_superior, ancho, profundidad=1
+    ).cf_casos_ab
+    assert cf == pytest.approx(esperado)
+
+
+def test_cartel_parapeto_adopta_s_h_igual_a_1():
+    """El parapeto se considera cartel apoyado en el terreno, sin importar su elevación."""
+    cf = cp.Cartel(0, 2, 20, 2, profundidad=1, es_parapeto=True)
+    assert cf.relacion_espacio_libre == 1.0
+    assert cf.cf_casos_ab == pytest.approx(1.45)
+
+
+def test_cartel_cf_casos_ab_interpolacion():
+    """Interpolación bilineal entre celdas: s/h = 0.625 y B/s = 1.5 da 1.6625."""
+    cf = cp.Cartel(0, 5, 8, 7.5, profundidad=1).cf_casos_ab
+    assert cf == pytest.approx(1.6625)
+
+
+def test_cartel_cf_caso_c_no_aplica_con_b_s_menor_a_2():
+    cf = cp.Cartel(5, 5, 10, 8, profundidad=1)  # B/s = 1.6
+    assert not cf.aplica_caso_c
+    assert cf.limites_regiones == {}
+    assert cf.cf_por_region == {}
+
+
+@pytest.mark.parametrize(
+    ("ancho", "esperado"),
+    [
+        (10, [2.25, 1.50]),  # B/s = 2
+        (22.5, [3.00, 1.95, 1.375, 1.075]),  # B/s = 4.5, interpolado
+        (57.5, [3.875, 2.525, 1.925, 1.225, 1.15, 0.925, 0.55]),  # B/s = 11.5
+        (225, [4.30, 2.55, 1.95, 1.85, 1.85, 1.10, 0.55]),  # B/s = 45
+        (450, [4.30, 2.55, 1.95, 1.85, 1.85, 1.10, 0.55]),  # B/s ≥ 45
+    ],
+)
+def test_cartel_cf_caso_c_por_region(ancho, esperado):
+    """La tabla del Caso C con s/h = 0.5, interpolando en B/s cuando hace falta."""
+    cf = cp.Cartel(5, 5, 10, ancho, profundidad=1)
+    assert list(cf.cf_por_region.values()) == pytest.approx(esperado)
+
+
+@pytest.mark.parametrize("b_s", [2, 3.7, 10, 11.5, 30, 100])
+def test_cartel_las_regiones_cubren_el_ancho_sin_huecos(b_s):
+    """Las regiones del Caso C tapan todo el ancho del cartel, sin solapes."""
+    cf = cp.Cartel(5, 5, 10, 5 * b_s, profundidad=1)
+    limites = sorted(cf.limites_regiones.values())
+    assert limites[0][0] == pytest.approx(0)
+    assert limites[-1][1] == pytest.approx(cf.ancho)
+    for (_, fin_anterior), (inicio, _) in pairwise(limites):
+        assert inicio == pytest.approx(fin_anterior)
+    total = sum(fin - inicio for inicio, fin in limites)
+    assert total == pytest.approx(cf.ancho)
+
+
+def test_cartel_cf_caso_c_reduccion_de_s_h_mayor_a_08():
+    """Nota 3: con s/h > 0.8 los Cf del Caso C se multiplican por (1.8 - s/h)."""
+    cf = cp.Cartel(1, 9, 10, 18, profundidad=1)  # s/h = 0.9, B/s = 2
+    assert list(cf.cf_por_region.values()) == pytest.approx([2.25 * 0.9, 1.50 * 0.9])
+
+
+@pytest.mark.parametrize(
+    ("esquina_retorno", "esperado_0_s"),
+    [
+        (0, 2.64),  # sin esquina de retorno
+        (1, 2.64),  # Lr/s = 0.2 < 0.3: sin reducción
+        (1.5, 2.376),  # Lr/s = 0.3: factor 0.9
+        (5, 1.98),  # Lr/s = 1: factor 0.75
+        (7.5, 1.782),  # Lr/s = 1.5: factor 0.675
+        (10, 1.584),  # Lr/s = 2: factor 0.6
+        (30, 1.584),  # Lr/s ≥ 2: factor 0.6
+    ],
+)
+def test_cartel_cf_caso_c_esquina_de_retorno(esquina_retorno, esperado_0_s):
+    """La esquina de retorno reduce los valores con asterisco: la primera
+    región cuando B/s ≥ 5."""
+    cf = cp.Cartel(0, 5, 5, 30, profundidad=1, esquina_retorno=esquina_retorno)
+    assert cf.cf_por_region[enums.RegionCartel.REGION_0_S] == pytest.approx(
+        esperado_0_s
+    )
+
+
+def test_cartel_cf_caso_c_esquina_de_retorno_no_aplica_con_b_s_menor_a_5():
+    cf = cp.Cartel(5, 5, 10, 10, profundidad=1, esquina_retorno=5)
+    assert cf.factor_esquina_retorno == 1.0
+    assert cf.cf_por_region[enums.RegionCartel.REGION_0_S] == pytest.approx(2.25)
+
+
+def test_cartel_factor_de_aberturas():
+    """Nota 1: los Cf se multiplican por (1 - (1 - ε)^1.5)."""
+    cf = cp.Cartel(5, 5, 10, 10, profundidad=1, epsilon=0.8)
+    factor = 1 - (1 - 0.8) ** 1.5
+    assert cf.factor_aberturas == pytest.approx(factor)
+    assert cf.cf_casos_ab == pytest.approx(1.70 * factor)
+    assert cf.cf_por_region[enums.RegionCartel.REGION_0_S] == pytest.approx(
+        2.25 * factor
+    )
+
+
+def test_cartel_reducciones_de_doble_cara():
+    """Nota 2: Rmin reduce el Cf de los Casos A y B y Rmax la excentricidad.
+
+    Con t = 0.4 m, s = 5 m y B = 10 m: Rmin = 0.08 y Rmax = 0.04.
+    """
+    cf = cp.Cartel(5, 5, 10, 10, profundidad=0.4, doble_cara=True)
+    assert cf.cf_casos_ab == pytest.approx(1.70 * (1 - 0.133 * 0.08))
+    assert cf.excentricidad == pytest.approx((0.2 - 0.25 * 0.04) * 10)
+    # El Caso C no lleva las reducciones de la doble cara.
+    assert list(cf.cf_por_region.values()) == pytest.approx([2.25, 1.50])
+
+
+def test_cartel_reducciones_de_doble_cara_fuera_de_rango():
+    """Si Rmin o Rmax superan los límites de la Nota 2, no se reduce nada."""
+    cf = cp.Cartel(5, 5, 10, 10, profundidad=5, doble_cara=True)
+    # Rmin = 1.0 > 0.75 y Rmax = 0.5 > 0.4: ninguno de los dos alcanza.
+    assert cf.cf_casos_ab == pytest.approx(1.70)
+    assert cf.excentricidad == pytest.approx(0.2 * 10)
+
+
+def test_cartel_epsilon_fuera_de_lineamientos():
+    """La Figura 4.4-1 sólo cubre carteles llenos: aberturas menores al 30 %."""
+    with pytest.raises(ValueError):
+        cp.Cartel(5, 5, 10, 10, profundidad=1, epsilon=0.5)
+    with pytest.raises(ValueError):
+        cp.Cartel(5, 5, 10, 10, profundidad=1, epsilon=1.5)
+
+
+@pytest.mark.parametrize("categoria_exp", list(enums.CategoriaExposicion))
+def test_cartel_todas_las_categorias_de_exposicion(categoria_exp):
+    cartel = Cartel(
+        profundidad=1,
+        ancho=10,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        factor_g_simplificado=True,
+        categoria_exp=categoria_exp,
+        considerar_topografia=False,
+    )
+    assert cartel.presiones.fuerzas_totales[enums.CasoCartel.CASO_A] > 0
 
 
 def test_cubierta_aislada_calcula(cubierta_aislada: CubiertaAislada):
@@ -280,22 +462,6 @@ def test_cubierta_barlovento_angulo_menor_diez_alero():
     ).unica()
     assert barlovento.cp == pytest.approx(-0.98)
     assert sotavento.cp == pytest.approx(-0.18)
-
-
-@pytest.mark.parametrize("categoria_exp", list(enums.CategoriaExposicion))
-def test_cartel_todas_las_categorias_de_exposicion(categoria_exp):
-    cartel = Cartel(
-        profundidad=1,
-        ancho=10,
-        altura_inferior=5,
-        altura_superior=10,
-        velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
-        factor_g_simplificado=True,
-        categoria_exp=categoria_exp,
-        considerar_topografia=False,
-    )
-    assert cartel.presiones.fuerza_total > 0
 
 
 def test_cubierta_aislada_fuera_de_lineamientos_es_rechazada():

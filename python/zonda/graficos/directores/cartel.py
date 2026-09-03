@@ -199,6 +199,7 @@ class Presiones(Geometria):
             cartel.altura_inferior,
             cartel.altura_superior,
         )
+        self.cartel = cartel
         self.tabla_colores = tabla_colores
 
         self.inicializar_actores()
@@ -206,6 +207,10 @@ class Presiones(Geometria):
     def obtener_actores(self):
         # Se genera al inicializar la función cara_barlovento
         return self.actores_cara_barlovento
+
+    def obtener_regiones(self):
+        # Se genera al inicializar la función regiones_caso_c
+        return self.actores_regiones_caso_c
 
     @actores_poligonos(crear_atributo=False, presion=False, mostrar=True)
     def caras(self):
@@ -215,8 +220,32 @@ class Presiones(Geometria):
     def cara_barlovento(self):
         return super().cara_barlovento.__wrapped__(self)
 
+    @actores_poligonos(crear_atributo=True, presion=True, mostrar=False)
+    def regiones_caso_c(self):
+        """Genera un actor por cada región del Caso C de la Figura 4.4-1.
+
+        Son franjas verticales de la cara a barlovento, medidas desde el borde
+        de barlovento según los límites que expone el cálculo. Se crean ocultos:
+        los muestra la escena cuando se selecciona el Caso C.
+
+        Returns:
+            Las coordenadas de cada región, indexadas por región.
+        """
+        return {
+            region: coords_pared_rectangular(
+                fin - inicio,
+                self.altura_superior,
+                self.altura_superior,
+                x0=inicio,
+                elevacion=self.altura_inferior,
+                invertir_sentido=True,
+            )
+            for region, (inicio, fin) in self.cartel.cf.limites_regiones.items()
+        }
+
     def inicializar_actores(self) -> None:
         """Elimina los actores existentes y genera y añade los actores generados por cada función."""
         self.caras()
         self.cara_barlovento()
+        self.regiones_caso_c()
         self._crear_soportes()

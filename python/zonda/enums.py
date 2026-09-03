@@ -21,6 +21,7 @@ Es preferible utilizar estas clases antes que strings ya que las opciones requer
 en las distintas funciones son especificas. De esta manera, utilizando Enums se disminuye la posibilidad de errores.
 """
 
+import math
 from enum import Enum
 
 
@@ -78,6 +79,52 @@ class CategoriaExposicion(Enum):
     B = "B"
     C = "C"
     D = "D"
+
+
+class CasoCartel(Enum):
+    """Los casos de fuerza de la Figura 4.4-1.
+
+    Los Casos A y B comparten la tabla de coeficientes y aplican la fuerza
+    resultante en el centro geométrico (A) o con una excentricidad hacia el
+    borde de barlovento (B). El Caso C, sólo para B/s ≥ 2, reparte la fuerza
+    en regiones horizontales medidas desde el borde de barlovento.
+    """
+
+    CASO_A = "Caso A"
+    CASO_B = "Caso B"
+    CASO_C = "Caso C"
+
+
+class RegionCartel(Enum):
+    """Las regiones del Caso C de la Figura 4.4-1.
+
+    El valor es ``(inicio, fin, etiqueta)``, con los límites medidos desde el
+    borde de barlovento en unidades de la altura s del cartel. Para B/s ≤ 10
+    la tabla agrupa desde 3s en ``REGION_3S_10S``; para B/s mayores separa esa
+    banda en ``REGION_3S_4S``, ``REGION_4S_5S``, ``REGION_5S_10S`` y
+    ``REGION_10S``.
+    """
+
+    REGION_0_S = (0.0, 1.0, "0 a s")
+    REGION_S_2S = (1.0, 2.0, "s a 2s")
+    REGION_2S_3S = (2.0, 3.0, "2s a 3s")
+    REGION_3S_4S = (3.0, 4.0, "3s a 4s")
+    REGION_4S_5S = (4.0, 5.0, "4s a 5s")
+    REGION_5S_10S = (5.0, 10.0, "5s a 10s")
+    REGION_10S = (10.0, math.inf, "> 10s")
+    REGION_3S_10S = (3.0, 10.0, "3s a 10s")
+
+    @property
+    def inicio(self) -> float:
+        return self.value[0]
+
+    @property
+    def fin(self) -> float:
+        return self.value[1]
+
+    @property
+    def etiqueta(self) -> str:
+        return self.value[2]
 
 
 class ExtremoPresion(Enum):

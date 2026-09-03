@@ -23,6 +23,7 @@ corresponde, sin pasar por la pantalla de bienvenida.
 
 import ctypes
 import ctypes.util
+import json
 import sys
 
 import pytest
@@ -70,13 +71,38 @@ def archivo_cartel(tmp_path):
                     "ancho": 6.5,
                     "profundidad": 1.0,
                 },
-                "alturas_personalizadas": "",
                 "categoria": CategoriaEstructura.II,
                 "es_parapeto": False,
+                "epsilon": 1.0,
+                "doble_cara": False,
+                "esquina_retorno": 0.0,
             },
         },
     )
     return ruta
+
+
+@necesita_opengl
+def test_un_archivo_del_formato_anterior_no_abre(qapp, tmp_path, sin_dialogos):
+    """El formato 1 quedó atrás con la migración del cartel a la Figura 4.4-1."""
+    viejo = tmp_path / f"viejo{proyecto.EXTENSION}"
+    viejo.write_text(
+        json.dumps(
+            {
+                "programa": "zonda",
+                "version_formato": 1,
+                "estructura": "CARTEL",
+                "estado": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    bienvenida = WidgetBienvenida()
+
+    assert not bienvenida.abrir_proyecto(viejo)
+
+    assert bienvenida.modulo is None
+    assert [tipo for tipo, _ in sin_dialogos] == ["critical"]
 
 
 # --- El archivo que viene por línea de comandos -------------------------

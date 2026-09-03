@@ -17,20 +17,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING
 
-from zonda.cirsoc.geometria.utils_alturas import array_alturas
-
-if TYPE_CHECKING:
-    import numpy as np
+import numpy as np
 
 
 class Cartel:
     """Cartel
 
-    Genera la geometria de un cartel un cartel.
+    Genera la geometria de un cartel.
     """
 
     def __init__(
@@ -39,7 +34,6 @@ class Cartel:
         ancho: float,
         altura_inferior: float,
         altura_superior: float,
-        alturas_personalizadas: Sequence[float] | None = None,
     ) -> None:
         """
         Args:
@@ -47,13 +41,11 @@ class Cartel:
             ancho: El ancho del cartel.
             altura_inferior: La altura desde el suelo desde donde se consideran las presiones del viento sobre el cartel.
             altura_superior: La altura superior del cartel.
-            alturas_personalizadas: Las alturas sobre las que se calcularán las presiones de viento.
         """
         self.profundidad = profundidad
         self.ancho = ancho
         self.altura_inferior = altura_inferior
         self.altura_superior = altura_superior
-        self.alturas_personalizadas = alturas_personalizadas
 
     @cached_property
     def altura_neta(self) -> float:
@@ -84,23 +76,12 @@ class Cartel:
 
     @cached_property
     def alturas(self) -> np.ndarray:
-        """Crea un array de alturas desde elevacion a altura_superior.
+        """Las alturas donde se evalúa la presión dinámica.
+
+        De acuerdo a la Ec. 4.4-1, la presión dinámica qh se evalúa a la altura
+        h que define la Figura 4.4-1: la punta del cartel.
 
         Returns:
-            Un array de alturas.
+            Un array con la altura superior.
         """
-        return array_alturas(
-            self.altura_inferior, self.altura_superior, self.alturas_personalizadas
-        )
-
-    @cached_property
-    def areas_parciales(self) -> tuple[float, ...]:
-        """Calcula para cada altura, el area que existe entre la altura y la altura superior consecutiva.
-
-        Returns:
-            Las areas parciales del cartel.
-        """
-        return tuple(
-            self.ancho * (area_sup - area_inf)
-            for area_inf, area_sup in zip(self.alturas, self.alturas[1:])
-        )
+        return np.array([self.altura_superior])

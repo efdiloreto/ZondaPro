@@ -1045,7 +1045,36 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
 
         self._es_parapeto = QtWidgets.QCheckBox("Calcular como parapeto de edificio")
         self._es_parapeto.setToolTip(
-            "Si se activa, se considera el parapeto actuando como un cartel a nivel de terreno."
+            "Si se activa, se considera el parapeto actuando como un cartel apoyado"
+            " en forma continua en el terreno (relación de espacio libre s/h = 1)."
+        )
+
+        self._epsilon = QtWidgets.QDoubleSpinBox()
+        self._epsilon.setMinimum(0.70)
+        self._epsilon.setMaximum(1.00)
+        self._epsilon.setSingleStep(0.01)
+        self._epsilon.setValue(1.00)
+        self._epsilon.setToolTip(
+            "Relación entre el área sólida y el área bruta (Nota 1 de la Figura 4.4-1)."
+            " El valor 1.00 es un cartel sin aberturas."
+        )
+
+        self._doble_cara = QtWidgets.QCheckBox(
+            "Cartel de doble cara con lados cerrados"
+        )
+        self._doble_cara.setToolTip(
+            "Si se activa, aplican las reducciones de Rmin y Rmax de la Nota 2 de la"
+            " Figura 4.4-1, calculadas con el espesor del cartel."
+        )
+
+        self._esquina_retorno = QtWidgets.QDoubleSpinBox()
+        self._esquina_retorno.setMinimum(0)
+        self._esquina_retorno.setMaximum(300)
+        self._esquina_retorno.setValue(0)
+        self._esquina_retorno.setSuffix(" m")
+        self._esquina_retorno.setToolTip(
+            "Dimensión horizontal Lr de la esquina de retorno. El valor 0 indica que"
+            " no hay. Reduce los valores con asterisco del Caso C de la Figura 4.4-1."
         )
 
         grid_layout_geometria = QtWidgets.QGridLayout()
@@ -1060,8 +1089,21 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         for i, spinbox in enumerate(self._spinboxs.values()):
             grid_layout_geometria.addWidget(spinbox, i + 1, 1)
 
-        grid_layout_geometria.addWidget(QtWidgets.QLabel("Personalizar Alturas:"), 5, 0)
-        grid_layout_geometria.addWidget(self._alturas_personalizadas, 6, 0, 1, 2)
+        grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Área sólida / área bruta (ε)"),
+            5,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignRight,
+        )
+        grid_layout_geometria.addWidget(self._epsilon, 5, 1)
+        grid_layout_geometria.addWidget(self._doble_cara, 6, 0, 1, 2)
+        grid_layout_geometria.addWidget(
+            QtWidgets.QLabel("Esquina de retorno (Lr)"),
+            7,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignRight,
+        )
+        grid_layout_geometria.addWidget(self._esquina_retorno, 7, 1)
 
         self.grafico = WidgetGraficoGeometria(Estructura.CARTEL)
         self._generar_escena()
@@ -1104,8 +1146,10 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         }
         return dict(
             categoria=self._categoria(),
-            alturas_personalizadas=self._alturas_personalizadas.text() or None,
             es_parapeto=self._es_parapeto.isChecked(),
+            epsilon=self._epsilon.value(),
+            doble_cara=self._doble_cara.isChecked(),
+            esquina_retorno=self._esquina_retorno.value(),
             **resultados_spinboxs,
         )
 
@@ -1115,9 +1159,11 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
             "geometria": {
                 nombre: spinbox.value() for nombre, spinbox in self._spinboxs.items()
             },
-            "alturas_personalizadas": self._alturas_personalizadas.texto_crudo(),
             "categoria": self._categoria(),
             "es_parapeto": self._es_parapeto.isChecked(),
+            "epsilon": self._epsilon.value(),
+            "doble_cara": self._doble_cara.isChecked(),
+            "esquina_retorno": self._esquina_retorno.value(),
         }
 
     def cargar_estado(self, estado) -> None:
@@ -1125,9 +1171,11 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
         self._cargando = True
         try:
             self._cargar_spinboxs(self._spinboxs, estado["geometria"])
-            self._alturas_personalizadas.setText(estado["alturas_personalizadas"])
             self._categoria.cargar(estado["categoria"])
             self._es_parapeto.setChecked(estado["es_parapeto"])
+            self._epsilon.setValue(estado["epsilon"])
+            self._doble_cara.setChecked(estado["doble_cara"])
+            self._esquina_retorno.setValue(estado["esquina_retorno"])
         finally:
             self._cargando = False
         self._generar_escena()

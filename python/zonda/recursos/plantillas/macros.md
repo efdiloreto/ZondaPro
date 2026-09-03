@@ -109,26 +109,38 @@
 {% endfor %}
 {% endmacro %}
 
-{% macro presiones_cartel(filas) -%}
+{#
+  Tablas de presiones del cartel, una por caso de la Figura 4.4-1. Los Casos
+  A y B llevan una fila con la superficie completa; el Caso C una fila por
+  región, con los límites medidos desde el borde de barlovento.
+#}
+{% macro presiones_cartel(estructura) -%}
+{%- set filas = estructura.resultados %}
 {%- set primera = filas|first %}
-: PRESIONES LOCALES _(Ref: {{ primera.referencia }})_
+: PRESIONES _(Ref: {{ primera.referencia }})_
 
-| Alturas (m) | K~z~ | K~zt~ | C~f~ | q~z~ ({{ unidad_presion }}) | p~n~ ({{ unidad_presion }}) | Área Parcial (m^2^) | F~z~ ({{ unidades.fuerza.value }}) |
-|:-----------:|:----:|:-----:|:----:|:---------------------------:|:---------------------------:|:-------------------:|:----------------------------------:|
-{% for fila in filas -%}
-|
-{{- '%.2f'|format(fila.q.altura) }} |
-{{- '%.2f'|format(fila.q.kz) }} |
-{{- '%.2f'|format(fila.q.kzt) }} |
-{{- '%.2f'|format(fila.cf) }} |
-{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
-{{- '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} |
-{%- if fila.area_parcial is none -%}- | - |
-{% else -%}
-{{- '%.2f'|format(fila.area_parcial) }} |
-{{- '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
-{% endif -%}
+{% for caso in (enums.CasoCartel.CASO_A, enums.CasoCartel.CASO_B, enums.CasoCartel.CASO_C) -%}
+{%- set filas_caso = filas.filtrar(caso=caso) -%}
+{%- if filas_caso %}
+### {{ caso.value }}
+{% if (filas_caso|first).region -%}
+| Región | C~f~ | p ({{ unidad_presion }}) | Área (m^2^) | F ({{ unidades.fuerza.value }}) |
+|:------:|:----:|:---------------------------:|:-----------:|:------------------------------:|
+{% for fila in filas_caso -%}
+{%- set limites = estructura.cf.limites_regiones[fila.region] %}
+| {{ fila.region.etiqueta }} ({{ '%.2f'|format(limites[0]) }} a {{ '%.2f'|format(limites[1]) }} m) | {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
 {% endfor %}
+{%- else -%}
+| C~f~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | Área (m^2^) | F ({{ unidades.fuerza.value }}) |
+|:----:|:---------------------------:|:---------------------------:|:-----------:|:------------------------------:|
+{% for fila in filas_caso -%}
+| {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
+{% endfor %}
+{%- endif %}
+Fuerza total del {{ caso.value }}: {{ '%.2f'|format(estructura.presiones.fuerzas_totales[caso]|convertir_unidad(unidades.fuerza)) }} {{ unidades.fuerza.value }}
+
+{% endif -%}
+{% endfor -%}
 {% endmacro %}
 
 {#

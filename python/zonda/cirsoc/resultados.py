@@ -39,9 +39,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zonda.enums import (
+    CasoCartel,
     DireccionVientoMetodoDireccionalSprfv,
     ExtremoPresion,
     ParedEdificioSprfv,
+    RegionCartel,
     SistemaResistente,
     TipoPresionCubiertaAislada,
     ZonaComponenteCubiertaEdificio,
@@ -217,15 +219,23 @@ class EntradaCpn:
 
 @dataclass(frozen=True, slots=True)
 class FilaCartel:
-    """Una línea de resultado de cartel: una altura del cartel."""
+    """Una línea de resultado de cartel.
+
+    Los Casos A y B producen una fila cada uno con toda la superficie del
+    cartel; el Caso C produce una fila por región. La excentricidad sólo la
+    trae la fila del Caso B, y la región sólo las filas del Caso C.
+    """
 
     q: PresionVelocidad
+    caso: CasoCartel
     cf: float
     factor_rafaga: float
     presion: float
     referencia: str
-    area_parcial: float | None = None
-    fuerza: float | None = None
+    area: float
+    fuerza: float
+    region: RegionCartel | None = None
+    excentricidad: float | None = None
 
     @property
     def presiones(self) -> tuple[float, ...]:

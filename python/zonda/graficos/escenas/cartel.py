@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from zonda.enums import CasoCartel
 from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
 from zonda.graficos.colores import TablaColores
 from zonda.graficos.directores import cartel as director_cartel
@@ -34,7 +35,8 @@ if TYPE_CHECKING:
 class Presiones(PresionesMixin):
     """Presiones.
 
-    Representa la escena de la visualización de presiones del viento sobre un cartel.
+    Representa la escena de la visualización de presiones del viento sobre un
+    cartel, según el caso de la Figura 4.4-1 que se esté considerando.
     """
 
     def __init__(
@@ -54,10 +56,9 @@ class Presiones(PresionesMixin):
         """
         self.escena = escena
         self.unidad_presion = unidad_presion
+        self.unidad_fuerza = unidad_fuerza
 
-        self._presion_por_altura = {
-            fila.q.altura: fila.presion for fila in cartel.resultados
-        }
+        self._filas_por_caso = dict(cartel.resultados.indexar("caso"))
 
         tabla_colores = TablaColores(
             *(
@@ -70,25 +71,55 @@ class Presiones(PresionesMixin):
             self.escena, tabla_colores, self.unidad_presion
         )
 
-        titulo = ActorTexto2D(self.escena)
-        titulo.setear_texto(
-            f"Fuerza Total = {convertir_unidad(cartel.presiones.fuerza_total, unidad_fuerza):.2f} {unidad_fuerza.value}"
-        )
+        self._titulo = ActorTexto2D(self.escena)
 
         self.director = director_cartel.Presiones(self.escena, tabla_colores, cartel)
 
+        # La cara a barlovento muestra los Casos A y B.
         self._actor = self.director.obtener_actores()
 
         self._actores_presion = self.escena.actores_presion
 
-    def actualizar_altura(self, altura) -> None:
-        """Actualiza la altura a la que se calcula la presión sobre la cara a barlovento.
+        self.actualizar_caso(CasoCartel.CASO_A)
+
+    def actualizar_caso(self, caso: CasoCartel) -> None:
+        """Muestra las presiones del caso pedido.
+
+        Para los Casos A y B asigna la presión a la cara a barlovento; para el
+        Caso C la reparte entre las regiones, una por actor.
 
         Args:
-            altura: La altura a la que actualizar la presión.
+            caso: El caso de la Figura 4.4-1 a mostrar.
         """
+        filas = self._filas_por_caso[caso]
+        if caso is CasoCartel.CASO_C:
+            self._actor.asignar_visible(False)
+            presion_por_region = {fila.region: fila for fila in filas}
+            for region, actor in self.director.obtener_regiones().items():
+                fila = presion_por_region[region]
+                actor.asignar_presion(
+                    fila.presion,
+                    str_extra=f" - región {region.etiqueta}",
+                    unidad=self.unidad_presion,
+                )
+        else:
+            self._ocultar_regiones()
+            fila = filas.unica()
+            extra = f" - {caso.value}"
+            if caso is CasoCartel.CASO_B:
+                extra += f" (e = {fila.excentricidad:.2f} m)"
+            self._actor.asignar_presion(
+                fila.presion, str_extra=extra, unidad=self.unidad_presion
+            )
 
-        presion = self._presion_por_altura[altura]
-        self._actor.asignar_presion(
-            presion, str_extra=f"({altura} m)", unidad=self.unidad_presion
+        fuerza = convertir_unidad(
+            self.director.cartel.presiones.fuerzas_totales[caso], self.unidad_fuerza
         )
+        self._titulo.setear_texto(
+            f"Fuerza Total = {fuerza:.2f} {self.unidad_fuerza.value} ({caso.value})"
+        )
+
+    def _ocultar_regiones(self) -> None:
+        """Oculta los actores de las regiones del Caso C."""
+        for actor in self.director.obtener_regiones().values():
+            actor.asignar_visible(False)

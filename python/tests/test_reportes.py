@@ -102,8 +102,46 @@ def test_reporte_edificio_gran_altura_resuelve_las_paredes_por_altura():
 
 
 def test_reporte_cartel(cartel):
-    reporte = Reporte("cartel.md", cartel, UNIDADES)
-    assert reporte._texto_md.strip()
+    texto = Reporte("cartel.md", cartel, UNIDADES)._texto_md
+    assert texto.strip()
+
+    # Referencias del reglamento actualizadas.
+    assert "Artículo 4.4.1 - Figura 4.4-1" in texto
+    assert "artículo 1.9" in texto
+    assert "Tabla 11" not in texto
+    assert "Capítulo 5.13" not in texto
+
+    # Parámetros de la figura y tablas por caso. La fixture tiene B/s = 2,
+    # así que el Caso C trae sus dos regiones.
+    assert "s/h: 0.50" in texto
+    assert "B/s: 2.00" in texto
+    assert "Caso A" in texto
+    assert "Caso B" in texto
+    assert "Caso C" in texto
+    assert "0 a s (0.00 a 5.00 m)" in texto
+    assert "s a 2s (5.00 a 10.00 m)" in texto
+    assert "La fuerza de diseño es la del Caso C." in texto
+
+
+def test_reporte_cartel_sin_caso_c():
+    """Con B/s < 2 el Caso C no se considera y el reporte lo dice."""
+    from zonda import enums
+    from zonda.cirsoc import Cartel
+
+    cartel = Cartel(
+        profundidad=1,
+        ancho=8,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        categoria=enums.CategoriaEstructura.II,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    texto = Reporte("cartel.md", cartel, UNIDADES)._texto_md
+    assert "no corresponde considerar el Caso C" in texto
+    assert "La fuerza de diseño es la de los Casos A y B." in texto
 
 
 def test_reporte_cartel_con_topografia(cartel_con_topografia):

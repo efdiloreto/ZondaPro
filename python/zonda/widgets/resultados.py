@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from PyQt6 import QtCore, QtWidgets
 
 from zonda.enums import (
+    CasoCartel,
     DireccionVientoMetodoDireccionalSprfv,
     ExtremoPresion,
     PosicionCubiertaAleroSprfv,
@@ -608,7 +609,7 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
     """WidgetResultadosCartel.
 
     Representa el widget que visualiza los resultados para carteles. Presenta el gráfico junto con otros
-    widgets que interactuan con este para la altura de presión.
+    widgets que interactuan con este para el caso de la Figura 4.4-1 considerado.
     """
 
     plantilla_reporte = "cartel.md"
@@ -617,7 +618,7 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         """
 
         Args:
-            cartel: Una instancia de CubiertaAislada.
+            cartel: Una instancia de Cartel.
         """
         super().__init__()
 
@@ -630,17 +631,23 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        combobox_altura = QtWidgets.QComboBox()
-        for altura in cartel.geometria.alturas:
-            combobox_altura.addItem(f"{altura:.2f} m", altura)
-        combobox_altura.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_altura(combobox_altura.currentData())
+        casos = [
+            CasoCartel.CASO_A,
+            CasoCartel.CASO_B,
+            *(caso for caso in (CasoCartel.CASO_C,) if cartel.cf.aplica_caso_c),
+        ]
+
+        combobox_caso = QtWidgets.QComboBox()
+        for caso in casos:
+            combobox_caso.addItem(caso.value, caso)
+        combobox_caso.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_caso(combobox_caso.currentData())
         )
 
         layout_parametros = QtWidgets.QGridLayout()
 
-        layout_parametros.addWidget(QtWidgets.QLabel("Altura"), 0, 0)
-        layout_parametros.addWidget(combobox_altura, 0, 1)
+        layout_parametros.addWidget(QtWidgets.QLabel("Caso"), 0, 0)
+        layout_parametros.addWidget(combobox_caso, 0, 1)
         layout_parametros.setRowStretch(1, 1)
 
         box_parametros = QtWidgets.QGroupBox("Parámetros")
@@ -657,6 +664,6 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         layout_principal.addWidget(widget_panel_resultados)
         layout_principal.addLayout(layout_resultados, 1)
 
-        self.grafico.escena.actualizar_altura(combobox_altura.currentData())
+        self.grafico.escena.actualizar_caso(combobox_caso.currentData())
 
         self.setLayout(layout_principal)

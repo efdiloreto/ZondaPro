@@ -415,13 +415,29 @@ def test_escena_del_cartel(qapp, cartel):
 
     escena = Escena3D()
     presiones = escena_cartel.Presiones(escena, cartel, enums.Unidad.N, enums.Unidad.N)
-    presiones.actualizar_altura(10)
 
-    assert len(escena.caras) == 6
+    # Arranca en el Caso A: un actor de presión en la cara a barlovento.
+    # Las caras son las 5 sin presión, la cara a barlovento y las 2 regiones
+    # del Caso C (creadas ocultas: la fixture tiene B/s = 2).
+    assert len(escena.caras) == 8
     assert len(escena.solidos) == 1  # el soporte
-    assert len(escena.presiones) == 1
-    assert "Fuerza Total" in escena.titulo
+    assert "Caso A" in escena.titulo
     assert escena.etiquetasEscala
+
+    presiones.actualizar_caso(enums.CasoCartel.CASO_B)
+    assert "Caso B" in escena.titulo
+    # La excentricidad del Caso B va en la etiqueta de la flecha.
+    etiqueta = next(flecha.texto for flecha in escena.presiones if flecha.visible)
+    assert "e = 2.00 m" in etiqueta
+
+    # El Caso C reparte la presión entre las regiones: la fixture tiene
+    # B/s = 2, así que son dos.
+    presiones.actualizar_caso(enums.CasoCartel.CASO_C)
+    assert "Caso C" in escena.titulo
+    assert len(escena.presiones) == 3  # la cara a barlovento oculta + 2 regiones
+    visibles = [flecha for flecha in escena.presiones if flecha.visible]
+    assert len(visibles) == 2
+    assert "región" in visibles[0].texto
 
 
 def test_escena_de_la_cubierta_aislada(qapp, cubierta_aislada):

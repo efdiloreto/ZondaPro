@@ -65,7 +65,9 @@ class Cartel:
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
         es_parapeto: bool = False,
-        alturas_personalizadas: Sequence[float] | None = None,
+        epsilon: float = 1.0,
+        doble_cara: bool = False,
+        esquina_retorno: float = 0.0,
         frecuencia: float = 1,
         beta: float = 0.02,
         flexibilidad: Flexibilidad = Flexibilidad.RIGIDA,
@@ -90,7 +92,12 @@ class Cartel:
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
             es_parapeto: Si es True, se considera que el cartel actua como parapeto de edificio.
-            alturas_personalizadas: Las alturas sobre las que se calcularán las presiones de viento.
+            epsilon: La relación entre el área sólida y el área bruta del cartel (Nota 1
+                de la Figura 4.4-1). El valor 1.0 es un cartel sin aberturas.
+            doble_cara: Si es True, el cartel es de doble cara con todos los lados
+                cerrados y aplican las reducciones de Rmin y Rmax de la Nota 2.
+            esquina_retorno: La dimensión horizontal Lr de la esquina de retorno, en
+                metros. El valor 0 indica que no hay.
             frecuencia: La frecuencia natural de la estructura en hz.
             beta: La relación de amortiguamiento crítico.
             flexibilidad: La flexibilidad de la estructura.
@@ -112,7 +119,9 @@ class Cartel:
         self.considerar_topografia = considerar_topografia
         self.categoria_exp = categoria_exp
         self.es_parapeto = es_parapeto
-        self.alturas_personalizadas = alturas_personalizadas
+        self.epsilon = epsilon
+        self.doble_cara = doble_cara
+        self.esquina_retorno = esquina_retorno
         self.frecuencia = frecuencia
         self.beta = beta
         self.flexibilidad = flexibilidad
@@ -129,9 +138,15 @@ class Cartel:
         )
 
         self.geometria = geometria.Cartel(
-            profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas
+            profundidad, ancho, altura_inferior, altura_superior
         )
-        self.cf = cp.Cartel.desde_cartel(self.geometria, es_parapeto)
+        self.cf = cp.Cartel.desde_cartel(
+            self.geometria,
+            es_parapeto,
+            epsilon,
+            doble_cara,
+            esquina_retorno,
+        )
         self.rafaga = Rafaga(
             ancho,
             profundidad,
@@ -159,7 +174,7 @@ class Cartel:
             categoria,
             velocidad,
             self.rafaga,
-            self.topografia.factor,
+            self.topografia.factor[0],
             self.cf,
             categoria_exp,
             factor_altitud=self.factor_altitud,
@@ -170,7 +185,8 @@ class Cartel:
         """La tabla de resultados del cartel.
 
         Returns:
-            Una fila por cada altura considerada.
+            Una fila por cada caso de la Figura 4.4-1 y, para el Caso C, una
+            fila por región.
         """
         return resultados.Tabla(self.presiones.filas)
 
