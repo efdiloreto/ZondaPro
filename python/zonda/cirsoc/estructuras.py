@@ -39,11 +39,7 @@ if TYPE_CHECKING:
         FilaEdificio,
         Tabla,
     )
-    from zonda.enums import (
-        CategoriaExposicion,
-        Cerramiento,
-        PosicionBloqueoCubierta,
-    )
+    from zonda.enums import CategoriaExposicion, Cerramiento
 
 
 class Cartel:
@@ -196,13 +192,13 @@ class CubiertaAislada:
         longitud: float,
         altura_alero: float,
         altura_cumbrera: float,
-        altura_bloqueo: float,
-        posicion_bloqueo: PosicionBloqueoCubierta,
+        bloqueo: float,
         tipo_cubierta: TipoCubierta,
         coeficiente_friccion: float,
         velocidad: float,
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
+        factor_g_simplificado: bool = True,
         frecuencia: float = 1,
         beta: float = 0.02,
         flexibilidad: Flexibilidad = Flexibilidad.RIGIDA,
@@ -222,16 +218,17 @@ class CubiertaAislada:
             longitud: La longitud de la cubierta.
             altura_alero: La altura de alero de la cubierta, medida desde el nivel de suelo.
             altura_cumbrera: La altura de cumbrera de la cubierta, medida desde el nivel de suelo.
-            altura_bloqueo: La altura de bloqueo. Se utiliza en el caso de cubiertas aisladas. Se necesita cuando se usa
-                la cubierta para calcular los coeficientes de presión de cubiertas aisladas.
-            posicion_bloqueo: La posicion de bloqueo. Se utiliza en el caso de cubiertas aisladas a un agua.
+            bloqueo: El porcentaje de bloqueo del flujo de viento bajo la cubierta. Un bloqueo mayor al 50 %
+                corresponde a la situación con bloqueo de las Figuras 2.4-4 a 2.4-7.
             tipo_cubierta: El tipo de cubierta.
-            coeficiente_friccion: El coeficiente de friccion de la superficie de cubierta.
+            coeficiente_friccion: El coeficiente de empuje por fricción de la superficie, según la Tabla 2.4-1.
             velocidad: La velocidad del viento en m/s.
             categoria: La categoría de la estructura. Quedó sólo como dato del
                 modelo: el CIRSOC 102-2025 ya no la usa para calcular.
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
+            factor_g_simplificado: Si se usa el factor de ráfaga simplificado G = 0,85 (artículo 1.9.4) o si se
+                calcula Gf para estructuras flexibles (artículo 1.9.5).
             frecuencia: La frecuencia natural de la estructura en hz.
             beta: La relación de amortiguamiento crítico.
             flexibilidad: La flexibilidad de la estructura.
@@ -247,14 +244,14 @@ class CubiertaAislada:
         self.longitud = longitud
         self.altura_alero = altura_alero
         self.altura_cumbrera = altura_cumbrera
-        self.altura_bloqueo = altura_bloqueo
-        self.posicion_bloqueo = posicion_bloqueo
+        self.bloqueo = bloqueo
         self.tipo_cubierta = tipo_cubierta
         self.coeficiente_friccion = coeficiente_friccion
         self.velocidad = velocidad
         self.categoria = categoria
         self.categoria_exp = categoria_exp
         self.considerar_topografia = considerar_topografia
+        self.factor_g_simplificado = factor_g_simplificado
         self.frecuencia = frecuencia
         self.beta = beta
         self.flexibilidad = flexibilidad
@@ -275,8 +272,7 @@ class CubiertaAislada:
             altura_alero,
             altura_cumbrera,
             tipo_cubierta,
-            altura_bloqueo=altura_bloqueo,
-            posicion_bloqueo=posicion_bloqueo,
+            bloqueo=bloqueo,
         )
         self.cpn = cp.CubiertaAislada.desde_cubierta(self.geometria)
         self.rafaga = Rafaga(
@@ -288,7 +284,7 @@ class CubiertaAislada:
             frecuencia,
             beta,
             flexibilidad,
-            True,
+            factor_g_simplificado,
             categoria_exp,
         )
         self.topografia = Topografia(
@@ -317,7 +313,8 @@ class CubiertaAislada:
         """La tabla de resultados de la cubierta aislada.
 
         Returns:
-            Una fila por cada combinación de tipo de presión, zona y extremo.
+            Una fila por cada combinación de dirección de viento, caso de
+            carga y zona.
         """
         return resultados.Tabla(self.presiones.filas)
 

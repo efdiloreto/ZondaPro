@@ -91,15 +91,10 @@
 {%- set primera = filas|first %}
 : {{ titulo }} _(Ref: {{ primera.referencia }})_
 
-| {{ 'Zona - Tipo' if primera.zona else 'Tipo' }} | K~h~ | K~zth~ | C~pn~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | p~fricción~ ({{ unidad_presion }}) |
-|:-----------:|:----:|:------:|:-----:|:---------------------------:|:------------------------:|:----------------------------------:|
+| Caso | Zona | K~h~ | K~zth~ | C~pn~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | p~fricción~ ({{ unidad_presion }}) |
+|:----:|:----:|:----:|:------:|:-----:|:---------------------------:|:------------------------:|:----------------------------------:|
 {% for fila in filas -%}
-|
-{%- if fila.zona -%}
-{{ "%s - %s"|format(fila.zona.value|upper, fila.extremo.value|capitalize) }} |
-{%- else -%}
-{{ fila.extremo.value|capitalize }} |
-{%- endif -%}
+| {{ fila.caso.value }} | {{ fila.zona.value }} |
 {{- '%.2f'|format(fila.q.kz) }} |
 {{- '%.2f'|format(fila.q.kzt) }} |
 {{- '%.2f'|format(fila.cpn) }} |

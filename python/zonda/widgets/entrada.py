@@ -23,9 +23,9 @@ from zonda.enums import (
     Cerramiento,
     Estructura,
     MetodoSprfv,
-    PosicionBloqueoCubierta,
     PosicionCamara,
     TipoCubierta,
+    TipoSuperficieFriccion,
 )
 from zonda.widgets.graficos import WidgetGraficoGeometria
 
@@ -790,7 +790,7 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
             "Ancho",
             "Altura de Alero",
             "Altura de Cumbrera",
-            "Altura de Bloqueo",
+            "Bloqueo",
             "Longitud",
         )
 
@@ -800,16 +800,13 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         self._combobox_tipo_cubierta.setCurrentText(
             TipoCubierta.DOS_AGUAS.value.title()
         )
-        self._combobox_tipo_cubierta.currentTextChanged.connect(
-            self._habilitar_deshabilitar_posicion_bloqueo
-        )
         self._combobox_tipo_cubierta.currentTextChanged.connect(self._generar_escena)
 
         datos_spinboxs = (
             ("ancho", 1, 300, 30, " m"),
             ("altura_alero", 1, 200, 6, " m"),
             ("altura_cumbrera", 1, 200, 9, " m"),
-            ("altura_bloqueo", 0, 300, 5, " m"),
+            ("bloqueo", 0, 100, 0, " %"),
             ("longitud", 1, 300, 60, " m"),
         )
 
@@ -820,12 +817,9 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
             spinbox.setMaximum(maximo)
             spinbox.setValue(default)
             spinbox.setSuffix(sufijo)
+            spinbox.setDecimals(0)
             spinbox.editingFinished.connect(self._generar_escena)
             self._spinboxs[nombre] = spinbox
-
-        self._combobox_posicion_bloqueo = QtWidgets.QComboBox()
-        for enum in PosicionBloqueoCubierta:
-            self._combobox_posicion_bloqueo.addItem(enum.value.title(), enum)
 
         self._grid_layout_geometria = QtWidgets.QGridLayout()
 
@@ -845,29 +839,26 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         for i, spinbox in enumerate(self._spinboxs.values()):
             self._grid_layout_geometria.addWidget(spinbox, i + 1, 1)
 
-        self._spinbox_coeficiente_friccion = QtWidgets.QDoubleSpinBox()
-        self._spinbox_coeficiente_friccion.setMinimum(0.001)
-        self._spinbox_coeficiente_friccion.setMaximum(0.10)
-        self._spinbox_coeficiente_friccion.setValue(0.02)
+        self._grid_layout_geometria.setRowStretch(6, 1)
+
+        self._combobox_superficie = QtWidgets.QComboBox()
+        for enum in TipoSuperficieFriccion:
+            self._combobox_superficie.addItem(enum.name.replace("_", " ").title(), enum)
+        self._combobox_superficie.setCurrentText(
+            TipoSuperficieFriccion.ONDULACIONES_TRANSVERSALES.name.replace(
+                "_", " "
+            ).title()
+        )
 
         self.grafico = WidgetGraficoGeometria(Estructura.CUBIERTA_AISLADA)
         self._generar_escena()
 
-        self._grid_layout_geometria.addWidget(
-            QtWidgets.QLabel("Posición del bloqueo"),
-            6,
-            0,
-            QtCore.Qt.AlignmentFlag.AlignRight,
-        )
-        self._grid_layout_geometria.addWidget(self._combobox_posicion_bloqueo, 6, 1)
-        self._grid_layout_geometria.setRowStretch(7, 1)
-
-        layout_friccion = QtWidgets.QHBoxLayout()
-        layout_friccion.addWidget(QtWidgets.QLabel("Coeficiente de Fricción"))
-        layout_friccion.addWidget(self._spinbox_coeficiente_friccion)
-
         box_estructura = QtWidgets.QGroupBox("Geometría")
         box_estructura.setLayout(self._grid_layout_geometria)
+
+        layout_friccion = QtWidgets.QHBoxLayout()
+        layout_friccion.addWidget(QtWidgets.QLabel("Superficie"))
+        layout_friccion.addWidget(self._combobox_superficie)
 
         box_superficie = QtWidgets.QGroupBox("Superficie")
         box_superficie.setLayout(layout_friccion)
@@ -896,7 +887,6 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         layout_principal.addWidget(self.grafico, 1)
 
         self.setLayout(layout_principal)
-        self._habilitar_deshabilitar_posicion_bloqueo()
 
     def parametros(self):
         resultados_spinboxs = {
@@ -906,8 +896,7 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         }
         return dict(
             tipo_cubierta=self._combobox_tipo_cubierta.currentData(),
-            posicion_bloqueo=self._combobox_posicion_bloqueo.currentData(),
-            coeficiente_friccion=self._spinbox_coeficiente_friccion.value(),
+            coeficiente_friccion=self._combobox_superficie.currentData().value,
             **resultados_spinboxs,
         )
 
@@ -918,8 +907,7 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
             "geometria": {
                 nombre: spinbox.value() for nombre, spinbox in self._spinboxs.items()
             },
-            "posicion_bloqueo": self._combobox_posicion_bloqueo.currentData(),
-            "coeficiente_friccion": self._spinbox_coeficiente_friccion.value(),
+            "superficie": self._combobox_superficie.currentData(),
         }
 
     def cargar_estado(self, estado) -> None:
@@ -928,25 +916,10 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         try:
             _seleccionar_dato(self._combobox_tipo_cubierta, estado["tipo_cubierta"])
             self._cargar_spinboxs(self._spinboxs, estado["geometria"])
-            _seleccionar_dato(
-                self._combobox_posicion_bloqueo, estado["posicion_bloqueo"]
-            )
-            self._spinbox_coeficiente_friccion.setValue(
-                float(estado["coeficiente_friccion"])
-            )
+            _seleccionar_dato(self._combobox_superficie, estado["superficie"])
         finally:
             self._cargando = False
         self._generar_escena()
-
-    def _habilitar_deshabilitar_posicion_bloqueo(self) -> None:
-        tipo_cubierta = self._combobox_tipo_cubierta.currentData()
-        bool_cubierta = tipo_cubierta != TipoCubierta.UN_AGUA
-        self._grid_layout_geometria.itemAtPosition(6, 0).widget().setHidden(
-            bool_cubierta
-        )
-        self._grid_layout_geometria.itemAtPosition(6, 1).widget().setHidden(
-            bool_cubierta
-        )
 
     def _generar_escena(self):
         if self._cargando:
@@ -956,14 +929,12 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         ancho = self._spinboxs["ancho"].value()
         longitud = self._spinboxs["longitud"].value()
         tipo_cubierta = self._combobox_tipo_cubierta.currentData()
-        posicion_bloqueo = self._combobox_posicion_bloqueo.currentData()
         self.grafico.escena.generar(
             ancho,
             longitud,
             altura_alero,
             altura_cumbrera,
             tipo_cubierta,
-            posicion_bloqueo,
         )
 
 

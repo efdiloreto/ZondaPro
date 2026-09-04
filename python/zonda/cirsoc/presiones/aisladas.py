@@ -56,7 +56,7 @@ class CubiertaAislada(PresionesBase):
             cpn: Una instancia de CubiertaAislada.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
-            coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
+            coeficiente_friccion: El coeficiente de empuje por fricción de la superficie, según la Tabla 2.4-1.
             factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
@@ -80,21 +80,29 @@ class CubiertaAislada(PresionesBase):
         """Calcula las presiones sobre la cubierta aislada.
 
         Returns:
-            Una fila por cada combinación de tipo de presión, zona y extremo.
+            Una fila por cada combinación de dirección de viento, caso de
+            carga y zona.
         """
         factor_rafaga = float(self.rafaga.factor)
+        # La fricción actúa sobre la superficie superior e inferior con flujo
+        # de viento libre, y sólo sobre la superior con el flujo obstruido
+        # (artículo 2.4.3.1). El valor queda por unidad de área en planta.
+        superficies_friccion = 1 if self.cpn.con_bloqueo else 2
+        presion_friccion = (
+            float(self.q.valor) * self.coeficiente_friccion * superficies_friccion
+        )
         filas = []
         for entrada in self.cpn.entradas:
             presion = float(self._presion_parcial * entrada.valor)
             filas.append(
                 FilaCubiertaAislada(
-                    tipo=entrada.tipo,
-                    extremo=entrada.extremo,
+                    direccion=entrada.direccion,
+                    caso=entrada.caso,
                     q=self.q,
                     cpn=entrada.valor,
                     factor_rafaga=factor_rafaga,
                     presion=presion,
-                    presion_friccion=presion * self.coeficiente_friccion,
+                    presion_friccion=presion_friccion,
                     referencia=entrada.referencia,
                     zona=entrada.zona,
                 )
@@ -122,7 +130,7 @@ class CubiertaAislada(PresionesBase):
             cpn: Una instancia de CubiertaAislada.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
-            coeficiente_friccion: El coeficiente de fricción de la superficie de cubierta.
+            coeficiente_friccion: El coeficiente de empuje por fricción de la superficie, según la Tabla 2.4-1.
             factor_altitud: El factor de altitud del terreno Ke.
         """
         return cls(

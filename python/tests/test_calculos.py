@@ -329,6 +329,199 @@ def test_cubierta_aislada_calcula(cubierta_aislada: CubiertaAislada):
     assert cubierta_aislada.cpn is not None
 
 
+def _cpn_cubierta_aislada(cpn: cp.CubiertaAislada):
+    """Los coeficientes indexados por dirección, caso y zona."""
+    return {
+        (entrada.direccion, entrada.caso, entrada.zona): entrada.valor
+        for entrada in cpn.entradas
+    }
+
+
+def test_cpn_vertiente_unica_figura_2_4_4():
+    """Valores de la Figura 2.4-4 a 15°, con y sin bloqueo."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.UN_AGUA, 15.0, False, 6.0, 10.0, 20.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    g0 = enums.DireccionVientoCubiertaAislada.GAMMA_0
+    g180 = enums.DireccionVientoCubiertaAislada.GAMMA_180
+    a, b = enums.CasoCargaCubiertaAislada.CASO_A, enums.CasoCargaCubiertaAislada.CASO_B
+    bar = enums.ZonaPresionCubiertaAislada.BARLOVENTO
+    sot = enums.ZonaPresionCubiertaAislada.SOTAVENTO
+    assert valores[(g0, a, bar)] == pytest.approx(-0.9)
+    assert valores[(g0, a, sot)] == pytest.approx(-1.3)
+    assert valores[(g0, b, bar)] == pytest.approx(-1.9)
+    assert valores[(g0, b, sot)] == pytest.approx(0.0)
+    assert valores[(g180, a, bar)] == pytest.approx(1.3)
+    assert valores[(g180, a, sot)] == pytest.approx(1.6)
+    assert valores[(g180, b, bar)] == pytest.approx(1.8)
+    assert valores[(g180, b, sot)] == pytest.approx(0.6)
+
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.UN_AGUA, 15.0, True, 6.0, 10.0, 20.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    assert valores[(g0, a, bar)] == pytest.approx(-1.1)
+    assert valores[(g0, a, sot)] == pytest.approx(-1.5)
+    assert valores[(g0, b, bar)] == pytest.approx(-2.1)
+    assert valores[(g0, b, sot)] == pytest.approx(-0.6)
+    assert valores[(g180, a, bar)] == pytest.approx(0.4)
+    assert valores[(g180, a, sot)] == pytest.approx(-1.1)
+    assert valores[(g180, b, bar)] == pytest.approx(1.2)
+    assert valores[(g180, b, sot)] == pytest.approx(-0.3)
+
+
+def test_cpn_vertiente_unica_interpolacion():
+    """Interpolación lineal a 10°: 7,5° + un tercio del paso a 15° (γ = 0°)."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.UN_AGUA, 10.0, False, 6.0, 10.0, 20.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    clave = (
+        enums.DireccionVientoCubiertaAislada.GAMMA_0,
+        enums.CasoCargaCubiertaAislada.CASO_A,
+        enums.ZonaPresionCubiertaAislada.BARLOVENTO,
+    )
+    # CNW(7,5°) = -0,6 y CNW(15°) = -0,9; 10° está a 1/3 del intervalo.
+    assert valores[clave] == pytest.approx(-0.7)
+
+
+def test_cpn_vertiente_unica_menor_7_5_usa_valores_de_0():
+    """Nota 3: para θ < 7,5° se usan los coeficientes de 0°."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.UN_AGUA, 3.0, False, 6.0, 10.0, 20.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    g0 = enums.DireccionVientoCubiertaAislada.GAMMA_0
+    g180 = enums.DireccionVientoCubiertaAislada.GAMMA_180
+    a = enums.CasoCargaCubiertaAislada.CASO_A
+    bar = enums.ZonaPresionCubiertaAislada.BARLOVENTO
+    assert valores[(g0, a, bar)] == pytest.approx(1.2)
+    # A 0° las dos direcciones comparten valores.
+    assert valores[(g180, a, bar)] == pytest.approx(1.2)
+
+
+def test_cpn_dos_aguas_figura_2_4_5():
+    """Valores de la Figura 2.4-5 a 30°, con y sin bloqueo."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.DOS_AGUAS, 30.0, False, 8.0, 20.0, 30.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    g0 = enums.DireccionVientoCubiertaAislada.GAMMA_0
+    g180 = enums.DireccionVientoCubiertaAislada.GAMMA_180
+    a, b = enums.CasoCargaCubiertaAislada.CASO_A, enums.CasoCargaCubiertaAislada.CASO_B
+    bar = enums.ZonaPresionCubiertaAislada.BARLOVENTO
+    sot = enums.ZonaPresionCubiertaAislada.SOTAVENTO
+    assert valores[(g0, a, bar)] == pytest.approx(1.3)
+    assert valores[(g0, a, sot)] == pytest.approx(0.3)
+    assert valores[(g0, b, bar)] == pytest.approx(-0.1)
+    assert valores[(g0, b, sot)] == pytest.approx(-0.9)
+    # γ = 0° y 180° comparten tabla: la mitad de barlovento lleva CNW en
+    # ambas direcciones (la cubierta es simétrica respecto de la cumbrera).
+    assert valores[(g180, a, bar)] == pytest.approx(1.3)
+    assert valores[(g180, a, sot)] == pytest.approx(0.3)
+
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.DOS_AGUAS, 30.0, True, 8.0, 20.0, 30.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    assert valores[(g0, a, bar)] == pytest.approx(-0.7)
+    assert valores[(g0, b, sot)] == pytest.approx(-1.1)
+
+
+def test_cpn_dos_aguas_diedro_negativo_figura_2_4_6():
+    """Valores de la Figura 2.4-6 a -15°, sin bloqueo."""
+    cpn = cp.CubiertaAislada(
+        enums.TipoCubierta.DOS_AGUAS, -15.0, False, 6.0, 20.0, 12.0
+    )
+    valores = _cpn_cubierta_aislada(cpn)
+    g0 = enums.DireccionVientoCubiertaAislada.GAMMA_0
+    a, b = enums.CasoCargaCubiertaAislada.CASO_A, enums.CasoCargaCubiertaAislada.CASO_B
+    bar = enums.ZonaPresionCubiertaAislada.BARLOVENTO
+    sot = enums.ZonaPresionCubiertaAislada.SOTAVENTO
+    assert valores[(g0, a, bar)] == pytest.approx(-1.1)
+    assert valores[(g0, a, sot)] == pytest.approx(0.4)
+    assert valores[(g0, b, bar)] == pytest.approx(0.1)
+    assert valores[(g0, b, sot)] == pytest.approx(1.1)
+    assert cpn.entradas[0].referencia == "Figura 2.4-6"
+
+
+def test_cpn_dos_aguas_angulo_menor_7_5_usa_vertiente_unica():
+    """Notas 3 de las Figuras 2.4-5 y 2.4-6: valores de vertiente única a 0°."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.DOS_AGUAS, 5.0, False, 6.0, 20.0, 12.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    g0 = enums.DireccionVientoCubiertaAislada.GAMMA_0
+    a, b = enums.CasoCargaCubiertaAislada.CASO_A, enums.CasoCargaCubiertaAislada.CASO_B
+    bar = enums.ZonaPresionCubiertaAislada.BARLOVENTO
+    sot = enums.ZonaPresionCubiertaAislada.SOTAVENTO
+    assert valores[(g0, a, bar)] == pytest.approx(1.2)
+    assert valores[(g0, a, sot)] == pytest.approx(0.3)
+    assert valores[(g0, b, bar)] == pytest.approx(-1.1)
+    assert valores[(g0, b, sot)] == pytest.approx(-0.1)
+    assert cpn.entradas[0].referencia == "Figura 2.4-4"
+
+
+def test_cpn_viento_paralelo_figura_2_4_7():
+    """Valores de la Figura 2.4-7 por banda, con y sin bloqueo."""
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.DOS_AGUAS, 30.0, False, 8.0, 20.0, 30.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    g90 = enums.DireccionVientoCubiertaAislada.GAMMA_90
+    a, b = enums.CasoCargaCubiertaAislada.CASO_A, enums.CasoCargaCubiertaAislada.CASO_B
+    hasta_h = enums.ZonaPresionCubiertaAislada.HASTA_H
+    entre = enums.ZonaPresionCubiertaAislada.ENTRE_H_Y_2H
+    mayor = enums.ZonaPresionCubiertaAislada.MAYOR_2H
+    assert valores[(g90, a, hasta_h)] == pytest.approx(-0.8)
+    assert valores[(g90, b, hasta_h)] == pytest.approx(0.8)
+    assert valores[(g90, a, entre)] == pytest.approx(-0.6)
+    assert valores[(g90, b, entre)] == pytest.approx(0.5)
+    assert valores[(g90, a, mayor)] == pytest.approx(-0.3)
+    assert valores[(g90, b, mayor)] == pytest.approx(0.3)
+
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.DOS_AGUAS, 30.0, True, 8.0, 20.0, 30.0)
+    valores = _cpn_cubierta_aislada(cpn)
+    assert valores[(g90, a, hasta_h)] == pytest.approx(-1.2)
+    assert valores[(g90, b, mayor)] == pytest.approx(0.3)
+
+
+def test_cpn_zonas_de_bandas_segun_longitud():
+    """Sólo se generan las bandas que caben en la longitud de la cubierta."""
+    # Con h = 5 la banda central termina en 2h = 10 y la última empieza ahí:
+    # con longitud 10 la banda x > 2h no existe.
+    cpn = cp.CubiertaAislada(enums.TipoCubierta.UN_AGUA, 15.0, False, 5.0, 10.0, 10.0)
+    zonas = {
+        (entrada.direccion, entrada.zona)
+        for entrada in cpn.entradas
+        if entrada.direccion is enums.DireccionVientoCubiertaAislada.GAMMA_90
+    }
+    g90 = enums.DireccionVientoCubiertaAislada.GAMMA_90
+    assert (g90, enums.ZonaPresionCubiertaAislada.MAYOR_2H) not in zonas
+    assert (g90, enums.ZonaPresionCubiertaAislada.HASTA_H) in zonas
+    assert (g90, enums.ZonaPresionCubiertaAislada.ENTRE_H_Y_2H) in zonas
+
+
+def test_cubierta_aislada_presion_y_friccion(cubierta_aislada: CubiertaAislada):
+    """p = qh·G·Cpn y p_fricción = Cf·qh·n, con n = 2 con flujo libre."""
+    fila = cubierta_aislada.resultados.filtrar(
+        direccion=enums.DireccionVientoCubiertaAislada.GAMMA_0,
+        caso=enums.CasoCargaCubiertaAislada.CASO_A,
+        zona=enums.ZonaPresionCubiertaAislada.BARLOVENTO,
+    ).unica()
+    assert fila.cpn == pytest.approx(1.1)
+    assert fila.presion == pytest.approx(fila.q.valor * fila.factor_rafaga * fila.cpn)
+    # Cf = 0,02 (Tabla 2.4-1, ondulaciones transversales) y dos superficies.
+    assert fila.presion_friccion == pytest.approx(0.02 * 2 * fila.q.valor)
+
+
+def test_cubierta_aislada_friccion_con_bloqueo():
+    """Con flujo obstruido la fricción actúa sólo sobre la superficie superior."""
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=60,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    fila = cubierta.resultados.filtrar(
+        direccion=enums.DireccionVientoCubiertaAislada.GAMMA_0,
+        caso=enums.CasoCargaCubiertaAislada.CASO_A,
+        zona=enums.ZonaPresionCubiertaAislada.BARLOVENTO,
+    ).unica()
+    assert fila.presion_friccion == pytest.approx(0.02 * fila.q.valor)
+
+
 @pytest.mark.parametrize(
     "tipo_cubierta",
     [
@@ -537,16 +730,48 @@ def test_alero_barlovento_combina_superficie_inferior():
         assert cp_alero == pytest.approx(cp_cubierta - 0.8)
 
 
-def test_cubierta_aislada_fuera_de_lineamientos_es_rechazada():
-    """El CIRSOC no cubre cubiertas aisladas a dos aguas con -5° < ángulo < 5°."""
+def test_cubierta_aislada_angulo_fuera_de_lineamientos_es_rechazada():
+    """El CIRSOC cubre ángulos de 0° a 45° (|ángulo| para dos aguas)."""
+    datos_base = {
+        "ancho": 10,
+        "longitud": 20,
+        "altura_alero": 5,
+        "bloqueo": 0,
+        "coeficiente_friccion": 0.02,
+        "velocidad": 45,
+        "categoria_exp": enums.CategoriaExposicion.B,
+        "considerar_topografia": False,
+    }
+    # A dos aguas el diedro puede ser negativo, pero no pasar de 45°.
     with pytest.raises(ErrorLineamientos, match="ángulo"):
         CubiertaAislada(
-            ancho=10,
-            longitud=20,
+            altura_cumbrera=11,
+            tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+            **datos_base,
+        )
+    with pytest.raises(ErrorLineamientos, match="ángulo"):
+        CubiertaAislada(
+            altura_cumbrera=16,
+            tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+            **datos_base,
+        )
+    with pytest.raises(ErrorLineamientos, match="ángulo"):
+        CubiertaAislada(
+            altura_cumbrera=3,
+            tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+            **datos_base,
+        )
+
+
+def test_cubierta_aislada_relacion_h_l_fuera_de_lineamientos_es_rechazada():
+    """Las Figuras 2.4-4 a 2.4-7 exigen 0,25 ≤ h/L ≤ 1,0 en cada dirección."""
+    with pytest.raises(ErrorLineamientos, match="h/L"):
+        CubiertaAislada(
+            ancho=30,
+            longitud=30,
             altura_alero=5,
             altura_cumbrera=5.1,
-            altura_bloqueo=0,
-            posicion_bloqueo=enums.PosicionBloqueoCubierta.ALERO_BAJO,
+            bloqueo=0,
             tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
             coeficiente_friccion=0.02,
             velocidad=45,
@@ -563,8 +788,7 @@ def test_cubierta_aislada_plana_no_tiene_lineamientos():
             longitud=20,
             altura_alero=5,
             altura_cumbrera=5,
-            altura_bloqueo=0,
-            posicion_bloqueo=enums.PosicionBloqueoCubierta.ALERO_BAJO,
+            bloqueo=0,
             tipo_cubierta=enums.TipoCubierta.PLANA,
             coeficiente_friccion=0.02,
             velocidad=45,

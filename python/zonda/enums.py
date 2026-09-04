@@ -129,11 +129,6 @@ class RegionCartel(Enum):
         return self.value[2]
 
 
-class ExtremoPresion(Enum):
-    MAX = "máx"
-    MIN = "min"
-
-
 class SistemaResistente(Enum):
     SPRFV = "sprfv"
     COMPONENTES = "componentes"
@@ -155,9 +150,17 @@ class TipoCubierta(Enum):
     DOS_AGUAS = "dos aguas"
 
 
-class PosicionBloqueoCubierta(Enum):
-    ALERO_BAJO = "alero bajo"
-    ALERO_ALTO = "alero alto"
+class TipoSuperficieFriccion(Enum):
+    """Los tipos de superficie de la Tabla 2.4-1.
+
+    El valor es el coeficiente de empuje por fricción. Las ondulaciones y las
+    nervaduras cuentan como transversales cuando lo son a la dirección del
+    viento considerado.
+    """
+
+    LISA = 0.01
+    ONDULACIONES_TRANSVERSALES = 0.02
+    NERVADURAS_TRANSVERSALES = 0.04
 
 
 class ZonaEdificio(Enum):
@@ -203,18 +206,44 @@ class ZonaComponenteCubiertaEdificio(Enum):
     TODAS = "todas"
 
 
-class TipoPresionCubiertaAislada(Enum):
-    GLOBAL = "global"
-    LOCAL = "local"
+class DireccionVientoCubiertaAislada(Enum):
+    """La dirección del viento de las Figuras 2.4-4 a 2.4-7.
+
+    Las direcciones γ = 0º y 180º son perpendiculares a la cumbrera (para
+    cubiertas a un agua, a la vertiente), y γ = 90º y 270º paralelas a ella.
+    """
+
+    GAMMA_0 = "γ = 0º"
+    GAMMA_90 = "γ = 90º"
+    GAMMA_180 = "γ = 180º"
+    GAMMA_270 = "γ = 270º"
+
+
+class CasoCargaCubiertaAislada(Enum):
+    """Los casos de carga de las Figuras 2.4-4 a 2.4-7.
+
+    El reglamento exige investigar todos los casos de carga para cada ángulo
+    de cubierta.
+    """
+
+    CASO_A = "Caso A"
+    CASO_B = "Caso B"
 
 
 class ZonaPresionCubiertaAislada(Enum):
-    A = "a"
-    B = "b"
-    C = "c"
-    D = "d"
-    BC = "bc"
-    BD = "bd"
+    """Las zonas de las Figuras 2.4-4 a 2.4-7.
+
+    Para viento perpendicular a la cumbrera (γ = 0º y 180º) las zonas son las
+    mitades de barlovento y de sotavento de la superficie (C_NW y C_NL). Para
+    viento paralelo (γ = 90º y 270º) son bandas horizontales medidas desde el
+    borde de barlovento, con límites a la altura media del techo h y a 2h.
+    """
+
+    BARLOVENTO = "barlovento"
+    SOTAVENTO = "sotavento"
+    HASTA_H = "x ≤ h"
+    ENTRE_H_Y_2H = "h < x ≤ 2h"
+    MAYOR_2H = "x > 2h"
 
 
 class NivelPatrocinio(Enum):

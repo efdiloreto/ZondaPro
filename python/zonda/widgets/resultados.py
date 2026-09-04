@@ -26,14 +26,14 @@ from typing import TYPE_CHECKING
 from PyQt6 import QtCore, QtWidgets
 
 from zonda.enums import (
+    CasoCargaCubiertaAislada,
     CasoCartel,
+    DireccionVientoCubiertaAislada,
     DireccionVientoMetodoDireccionalSprfv,
-    ExtremoPresion,
     PosicionCubiertaAleroSprfv,
     SistemaResistente,
     TipoCubierta,
     TipoPresionComponentesParedesCubierta,
-    TipoPresionCubiertaAislada,
     TipoPresionCubiertaBarloventoSprfv,
     ZonaEdificio,
 )
@@ -539,7 +539,7 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
     """WidgetResultadosCubiertaAislada.
 
     Representa el widget que visualiza los resultados para cubiertas aisladas. Presenta el gráfico junto con otros
-    widgets que interactuan con este para cambiar el tipo de presión, entre otras opciones.
+    widgets que interactuan con este para cambiar la dirección del viento y el caso de carga, entre otras opciones.
     """
 
     plantilla_reporte = "cubierta-aislada.md"
@@ -561,30 +561,29 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        combobox_tipo_presion = QtWidgets.QComboBox()
-        for enum in TipoPresionCubiertaAislada:
-            combobox_tipo_presion.addItem(enum.value.title(), enum)
-        combobox_tipo_presion.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_tipo_presion(
-                combobox_tipo_presion.currentData()
+        combobox_direccion = QtWidgets.QComboBox()
+        for direccion in DireccionVientoCubiertaAislada:
+            combobox_direccion.addItem(direccion.value, direccion)
+        combobox_direccion.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_direccion(
+                combobox_direccion.currentData()
             )
         )
 
-        combobox_extremo_presion = QtWidgets.QComboBox()
-        for enum in ExtremoPresion:
-            combobox_extremo_presion.addItem(enum.value.title(), enum)
-        combobox_extremo_presion.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_extremo_presion(
-                combobox_extremo_presion.currentData()
-            )
+        combobox_caso = QtWidgets.QComboBox()
+        for caso in CasoCargaCubiertaAislada:
+            combobox_caso.addItem(caso.value, caso)
+        combobox_caso.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_caso(combobox_caso.currentData())
         )
 
         layout_parametros = QtWidgets.QGridLayout()
 
-        layout_parametros.addWidget(QtWidgets.QLabel("Presión"), 0, 0)
-        layout_parametros.addWidget(combobox_tipo_presion, 0, 1)
-        layout_parametros.addWidget(combobox_extremo_presion, 0, 2)
-        layout_parametros.setRowStretch(1, 1)
+        layout_parametros.addWidget(QtWidgets.QLabel("Dirección del viento"), 0, 0)
+        layout_parametros.addWidget(combobox_direccion, 0, 1)
+        layout_parametros.addWidget(QtWidgets.QLabel("Caso de carga"), 1, 0)
+        layout_parametros.addWidget(combobox_caso, 1, 1)
+        layout_parametros.setRowStretch(2, 1)
 
         box_parametros = QtWidgets.QGroupBox("Parámetros")
         box_parametros.setLayout(layout_parametros)
@@ -600,7 +599,7 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
         layout_principal.addWidget(widget_panel_resultados)
         layout_principal.addLayout(layout_resultados, 1)
 
-        self.grafico.escena.actualizar_tipo_presion(combobox_tipo_presion.currentData())
+        self.grafico.escena.actualizar_direccion(combobox_direccion.currentData())
 
         self.setLayout(layout_principal)
 

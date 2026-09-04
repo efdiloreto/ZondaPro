@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from zonda.enums import ExtremoPresion, TipoPresionCubiertaAislada
+from zonda.enums import CasoCargaCubiertaAislada
 from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
 from zonda.graficos.colores import TablaColores
 from zonda.graficos.directores import aisladas as director_aisladas
@@ -28,7 +28,11 @@ from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
     from zonda.cirsoc import CubiertaAislada
-    from zonda.enums import Unidad
+    from zonda.enums import (
+        DireccionVientoCubiertaAislada,
+        Unidad,
+        ZonaPresionCubiertaAislada,
+    )
     from zonda.graficos.escena import Escena3D
 
 
@@ -56,7 +60,7 @@ class Presiones(PresionesMixin):
 
         # La presión de cada actor se busca por su clave; no hay que recorrer
         # ninguna estructura para encontrarla.
-        self._filas = cubierta_aislada.resultados.indexar("tipo", "zona", "extremo")
+        self._filas = cubierta_aislada.resultados.indexar("direccion", "zona", "caso")
 
         tabla_colores = TablaColores(
             *(
@@ -73,79 +77,74 @@ class Presiones(PresionesMixin):
             self.escena, tabla_colores, cubierta_aislada
         )
 
-        self._extremo_presion_actual = ExtremoPresion.MAX
+        self._caso_actual = CasoCargaCubiertaAislada.CASO_A
 
-        self._actores_actuales = None
+        self._direccion_actual: DireccionVientoCubiertaAislada | None = None
+
+        self._actores_actuales: dict[ZonaPresionCubiertaAislada, Any] | None = None
 
         self._actores_presion = self.escena.actores_presion
 
-    def actualizar_extremo_presion(self, extremo_presion: ExtremoPresion) -> None:
-        """Actualiza el extremo de presión, a máximo o mínimo.
+    def actualizar_caso(self, caso: CasoCargaCubiertaAislada) -> None:
+        """Actualiza el caso de carga.
 
         Args:
-            extremo_presion: El extremo de presión a actualizar.
+            caso: El caso de carga a actualizar.
         """
-        self._extremo_presion_actual = extremo_presion
-        self._actualizar_cubierta(regenerar_actores=False)
+        self._caso_actual = caso
+        self._actualizar_presiones()
         self._actualizar_titulo()
 
-    def actualizar_tipo_presion(self, tipo_presion: TipoPresionCubiertaAislada) -> None:
-        """Actualiza el tipo de presión.
+    def actualizar_direccion(self, direccion: DireccionVientoCubiertaAislada) -> None:
+        """Actualiza la dirección del viento.
+
+        Cambiar de dirección no rearma geometría: la escena oculta el conjunto
+        actual y le pide al director el subdiccionario de la dirección.
 
         Args:
-            tipo_presion: El tipo de presión a actualizar.
+            direccion: La dirección del viento a actualizar.
         """
-        self.director.tipo_presion = tipo_presion
-        self._actualizar_cubierta(regenerar_actores=True)
+        self._direccion_actual = direccion
+        self.director.direccion = direccion
+        self.ocultar_actores_presion()
+        self._actores_actuales = self.director.obtener_actores()
+        self._actualizar_presiones()
         self._actualizar_titulo()
 
-    def _actualizar_cubierta(self, regenerar_actores: bool) -> None:
-        """Actualiza los actores y presiones para la cubierta.
-
-        Args:
-            regenerar_actores: Indica si los actores deben ser regenerados. Si es False, los actores no se cambian pero
-            se actualiza la presión sobre los mismos.
-        """
-        if self._actores_actuales is None:
-            self._actores_actuales = self.director.obtener_actores()
-        if regenerar_actores:
-            self.ocultar_actores_presion()
-            self._actores_actuales = self.director.obtener_actores()
-
-        tipo = self.director.tipo_presion
-        if tipo == TipoPresionCubiertaAislada.LOCAL:
-            for zona, actores in self._actores_actuales.items():
-                presion = self._presion(tipo, zona)
-                try:
-                    for actor in actores:
-                        actor.asignar_presion(presion=presion, unidad=self.unidad)
-                except TypeError:
-                    actores.asignar_presion(presion=presion, unidad=self.unidad)
-        else:
-            presion = self._presion(tipo, None)
+    def _actualizar_presiones(self) -> None:
+        """Asigna a cada actor la presión de su zona para el caso vigente."""
+        direccion = self._direccion_actual
+        if direccion is None or self._actores_actuales is None:
+            return
+        for zona, actores in self._actores_actuales.items():
+            presion = self._presion(direccion, zona)
             try:
-                for actor in self._actores_actuales:
+                for actor in actores:
                     actor.asignar_presion(presion=presion, unidad=self.unidad)
             except TypeError:
-                self._actores_actuales.asignar_presion(
-                    presion=presion, unidad=self.unidad
-                )
+                actores.asignar_presion(presion=presion, unidad=self.unidad)
 
-    def _presion(self, tipo, zona) -> float:
-        """La presión de una zona para el extremo actual.
+    def _presion(
+        self,
+        direccion: DireccionVientoCubiertaAislada,
+        zona: ZonaPresionCubiertaAislada,
+    ) -> float:
+        """La presión de una zona para el caso actual.
 
         Args:
-            tipo: El tipo de presión, global o local.
-            zona: La zona de la cubierta, o None para las presiones globales.
+            direccion: La dirección del viento.
+            zona: La zona de la cubierta para esa dirección.
 
         Returns:
             La presión correspondiente.
         """
-        return self._filas[(tipo, zona, self._extremo_presion_actual)].unica().presion
+        return self._filas[(direccion, zona, self._caso_actual)].unica().presion
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
+        if self._direccion_actual is None:
+            return
 
-        texto = f"Presión {self.director.tipo_presion.value.capitalize()} {self._extremo_presion_actual.value.capitalize()}"
+        texto = f"Presión {self._direccion_actual.value} {self._caso_actual.value}"
 
         self._titulo.setear_texto(texto)

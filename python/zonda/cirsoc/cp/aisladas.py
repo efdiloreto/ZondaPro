@@ -15,6 +15,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Coeficientes de presión neta de cubiertas aisladas, artículo 2.4.3.
+
+Las Figuras 2.4-4 a 2.4-7 dan valores de C_N firmados para dos casos de carga
+(A y B) según la dirección del viento: perpendicular a la cumbrera (γ = 0º y
+180º), con las mitades de barlovento y de sotavento de la superficie, o
+paralelo a ella (γ = 90º y 270º), con bandas medidas desde el borde de
+barlovento. Cada tabla distingue el flujo de viento libre (bloqueo ≤ 50 %) del
+obstruido (bloqueo > 50 %).
+
+Para cubiertas a dos aguas con ángulo menor que 7,5º se usan los coeficientes
+de vertiente única (notas 3 de las Figuras 2.4-5 y 2.4-6), que para ángulos
+menores a 7,5º son los de 0º (nota 3 de la Figura 2.4-4).
+"""
+
 from functools import cached_property
 
 import numpy as np
@@ -23,416 +37,348 @@ from zonda import excepciones
 from zonda.cirsoc import geometria
 from zonda.cirsoc.resultados import EntradaCpn
 from zonda.enums import (
-    ExtremoPresion,
-    PosicionBloqueoCubierta,
+    CasoCargaCubiertaAislada,
+    DireccionVientoCubiertaAislada,
     TipoCubierta,
-    TipoPresionCubiertaAislada,
     ZonaPresionCubiertaAislada,
+)
+
+ANGULOS_VERTIENTE_UNICA = (0.0, 7.5, 15.0, 22.5, 30.0, 37.5, 45.0)
+ANGULOS_DOS_AGUAS = (7.5, 15.0, 22.5, 30.0, 37.5, 45.0)
+
+# Cada fila reúne los cuatro valores del ángulo: (A: CNW, CNL), (B: CNW, CNL).
+# Figura 2.4-4. Vertiente única, una tabla por dirección y bloqueo.
+_FIGURA_2_4_4 = {
+    (DireccionVientoCubiertaAislada.GAMMA_0, False): (
+        (1.2, 0.3, -1.1, -0.1),
+        (-0.6, -1.0, -1.4, 0.0),
+        (-0.9, -1.3, -1.9, 0.0),
+        (-1.5, -1.6, -2.4, -0.3),
+        (-1.8, -1.8, -2.5, -0.5),
+        (-1.8, -1.8, -2.4, -0.6),
+        (-1.6, -1.8, -2.3, -0.7),
+    ),
+    (DireccionVientoCubiertaAislada.GAMMA_0, True): (
+        (-0.5, -1.2, -1.1, -0.6),
+        (-1.0, -1.5, -1.7, -0.8),
+        (-1.1, -1.5, -2.1, -0.6),
+        (-1.5, -1.7, -2.3, -0.9),
+        (-1.5, -1.8, -2.3, -1.1),
+        (-1.5, -1.8, -2.2, -1.1),
+        (-1.3, -1.8, -1.9, -1.2),
+    ),
+    (DireccionVientoCubiertaAislada.GAMMA_180, False): (
+        (1.2, 0.3, -1.1, -0.1),
+        (0.9, 1.5, 1.6, 0.3),
+        (1.3, 1.6, 1.8, 0.6),
+        (1.7, 1.8, 2.2, 0.7),
+        (2.1, 2.1, 2.6, 1.0),
+        (2.1, 2.2, 2.7, 1.1),
+        (2.2, 2.5, 2.6, 1.4),
+    ),
+    (DireccionVientoCubiertaAislada.GAMMA_180, True): (
+        (-0.5, -1.2, -1.1, -0.6),
+        (-0.2, -1.2, 0.8, -0.3),
+        (0.4, -1.1, 1.2, -0.3),
+        (0.5, -1.0, 1.3, 0.0),
+        (0.6, -1.0, 1.6, 0.1),
+        (0.7, -0.9, 1.9, 0.3),
+        (0.8, -0.9, 2.1, 0.4),
+    ),
+}
+
+# Figuras 2.4-5 (diedro positivo) y 2.4-6 (diedro negativo). La dirección del
+# viento γ = 0º y 180º comparte valores: sólo se intercambian barlovento y
+# sotavento. Una tabla por bloqueo.
+_FIGURA_2_4_5 = {
+    False: (
+        (1.1, -0.3, 0.2, -1.2),
+        (1.1, -0.4, 0.1, -1.1),
+        (1.1, 0.1, -0.1, -0.8),
+        (1.3, 0.3, -0.1, -0.9),
+        (1.3, 0.6, -0.2, -0.6),
+        (1.1, 0.9, -0.3, -0.5),
+    ),
+    True: (
+        (-1.6, -1.0, -0.9, -1.7),
+        (-1.2, -1.0, -0.6, -1.6),
+        (-1.2, -1.2, -0.8, -1.7),
+        (-0.7, -0.7, -0.2, -1.1),
+        (-0.6, -0.6, -0.3, -0.9),
+        (-0.5, -0.5, -0.3, -0.7),
+    ),
+}
+
+_FIGURA_2_4_6 = {
+    False: (
+        (-1.1, 0.3, -0.2, 1.2),
+        (-1.1, 0.4, 0.1, 1.1),
+        (-1.1, -0.1, -0.1, 0.8),
+        (-1.3, -0.3, -0.1, 0.9),
+        (-1.3, -0.6, 0.2, 0.6),
+        (-1.1, -0.9, 0.3, 0.5),
+    ),
+    True: (
+        (-1.6, -0.5, -0.9, -0.8),
+        (-1.2, -0.5, -0.6, -0.8),
+        (-1.2, -0.6, -0.8, -0.8),
+        (-1.4, -0.4, -0.2, -0.5),
+        (-1.4, -0.3, -0.3, -0.4),
+        (-1.2, -0.3, -0.3, -0.4),
+    ),
+}
+
+# Figura 2.4-7. Viento paralelo a la cumbrera, γ = 90º y 270º. El valor de cada
+# banda depende sólo del bloqueo, y dentro de ella del caso de carga.
+_FIGURA_2_4_7 = {
+    False: {
+        ZonaPresionCubiertaAislada.HASTA_H: (-0.8, 0.8),
+        ZonaPresionCubiertaAislada.ENTRE_H_Y_2H: (-0.6, 0.5),
+        ZonaPresionCubiertaAislada.MAYOR_2H: (-0.3, 0.3),
+    },
+    True: {
+        ZonaPresionCubiertaAislada.HASTA_H: (-1.2, 0.5),
+        ZonaPresionCubiertaAislada.ENTRE_H_Y_2H: (-0.9, 0.5),
+        ZonaPresionCubiertaAislada.MAYOR_2H: (-0.6, 0.3),
+    },
+}
+
+# Los límites de las bandas de la Figura 2.4-7, en distancias horizontales
+# medidas desde el borde de barlovento y en unidades de la altura media h.
+_LIMITES_BANDAS = {
+    ZonaPresionCubiertaAislada.HASTA_H: (0.0, 1.0),
+    ZonaPresionCubiertaAislada.ENTRE_H_Y_2H: (1.0, 2.0),
+    ZonaPresionCubiertaAislada.MAYOR_2H: (2.0, float("inf")),
+}
+
+DIRECCIONES_PERPENDICULARES = (
+    DireccionVientoCubiertaAislada.GAMMA_0,
+    DireccionVientoCubiertaAislada.GAMMA_180,
+)
+DIRECCIONES_PARALELAS = (
+    DireccionVientoCubiertaAislada.GAMMA_90,
+    DireccionVientoCubiertaAislada.GAMMA_270,
 )
 
 
 class CubiertaAislada:
     """CubiertaAislada.
 
-    Determinar los coeficientes de presión neta de cubiertas aisladas.
+    Determinar los coeficientes de presión neta de cubiertas aisladas,
+    artículo 2.4.3 del Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
         self,
         tipo_cubierta: TipoCubierta,
         angulo: float,
-        relacion_bloqueo: float,
-        posicion_bloqueo: PosicionBloqueoCubierta,
+        con_bloqueo: bool,
+        altura_media: float,
+        ancho: float,
+        longitud: float,
     ) -> None:
         """
 
         Args:
             tipo_cubierta: El tipo de cubierta.
-            angulo: El ángulo de la cubierta.
-            relacion_bloqueo: La relación de bloqueo de la cubierta.
-            posicion_bloqueo: Las posicion de bloqueo de la cubierta. Solo es usada cuando la cubierta es a un agua.
+            angulo: El ángulo de la cubierta. Para cubiertas a dos aguas con
+                diedro negativo es negativo.
+            con_bloqueo: Indica si el flujo de viento bajo la cubierta está
+                obstruido (bloqueo mayor al 50 %).
+            altura_media: La altura media del techo, h.
+            ancho: El ancho de la cubierta. Es la dimensión horizontal en la
+                dirección del viento de las Figuras 2.4-4 a 2.4-6.
+            longitud: La longitud de la cubierta. Es la dimensión horizontal
+                en la dirección del viento de la Figura 2.4-7.
 
         Raises:
-            ErrorLineamientos si el -5° < angulo < 5°.
-            ValueError si la relación de bloque no está entre 0 y 1.
+            ErrorLineamientos si el Reglamento no provee lineamientos para la
+            geometría, o si h/L queda fuera del rango de 0,25 a 1,0.
         """
-        if not 0 <= relacion_bloqueo <= 1:
-            raise ValueError("La relación de bloqueo debe ser un valor entre 0 y 1")
         if tipo_cubierta not in (TipoCubierta.DOS_AGUAS, TipoCubierta.UN_AGUA):
             raise excepciones.ErrorLineamientos(
                 "El Reglamento solo provee lineamientos para calcular los coeficientes de presión neta para cubiertas"
                 " a dos aguas y a un agua."
             )
-        if -5 < angulo < 5 and tipo_cubierta == TipoCubierta.DOS_AGUAS:
+        if tipo_cubierta == TipoCubierta.UN_AGUA and not 0 <= angulo <= 45:
             raise excepciones.ErrorLineamientos(
-                "El Reglamento no provee lineamientos para calcular los coeficientes de presión neta para cubiertas aisladas"
-                f" a dos aguas con ángulo igual a {angulo:.2f}°."
+                "El Reglamento no provee lineamientos para calcular los coeficientes de presión neta para cubiertas"
+                f" aisladas a un agua con ángulo igual a {angulo:.2f}°."
             )
-        if not 0 <= angulo <= 30 and tipo_cubierta == TipoCubierta.UN_AGUA:
+        if tipo_cubierta == TipoCubierta.DOS_AGUAS and not -45 <= angulo <= 45:
             raise excepciones.ErrorLineamientos(
-                "El Reglamento no provee lineamientos para calcular los coeficientes de presión neta para cubiertas aisladas"
-                f" a un agua con ángulo igual a {angulo}°."
+                "El Reglamento no provee lineamientos para calcular los coeficientes de presión neta para cubiertas"
+                f" aisladas a dos aguas con ángulo igual a {angulo:.2f}°."
             )
 
         self.tipo_cubierta = tipo_cubierta
         self.angulo = angulo
-        self.relacion_bloqueo = relacion_bloqueo
-        self.posicion_bloqueo = posicion_bloqueo
+        self.con_bloqueo = con_bloqueo
+        self.altura_media = altura_media
+        self.ancho = ancho
+        self.longitud = longitud
 
-    @cached_property
-    def referencia(self) -> str:
-        """Obtiene la referencia de la tabla del reglamento.
+        self._validar_relacion_h_l()
 
-        Returns:
-            La referencia de la tabla del reglamento desde donde se calculan los valores.
+    def _validar_relacion_h_l(self) -> None:
+        """Valida que h/L esté entre 0,25 y 1,0 para cada dirección del viento.
+
+        L es la dimensión horizontal del techo medida en la dirección del
+        viento: el ancho para viento perpendicular a la cumbrera y la longitud
+        para viento paralelo.
+
+        Raises:
+            ErrorLineamientos si alguna dirección queda fuera del rango.
         """
-        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
-            return "Tabla I.1"
-        return "Tabla I.2"
+        for direccion, relacion in (
+            *(
+                (direccion, self.altura_media / self.ancho)
+                for direccion in DIRECCIONES_PERPENDICULARES
+            ),
+            *(
+                (direccion, self.altura_media / self.longitud)
+                for direccion in DIRECCIONES_PARALELAS
+            ),
+        ):
+            if 0.25 <= relacion <= 1.0:
+                continue
+            mensaje = (
+                f"La relación h/L = {relacion:.2f} para la dirección del viento {direccion.value} está fuera del rango de 0,25 a 1,0"
+                " de las Figuras 2.4-4 a 2.4-7."
+            )
+            if (
+                self.tipo_cubierta == TipoCubierta.UN_AGUA
+                and self.angulo < 5
+                and direccion in DIRECCIONES_PERPENDICULARES
+            ):
+                mensaje += (
+                    " La nota 5 de la Figura 2.4-7 extiende el rango hasta 0,05 solo para γ = 0º; las demás"
+                    " direcciones quedan sin lineamientos."
+                )
+            raise excepciones.ErrorLineamientos(mensaje)
 
     @cached_property
     def entradas(self) -> tuple[EntradaCpn, ...]:
         """Calcula los factores cpn para la cubierta.
 
         Returns:
-            Un factor por cada combinación de tipo de presión, zona y extremo.
+            Una entrada por cada combinación de dirección, caso de carga y
+            zona de las Figuras 2.4-4 a 2.4-7.
         """
-        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
-            return self._cpn_un_agua()
-        return self._cpn_dos_aguas()
-
-    def _entradas(
-        self,
-        globales: tuple[float, float],
-        zonas: dict[ZonaPresionCubiertaAislada, tuple[float, float]],
-    ) -> tuple[EntradaCpn, ...]:
-        """Arma las entradas a partir de los valores máximos y mínimos.
-
-        Args:
-            globales: El valor máximo y el mínimo de las presiones globales.
-            zonas: El valor máximo y el mínimo de cada zona.
-
-        Returns:
-            Una entrada por cada combinación de tipo de presión, zona y extremo.
-        """
-        extremos = (ExtremoPresion.MAX, ExtremoPresion.MIN)
-        entradas = [
+        return tuple(
             EntradaCpn(
-                tipo=TipoPresionCubiertaAislada.GLOBAL,
-                extremo=extremo,
+                direccion=direccion,
+                caso=caso,
                 valor=float(valor),
-                referencia=self.referencia,
-            )
-            for extremo, valor in zip(extremos, globales, strict=True)
-        ]
-        entradas += [
-            EntradaCpn(
-                tipo=TipoPresionCubiertaAislada.LOCAL,
-                extremo=extremo,
-                valor=float(valor),
-                referencia=self.referencia,
+                referencia=self._referencia(direccion),
                 zona=zona,
             )
-            for zona, valores in zonas.items()
-            for extremo, valor in zip(extremos, valores, strict=True)
-        ]
-        return tuple(entradas)
-
-    def _cpn_dos_aguas(self) -> tuple[EntradaCpn, ...]:
-        """Calcula los factores cpn para una cubierta a dos aguas.
-
-        Returns:
-            Los valores de cpn de la cubierta.
-        """
-        angulos = (-20, -15, -10, -5, 5, 10, 15, 20, 25, 30)
-        maximos_valores_globales = (0.7, 0.5, 0.4, 0.3, 0.3, 0.4, 0.4, 0.6, 0.7, 0.9)
-        maximos_valores_zona_a = (0.8, 0.6, 0.6, 0.5, 0.6, 0.7, 0.9, 1.1, 1.2, 1.3)
-        maximos_valores_zona_b = (1.6, 1.5, 1.4, 1.5, 1.8, 1.8, 1.9, 1.9, 1.9, 1.9)
-        maximos_valores_zona_c = (0.6, 0.7, 0.8, 0.8, 1.3, 1.4, 1.4, 1.5, 1.6, 1.6)
-        maximos_valores_zona_d = (1.7, 1.4, 1.1, 0.8, 0.4, 0.4, 0.4, 0.4, 0.5, 0.7)
-        minimos_valores_globales = (
-            (-0.7, -1.5),
-            (-0.6, -1.5),
-            (-0.6, -1.4),
-            (-0.5, -1.4),
-            (-0.6, -1.2),
-            (-0.7, -1.2),
-            (-0.8, -1.2),
-            (-0.9, -1.2),
-            (-1.0, -1.2),
-            (-1.0, -1.2),
-        )
-        minimos_valores_zona_a = (
-            (-0.9, -1.5),
-            (-0.8, -1.5),
-            (-0.8, -1.4),
-            (-0.5, -1.4),
-            (-0.6, -1.2),
-            (-0.7, -1.2),
-            (-0.9, -1.2),
-            (-1.2, -1.2),
-            (-1.4, -1.2),
-            (-1.4, -1.2),
-        )
-        minimos_valores_zona_b = (
-            (-1.3, -2.4),
-            (-1.3, -2.7),
-            (-1.3, -2.5),
-            (-1.3, -2.3),
-            (-1.4, -2.0),
-            (-1.5, -1.8),
-            (-1.7, -1.6),
-            (-1.8, -1.5),
-            (-1.9, -1.4),
-            (-1.9, -1.3),
-        )
-        minimos_valores_zona_c = (
-            (-1.6, -2.4),
-            (-1.6, -2.6),
-            (-1.5, -2.5),
-            (-1.6, -2.4),
-            (-1.4, -1.8),
-            (-1.4, -1.6),
-            (-1.4, -1.3),
-            (-1.4, -1.2),
-            (-1.4, -1.1),
-            (-1.4, -1.1),
-        )
-        minimos_valores_zona_d = (
-            (-0.6, -1.2),
-            (-0.6, -1.2),
-            (-0.6, -1.2),
-            (-0.6, -1.2),
-            (-1.1, -1.5),
-            (-1.4, -1.6),
-            (-1.8, -1.7),
-            (-2.0, -1.7),
-            (-2.0, -1.6),
-            (-2.0, -1.6),
-        )
-        valor_maximo_global: float = np.interp(
-            self.angulo, angulos, maximos_valores_globales
-        )
-        valor_maximo_zona_a: float = np.interp(
-            self.angulo, angulos, maximos_valores_zona_a
-        )
-        valor_maximo_zona_b: float = np.interp(
-            self.angulo, angulos, maximos_valores_zona_b
-        )
-        valor_maximo_zona_c: float = np.interp(
-            self.angulo, angulos, maximos_valores_zona_c
-        )
-        valor_maximo_zona_d: float = np.interp(
-            self.angulo, angulos, maximos_valores_zona_d
+            for direccion in DireccionVientoCubiertaAislada
+            for caso in CasoCargaCubiertaAislada
+            for zona, valor in self._valores(direccion, caso)
         )
 
-        bloqueos = [0, 1]
+    def _referencia(self, direccion: DireccionVientoCubiertaAislada) -> str:
+        """La referencia reglamentaria de los coeficientes de una dirección.
 
-        minimos_valores_globales_relacion: tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_globales
-        )
-        minimos_valores_caso_a_relacion: tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_a
-        )
-        minimos_valores_caso_b_relacion: tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_b
-        )
-        minimos_valores_caso_c_relacion: tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_c
-        )
-        minimos_valores_caso_d_relacion: tuple = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_d
-        )
-        # TODO Corregir esto, es repetitivo
-        valor_minimo_global: float = np.interp(
-            self.angulo, angulos, minimos_valores_globales_relacion
-        )
-        valor_minimo_zona_a: float = np.interp(
-            self.angulo, angulos, minimos_valores_caso_a_relacion
-        )
-        valor_minimo_zona_b: float = np.interp(
-            self.angulo, angulos, minimos_valores_caso_b_relacion
-        )
-        valor_minimo_zona_c: float = np.interp(
-            self.angulo, angulos, minimos_valores_caso_c_relacion
-        )
-        valor_minimo_zona_d: float = np.interp(
-            self.angulo, angulos, minimos_valores_caso_d_relacion
-        )
-
-        return self._entradas(
-            (valor_maximo_global, valor_minimo_global),
-            {
-                ZonaPresionCubiertaAislada.A: (
-                    valor_maximo_zona_a,
-                    valor_minimo_zona_a,
-                ),
-                ZonaPresionCubiertaAislada.B: (
-                    valor_maximo_zona_b,
-                    valor_minimo_zona_b,
-                ),
-                ZonaPresionCubiertaAislada.C: (
-                    valor_maximo_zona_c,
-                    valor_minimo_zona_c,
-                ),
-                ZonaPresionCubiertaAislada.D: (
-                    valor_maximo_zona_d,
-                    valor_minimo_zona_d,
-                ),
-                ZonaPresionCubiertaAislada.BC: (
-                    max(valor_maximo_zona_b, valor_maximo_zona_c),
-                    min(valor_minimo_zona_b, valor_minimo_zona_c),
-                ),
-                ZonaPresionCubiertaAislada.BD: (
-                    max(valor_maximo_zona_b, valor_maximo_zona_d),
-                    min(valor_minimo_zona_b, valor_minimo_zona_d),
-                ),
-            },
-        )
-
-    def _cpn_un_agua(self) -> tuple[EntradaCpn, ...]:
-        """Calcula los factores cpn para una cubierta a un agua.
+        Args:
+            direccion: La dirección del viento.
 
         Returns:
-            Los valores de cpn de la cubierta.
+            La figura o tabla de donde salen los valores.
         """
-        angulos = (0, 5, 10, 15, 20, 25, 30)
-        maximos_valores_globales = (0.2, 0.4, 0.5, 0.7, 0.8, 1, 1.2)
-        maximos_valores_zona_a = (0.5, 0.8, 1.2, 1.4, 1.7, 2, 2.2)
-        maximos_valores_zona_b = (1.8, 2.1, 2.4, 2.7, 2.9, 3.1, 3.2)
-        maximos_valores_zona_c = (1.1, 1.3, 1.6, 1.8, 2.1, 2.3, 2.4)
-        minimos_valores_globales = {
-            PosicionBloqueoCubierta.ALERO_BAJO: (
-                (-0.5, -1.2),
-                (-0.7, -1.4),
-                (-0.9, -1.4),
-                (-1.1, -1.5),
-                (-1.3, -1.5),
-                (-1.6, -1.4),
-                (-1.8, -1.4),
-            ),
-            PosicionBloqueoCubierta.ALERO_ALTO: (
-                (-0.5, -1.2),
-                (-0.7, -1.2),
-                (-0.9, -1.1),
-                (-1.1, -1),
-                (-1.3, -0.9),
-                (-1.6, -0.8),
-                (-1.8, -0.8),
-            ),
-        }
-        minimos_valores_zona_a = {
-            PosicionBloqueoCubierta.ALERO_BAJO: (
-                (-0.6, -1.3),
-                (-1.1, -1.4),
-                (-1.5, -1.4),
-                (-1.8, -1.5),
-                (-2.2, -1.5),
-                (-2.6, -1.4),
-                (-3.0, -1.4),
-            ),
-            PosicionBloqueoCubierta.ALERO_ALTO: (
-                (-0.6, -1.3),
-                (-1.1, -1.2),
-                (-1.5, -1.1),
-                (-1.8, -1),
-                (-2.2, -0.9),
-                (-2.6, -0.8),
-                (-3.0, -0.8),
-            ),
-        }
-        minimos_valores_zona_b = (
-            (-1.3, -1.8),
-            (-1.7, -2.6),
-            (-2.0, -2.6),
-            (-2.4, -2.9),
-            (-2.8, -2.9),
-            (-3.2, -2.5),
-            (-3.8, -2.0),
-        )
-        minimos_valores_zona_c = {
-            PosicionBloqueoCubierta.ALERO_BAJO: (
-                (-1.4, -2.2),
-                (-1.8, -2.6),
-                (-2.1, -2.7),
-                (-2.5, -2.8),
-                (-2.9, -2.7),
-                (-3.2, -2.5),
-                (-3.6, -2.3),
-            ),
-            PosicionBloqueoCubierta.ALERO_ALTO: (
-                (-1.4, -2.2),
-                (-1.8, -2.1),
-                (-2.1, -1.8),
-                (-2.5, -1.6),
-                (-2.9, -1.5),
-                (-3.2, -1.4),
-                (-3.6, -1.2),
-            ),
-        }
-        # TODO corregir, es repetitivo
-        valor_maximo_global = np.interp(self.angulo, angulos, maximos_valores_globales)
-        valor_maximo_zona_a = np.interp(self.angulo, angulos, maximos_valores_zona_a)
-        valor_maximo_zona_b = np.interp(self.angulo, angulos, maximos_valores_zona_b)
-        valor_maximo_zona_c = np.interp(self.angulo, angulos, maximos_valores_zona_c)
+        if direccion in DIRECCIONES_PARALELAS:
+            return "Figura 2.4-7"
+        if self.tipo_cubierta == TipoCubierta.UN_AGUA or abs(self.angulo) < 7.5:
+            return "Figura 2.4-4"
+        if self.angulo < 0:
+            return "Figura 2.4-6"
+        return "Figura 2.4-5"
 
-        bloqueos = [0, 1]
+    def _valores(
+        self, direccion: DireccionVientoCubiertaAislada, caso: CasoCargaCubiertaAislada
+    ):
+        """Los coeficientes de cada zona para una dirección y un caso.
 
-        minimos_valores_globales_relacion = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_globales[self.posicion_bloqueo]
+        Args:
+            direccion: La dirección del viento.
+            caso: El caso de carga.
+
+        Returns:
+            Una tupla de pares zona-valor. Para viento paralelo a la cumbrera
+            sólo incluye las bandas que caben en la longitud de la cubierta.
+        """
+        if direccion in DIRECCIONES_PERPENDICULARES:
+            caso_a, caso_b = self._fila_perpendicular(direccion)
+            valores = caso_a if caso is CasoCargaCubiertaAislada.CASO_A else caso_b
+            return (
+                (ZonaPresionCubiertaAislada.BARLOVENTO, valores[0]),
+                (ZonaPresionCubiertaAislada.SOTAVENTO, valores[1]),
+            )
+        indice_caso = 0 if caso is CasoCargaCubiertaAislada.CASO_A else 1
+        return tuple(
+            (zona, self._figura_2_4_7[zona][indice_caso])
+            for zona in _LIMITES_BANDAS
+            if _LIMITES_BANDAS[zona][0] * self.altura_media < self.longitud
         )
-        minimos_valores_caso_a_relacion = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_a[self.posicion_bloqueo]
+
+    @property
+    def _figura_2_4_7(self):
+        """La tabla de la Figura 2.4-7 según el bloqueo."""
+        return _FIGURA_2_4_7[self.con_bloqueo]
+
+    def _fila_perpendicular(
+        self, direccion: DireccionVientoCubiertaAislada
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
+        """Los coeficientes de barlovento y sotavento de los dos casos de carga.
+
+        Args:
+            direccion: La dirección del viento, perpendicular a la cumbrera.
+
+        Returns:
+            Los valores (CNW, CNL) del Caso A y del Caso B, interpolados al
+            ángulo de la cubierta.
+        """
+        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
+            tabla = _FIGURA_2_4_4[(direccion, self.con_bloqueo)]
+            return self._interpolar(tabla, ANGULOS_VERTIENTE_UNICA, self.angulo)
+        if abs(self.angulo) < 7.5:
+            # Notas 3 de las Figuras 2.4-5 y 2.4-6: se usan los coeficientes
+            # de vertiente única, que para ángulos menores a 7,5º son los de
+            # 0º. Los de 0º no dependen de la dirección.
+            clave = (DireccionVientoCubiertaAislada.GAMMA_0, self.con_bloqueo)
+            return self._interpolar(_FIGURA_2_4_4[clave], ANGULOS_VERTIENTE_UNICA, 0.0)
+        figura = _FIGURA_2_4_5 if self.angulo > 0 else _FIGURA_2_4_6
+        return self._interpolar(
+            figura[self.con_bloqueo], ANGULOS_DOS_AGUAS, abs(self.angulo)
         )
-        minimos_valores_caso_b_relacion = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_b
+
+    @staticmethod
+    def _interpolar(
+        tabla: tuple[tuple[float, float, float, float], ...],
+        angulos: tuple[float, ...],
+        angulo: float,
+    ):
+        """Interpola los cuatro valores de la tabla al ángulo dado.
+
+        Args:
+            tabla: Una fila por ángulo, con (A: CNW, CNL), (B: CNW, CNL).
+            angulos: Los ángulos de las filas de la tabla.
+            angulo: El ángulo al que interpolar.
+
+        Returns:
+            Los valores (CNW, CNL) del Caso A y del Caso B.
+        """
+        if angulo < angulos[1]:
+            # Nota 3 de la Figura 2.4-4: para ángulos menores al primero del
+            # rango de interpolación se usan los coeficientes de 0º.
+            fila = tabla[0]
+            return (fila[0], fila[1]), (fila[2], fila[3])
+        columnas = tuple(
+            float(np.interp(angulo, angulos, valores))
+            for valores in zip(*tabla, strict=True)
         )
-        minimos_valores_caso_c_relacion = tuple(
-            np.interp(self.relacion_bloqueo, bloqueos, valores)
-            for valores in minimos_valores_zona_c[self.posicion_bloqueo]
-        )
-        # TODO Corregir, es repetitivo
-        valor_minimo_global = np.interp(
-            self.angulo, angulos, minimos_valores_globales_relacion
-        )
-        valor_minimo_zona_a = np.interp(
-            self.angulo, angulos, minimos_valores_caso_a_relacion
-        )
-        valor_minimo_zona_b = np.interp(
-            self.angulo, angulos, minimos_valores_caso_b_relacion
-        )
-        valor_minimo_zona_c = np.interp(
-            self.angulo, angulos, minimos_valores_caso_c_relacion
-        )
-        return self._entradas(
-            (valor_maximo_global, valor_minimo_global),
-            {
-                ZonaPresionCubiertaAislada.A: (
-                    valor_maximo_zona_a,
-                    valor_minimo_zona_a,
-                ),
-                ZonaPresionCubiertaAislada.B: (
-                    valor_maximo_zona_b,
-                    valor_minimo_zona_b,
-                ),
-                ZonaPresionCubiertaAislada.C: (
-                    valor_maximo_zona_c,
-                    valor_minimo_zona_c,
-                ),
-                ZonaPresionCubiertaAislada.BC: (
-                    max(valor_maximo_zona_b, valor_maximo_zona_c),
-                    min(valor_minimo_zona_b, valor_minimo_zona_c),
-                ),
-            },
-        )
+        return (columnas[0], columnas[1]), (columnas[2], columnas[3])
 
     @classmethod
     def desde_cubierta(cls, cubierta: geometria.Cubierta):
@@ -444,6 +390,8 @@ class CubiertaAislada:
         return cls(
             cubierta.tipo_cubierta,
             cubierta.angulo,
-            cubierta.relacion_bloqueo,
-            cubierta.posicion_bloqueo,
+            cubierta.con_bloqueo,
+            cubierta.altura_media,
+            cubierta.ancho,
+            cubierta.longitud,
         )

@@ -6,7 +6,7 @@ CÁLCULO DE PRESIONES DE VIENTO SOBRE CUBIERTAS AISLADAS
 {%- endblock %}
 
 {% block datos_codigo -%}
-Referencia: Anexo 1
+Referencia: Cap. 2, Art. 2.4.3
 {%- endblock %}
 
 {% block datos_geometria -%}
@@ -24,7 +24,11 @@ Tipo de cubierta: {{ estructura.geometria.tipo_cubierta.value|capitalize }}
 {%- endblock %}
 
 {% block datos_rafaga -%}
-Se adopta el factor de ráfaga igual a 0.85 de acuerdo al Anexo 1 - I.1.
+{% if estructura.factor_g_simplificado -%}
+Se adopta el factor de efecto de ráfaga simplificado G = 0.85, según el artículo 1.9.4.
+{% else -%}
+Se calcula el factor de efecto de ráfaga G~f~ de estructura flexible, según el artículo 1.9.5.
+{% endif -%}
 {%- endblock %}
 
 {% block resultados_geometria -%}
@@ -33,7 +37,8 @@ Se adopta el factor de ráfaga igual a 0.85 de acuerdo al Anexo 1 - I.1.
 
 Altura media de cubierta: {{ '%.2f'|format(estructura.geometria.altura_media) }} m
 
-Relación de bloqueo: {{ '%.2f'|format(estructura.geometria.relacion_bloqueo) }}
+Bloqueo: {{ '%.0f'|format(estructura.geometria.bloqueo) }} %
+({{ "flujo de viento obstruido" if estructura.geometria.con_bloqueo else "flujo de viento libre" }})
 
 Factor de direccionalidad, K~d~: {{ '%.2f'|format(estructura.presiones.factor_direccionalidad) }}
 {%- endblock %}
@@ -45,7 +50,7 @@ Factor de direccionalidad, K~d~: {{ '%.2f'|format(estructura.presiones.factor_di
 
 {% block resultados_rafaga -%}
 {{ super() }}
-Factor de ráfaga: {{ '%.2f'|format(0.85) }}
+Factor de ráfaga: {{ '%.2f'|format(estructura.rafaga.factor) }}
 {%- endblock %}
 
 {% block k3 -%}
@@ -64,35 +69,28 @@ Notas:
 
 {% block presiones_sprfv -%}
 ### PRESIONES NORMALES
-Considerar que para las presiones globales, las cubiertas a dos aguas deben ser capaces de resistir las fuerzas
-considerando un faldón con las presiones máximas o mínimas y el otro descargado.
+Se deben investigar todos los casos de carga para cada ángulo de cubierta. Las fuerzas de fricción, incluidas en las
+tablas, se calculan sobre la superficie superior e inferior con flujo de viento libre, o sólo sobre la superior con
+flujo obstruido, y se combinan con las fuerzas debidas a la presión normal (art. 2.4.3.1).
 
-{% set zonas_locales = [
-enums.ZonaPresionCubiertaAislada.A,
-enums.ZonaPresionCubiertaAislada.B,
-enums.ZonaPresionCubiertaAislada.C,
-enums.ZonaPresionCubiertaAislada.D,
-] -%}
+{% for direccion in enums.DireccionVientoCubiertaAislada -%}
 {{ ma.presiones_cubierta_aislada(
-estructura.resultados.filtrar(tipo=enums.TipoPresionCubiertaAislada.GLOBAL),
-"PRESIONES GLOBALES",
-) }}
-{{ ma.presiones_cubierta_aislada(
-estructura.resultados.filtrar(
-tipo=enums.TipoPresionCubiertaAislada.LOCAL, zona=zonas_locales
-),
-"PRESIONES LOCALES",
+    estructura.resultados.filtrar(direccion=direccion),
+    "PRESIONES — VIENTO " ~ direccion.value,
 ) }}
 
+{% endfor %}
 ### PRESIONES LATERALES
-#### Presiones sobre Cenefas y Tímpanos
+#### Presiones sobre Cenefas, Parapetos y Tímpanos
 {% set presion_velocidad = estructura.resultados[0].q.valor -%}
-Según el articulo I.5 se deben considerar presiones sobre los tímpanos o cenefas a barlovento y sotavento, en caso de existir,
- de {{ '%.2f'|format(1.3 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=1.3) y
- {{ '%.2f'|format(0.6 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }} (C~pn~=0.6) respectivamente.
+Según el artículo 2.4.5 se debe agregar la carga horizontal resultante de considerar las cenefas, parapetos o
+tímpanos con q~p~ = q~h~ (art. 2.4.3.1), en caso de existir: {{ '%.2f'|format(1.5 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }}
+a barlovento (GC~pn~ = +1.5, actuando hacia el lado frontal del parapeto) y {{ '%.2f'|format(1.0 * presion_velocidad|convertir_unidad(unidades.presion)) }} {{ unidades.presion.value + "/m^2^" }}
+a sotavento (GC~pn~ = -1.0). Los coeficientes GC~pn~ ya incluyen el factor de ráfaga.
 
 #### Fuerzas de fricción
-Según el articulo I.6 de deben considerar fuerzas de friccón que actuarán conjuntamente con las fuerzas normales, en caso
- de existir cenefas o tímpanos se debe adoptar la mayor entre las fuerzas de fricción o las fuerzas sobre estas últimas.
+Según el artículo 2.4.3.1, para viento paralelo a la cumbrera se debe agregar la mayor entre la carga de las cenefas,
+parapetos o tímpanos y la fuerza de fricción, calculada con los coeficientes de empuje por fricción de la Tabla 2.4-1
+que correspondan al tipo de superficie según su orientación respecto de la dirección del viento.
 
 {%- endblock %}

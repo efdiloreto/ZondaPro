@@ -445,13 +445,65 @@ def test_escena_de_la_cubierta_aislada(qapp, cubierta_aislada):
 
     escena = Escena3D()
     presiones = escena_aisladas.Presiones(escena, cubierta_aislada, enums.Unidad.N)
-    presiones.actualizar_tipo_presion(enums.TipoPresionCubiertaAislada.LOCAL)
-    presiones.actualizar_extremo_presion(enums.ExtremoPresion.MIN)
+    for direccion in enums.DireccionVientoCubiertaAislada:
+        presiones.actualizar_direccion(direccion)
+    presiones.actualizar_caso(enums.CasoCargaCubiertaAislada.CASO_B)
 
     assert escena.caras
     assert escena.lineas  # los soportes
     assert escena.presiones
-    assert escena.titulo == "Presión Local Min"
+    assert escena.titulo == "Presión γ = 270º Caso B"
+
+
+def test_escena_cubierta_aislada_zonas_cubren_la_superficie(qapp, cubierta_aislada):
+    """Las zonas de cada dirección cubren la cubierta sin huecos ni solapes."""
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    def area(actores):
+        """El área total de una zona, con actores sueltos o en tuplas."""
+        try:
+            return sum(area(a) for a in actores)
+        except TypeError:
+            return actores.poligono.area()
+
+    escena = Escena3D()
+    presiones = escena_aisladas.Presiones(escena, cubierta_aislada, enums.Unidad.N)
+    for direccion in enums.DireccionVientoCubiertaAislada:
+        presiones.actualizar_direccion(direccion)
+        actores = presiones._actores_actuales
+        for zona in actores:
+            fila = presiones._filas[
+                (direccion, zona, enums.CasoCargaCubiertaAislada.CASO_A)
+            ]
+            assert fila, f"la zona {zona} quedó sin presión"
+        assert sum(area(actores[zona]) for zona in actores) == pytest.approx(
+            cubierta_aislada.geometria.area, rel=0.01
+        )
+
+
+def test_escena_cubierta_aislada_normales_hacia_arriba(qapp, cubierta_aislada):
+    """Las normales de todos los actores apuntan hacia arriba.
+
+    El sentido de la flecha de presión se apoya en la normal del polígono: si
+    alguna queda invertida (por ejemplo al medir las bandas del viento desde
+    el contrafrente), la flecha atraviesa la cubierta en lugar de salir de
+    ella.
+    """
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    escena = Escena3D()
+    presiones = escena_aisladas.Presiones(escena, cubierta_aislada, enums.Unidad.N)
+
+    for direccion in enums.DireccionVientoCubiertaAislada:
+        presiones.actualizar_direccion(direccion)
+        for actores in presiones._actores_actuales.values():
+            try:
+                for actor in actores:
+                    assert actor.normal[1] > 0, (
+                        "la normal de un polígono apunta hacia abajo"
+                    )
+            except TypeError:
+                assert actores.normal[1] > 0
 
 
 def test_escena_del_edificio_sprfv(qapp, edificio):

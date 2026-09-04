@@ -47,7 +47,7 @@ from zonda.excepciones import ErrorArchivo
 EXTENSION = ".zda"
 FILTRO = f"Proyecto Zonda (*{EXTENSION})"
 
-VERSION_FORMATO = 2
+VERSION_FORMATO = 3
 
 _CLAVE_ENUM = "__enum__"
 

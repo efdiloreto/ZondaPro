@@ -39,13 +39,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zonda.enums import (
+    CasoCargaCubiertaAislada,
     CasoCartel,
+    DireccionVientoCubiertaAislada,
     DireccionVientoMetodoDireccionalSprfv,
-    ExtremoPresion,
     ParedEdificioSprfv,
     RegionCartel,
     SistemaResistente,
-    TipoPresionCubiertaAislada,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
     ZonaEdificio,
@@ -210,8 +210,8 @@ class EntradaCp:
 class EntradaCpn:
     """Un coeficiente de presión neta de cubierta aislada, con sus claves."""
 
-    tipo: TipoPresionCubiertaAislada
-    extremo: ExtremoPresion
+    direccion: DireccionVientoCubiertaAislada
+    caso: CasoCargaCubiertaAislada
     valor: float
     referencia: str
     zona: ZonaPresionCubiertaAislada | None = None
@@ -244,10 +244,15 @@ class FilaCartel:
 
 @dataclass(frozen=True, slots=True)
 class FilaCubiertaAislada:
-    """Una línea de resultado de cubierta aislada."""
+    """Una línea de resultado de cubierta aislada.
 
-    tipo: TipoPresionCubiertaAislada
-    extremo: ExtremoPresion
+    Hay una fila por cada combinación de dirección de viento, caso de carga y
+    zona de las Figuras 2.4-4 a 2.4-7. La fricción actúa sobre la superficie
+    superior e inferior con flujo libre, o sólo sobre la superior con bloqueo.
+    """
+
+    direccion: DireccionVientoCubiertaAislada
+    caso: CasoCargaCubiertaAislada
     q: PresionVelocidad
     cpn: float
     factor_rafaga: float
