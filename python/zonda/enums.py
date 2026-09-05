@@ -206,6 +206,23 @@ class ZonaComponenteCubiertaEdificio(Enum):
     TODAS = "todas"
 
 
+class ZonaComponenteCubiertaAislada(Enum):
+    """Las zonas de las Figuras 5.5-1 a 5.5-3 para componentes y revestimientos.
+
+    Para vertiente única, y para cubiertas a dos aguas con ángulo menor que
+    10º aplicado al rectángulo completo, la distribución es la de la Figura
+    5.5-1: la Zona 3 es el anillo perimetral de ancho a, la Zona 2 el anillo
+    interior de ancho a y la Zona 1 el rectángulo restante. Para cubiertas
+    a dos aguas con ángulo de 10º o más la misma distribución se aplica a
+    cada faldón por separado, de modo que las Zonas 3 de ambos faldones se
+    tocan a lo largo de la cumbrera.
+    """
+
+    UNO = "1"
+    DOS = "2"
+    TRES = "3"
+
+
 class DireccionVientoCubiertaAislada(Enum):
     """La dirección del viento de las Figuras 2.4-4 a 2.4-7.
 

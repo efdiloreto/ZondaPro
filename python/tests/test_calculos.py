@@ -797,6 +797,239 @@ def test_cubierta_aislada_plana_no_tiene_lineamientos():
         )
 
 
+def _componentes_aislada(cpn: cp.ComponentesCubiertaAislada, componente: str):
+    """Los coeficientes de un componente indexados por zona y signo."""
+    return {
+        (entrada.zona_componente, entrada.tipo_presion): entrada.valor
+        for entrada in cpn.entradas
+        if entrada.componente == componente
+    }
+
+
+def test_componentes_aislada_figura_5_5_1():
+    """Valores de la Figura 5.5-1 a 15°, con y sin bloqueo, área ≤ a²."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 15.0, False, 6.0, 10.0, 20.0, {"Chapa": 0.5}
+    )
+    valores = _componentes_aislada(cpn, "Chapa")
+    uno, dos, tres = (
+        enums.ZonaComponenteCubiertaAislada.UNO,
+        enums.ZonaComponenteCubiertaAislada.DOS,
+        enums.ZonaComponenteCubiertaAislada.TRES,
+    )
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    neg = enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+    assert cpn.referencia == "Figura 5.5-1"
+    assert cpn.distancia_a == pytest.approx(1.0)
+    assert valores[(tres, pos)] == pytest.approx(3.6)
+    assert valores[(tres, neg)] == pytest.approx(-3.8)
+    assert valores[(dos, pos)] == pytest.approx(2.7)
+    assert valores[(dos, neg)] == pytest.approx(-2.9)
+    assert valores[(uno, pos)] == pytest.approx(1.8)
+    assert valores[(uno, neg)] == pytest.approx(-1.9)
+
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 15.0, True, 6.0, 10.0, 20.0, {"Chapa": 0.5}
+    )
+    valores = _componentes_aislada(cpn, "Chapa")
+    assert valores[(tres, pos)] == pytest.approx(2.4)
+    assert valores[(tres, neg)] == pytest.approx(-4.2)
+    assert valores[(dos, pos)] == pytest.approx(1.8)
+    assert valores[(dos, neg)] == pytest.approx(-3.2)
+    assert valores[(uno, pos)] == pytest.approx(1.2)
+    assert valores[(uno, neg)] == pytest.approx(-2.1)
+
+
+def test_componentes_aislada_figura_5_5_2():
+    """Valores de la Figura 5.5-2 a 30°, área en el segundo rango."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.DOS_AGUAS, 30.0, False, 8.0, 20.0, 30.0, {"Chapa": 5.0}
+    )
+    valores = _componentes_aislada(cpn, "Chapa")
+    uno, dos, tres = (
+        enums.ZonaComponenteCubiertaAislada.UNO,
+        enums.ZonaComponenteCubiertaAislada.DOS,
+        enums.ZonaComponenteCubiertaAislada.TRES,
+    )
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    neg = enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+    assert cpn.referencia == "Figura 5.5-2"
+    # a = 2 m, así que 5 m² cae en > a², ≤ 4a².
+    assert cpn.distancia_a == pytest.approx(2.0)
+    assert valores[(tres, pos)] == pytest.approx(2.0)
+    assert valores[(tres, neg)] == pytest.approx(-1.4)
+    assert valores[(dos, pos)] == pytest.approx(2.0)
+    assert valores[(dos, neg)] == pytest.approx(-1.4)
+    assert valores[(uno, pos)] == pytest.approx(1.3)
+    assert valores[(uno, neg)] == pytest.approx(-0.9)
+
+
+def test_componentes_aislada_figura_5_5_3():
+    """El diedro negativo usa la Figura 5.5-3 con el módulo del ángulo."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.DOS_AGUAS, -15.0, False, 6.0, 20.0, 12.0, {"Chapa": 1.0}
+    )
+    valores = _componentes_aislada(cpn, "Chapa")
+    uno, dos, tres = (
+        enums.ZonaComponenteCubiertaAislada.UNO,
+        enums.ZonaComponenteCubiertaAislada.DOS,
+        enums.ZonaComponenteCubiertaAislada.TRES,
+    )
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    neg = enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+    assert cpn.referencia == "Figura 5.5-3"
+    # a = 1,2 m, así que 1 m² cae en ≤ a².
+    assert cpn.distancia_a == pytest.approx(1.2)
+    assert valores[(tres, pos)] == pytest.approx(2.2)
+    assert valores[(tres, neg)] == pytest.approx(-2.2)
+    assert valores[(dos, pos)] == pytest.approx(1.7)
+    assert valores[(dos, neg)] == pytest.approx(-1.7)
+    assert valores[(uno, pos)] == pytest.approx(1.1)
+    assert valores[(uno, neg)] == pytest.approx(-1.1)
+
+
+def test_componentes_aislada_interpolacion():
+    """Nota 3: interpolación lineal a 10°, un tercio del paso de 7,5° a 15°."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 10.0, False, 6.0, 10.0, 20.0, {"Chapa": 0.5}
+    )
+    valores = _componentes_aislada(cpn, "Chapa")
+    tres = enums.ZonaComponenteCubiertaAislada.TRES
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    neg = enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+    # Zona 3 positiva: 3,2 a 7,5° y 3,6 a 15°; 10° está a 1/3 del intervalo.
+    assert valores[(tres, pos)] == pytest.approx(3.2 + 0.4 / 3)
+    # Zona 3 negativa: -4,2 a 7,5° y -3,8 a 15°.
+    assert valores[(tres, neg)] == pytest.approx(-4.2 + 0.4 / 3)
+
+
+def test_componentes_aislada_rangos_area_efectiva():
+    """El rango de área efectiva elige la columna de la tabla."""
+    tres = enums.ZonaComponenteCubiertaAislada.TRES
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    # A 7,5° sin bloqueo la Zona 3 positiva distingue los tres rangos:
+    # 3,2 / 2,4 / 1,6 para a = 1 m.
+    for area, esperado in ((0.5, 3.2), (2.0, 2.4), (5.0, 1.6)):
+        cpn = cp.ComponentesCubiertaAislada(
+            enums.TipoCubierta.UN_AGUA, 7.5, False, 6.0, 10.0, 20.0, {"Chapa": area}
+        )
+        valores = _componentes_aislada(cpn, "Chapa")
+        assert valores[(tres, pos)] == pytest.approx(esperado)
+    # Los límites de los rangos son inclusivos: a² cierra el primero y 4a² el
+    # segundo.
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 7.5, False, 6.0, 10.0, 20.0, {"Chapa": 1.0}
+    )
+    assert _componentes_aislada(cpn, "Chapa")[(tres, pos)] == pytest.approx(3.2)
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 7.5, False, 6.0, 10.0, 20.0, {"Chapa": 4.0}
+    )
+    assert _componentes_aislada(cpn, "Chapa")[(tres, pos)] == pytest.approx(2.4)
+
+
+def test_componentes_aislada_sin_componentes():
+    """Sin componentes cargados no hay coeficientes."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 15.0, False, 6.0, 10.0, 20.0
+    )
+    assert cpn.entradas == ()
+
+
+def test_componentes_aislada_relacion_h_l_fuera_de_lineamientos():
+    """Las Figuras 5.5-1 a 5.5-3 exigen 0,25 ≤ h/L ≤ 1,0 con L = ancho."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 15.0, False, 2.0, 10.0, 20.0, {"Chapa": 0.5}
+    )
+    with pytest.raises(ErrorLineamientos, match="h/L"):
+        _ = cpn.entradas
+
+
+def test_componentes_aislada_presiones():
+    """La presión de cada fila es q_h · G · C_N, sin presión interna."""
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=6,
+        altura_cumbrera=7.5,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.C,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5, "Correa": 2.0},
+    )
+    filas = cubierta.resultados_componentes
+    assert len(filas) == 12
+    for fila in filas:
+        esperado = fila.q.valor * fila.factor_rafaga * fila.cpn
+        assert fila.presion == pytest.approx(esperado)
+    # El área elige la columna: Chapa (0,5 m² ≤ a²) y Correa (> a², ≤ 4a²)
+    # tienen valores distintos en la misma zona.
+    pos = enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    chapa = filas.filtrar(
+        componente="Chapa",
+        zona_componente=enums.ZonaComponenteCubiertaAislada.TRES,
+        tipo_presion=pos,
+    ).unica()
+    correa = filas.filtrar(
+        componente="Correa",
+        zona_componente=enums.ZonaComponenteCubiertaAislada.TRES,
+        tipo_presion=pos,
+    ).unica()
+    assert chapa.cpn != pytest.approx(correa.cpn)
+
+
+def test_componentes_aislada_distancias_zonas_anillos():
+    """Vertiente única: anillos concéntricos de ancho a."""
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.UN_AGUA, 15.0, False, 6.0, 10.0, 20.0, {"Chapa": 0.5}
+    )
+    zonas = cpn.distancias_zonas
+    uno, dos, tres = (
+        enums.ZonaComponenteCubiertaAislada.UNO,
+        enums.ZonaComponenteCubiertaAislada.DOS,
+        enums.ZonaComponenteCubiertaAislada.TRES,
+    )
+    # El anillo perimetral son dos tiras a lo largo del ancho y dos a lo
+    # largo de la longitud.
+    assert len(zonas[tres]) == 4
+    assert len(zonas[dos]) == 4
+    assert zonas[uno] == ((2.0, 8.0, -2.0, -18.0),)
+
+
+def test_componentes_aislada_distancias_zonas_bandas():
+    """Dos aguas con ángulo de 10° o más: anillos por faldón.
+
+    La Figura 5.5-1 se aplica a cada faldón: a = 1,2 m (limitado a ancho/8),
+    cada faldón mide 10 m de X y 12 m de Z, y las Zonas 3 de ambos faldones
+    se tocan en la cumbrera.
+    """
+    cpn = cp.ComponentesCubiertaAislada(
+        enums.TipoCubierta.DOS_AGUAS, 15.0, False, 6.0, 20.0, 12.0, {"Chapa": 0.5}
+    )
+    zonas = cpn.distancias_zonas
+    uno, dos, tres = (
+        enums.ZonaComponenteCubiertaAislada.UNO,
+        enums.ZonaComponenteCubiertaAislada.DOS,
+        enums.ZonaComponenteCubiertaAislada.TRES,
+    )
+    # Zona 1: el rectángulo interior de cada faldón.
+    assert len(zonas[uno]) == 2
+    assert zonas[uno][0] == pytest.approx((2.4, 7.6, -2.4, -9.6))
+    assert zonas[uno][1] == pytest.approx((12.4, 17.6, -2.4, -9.6))
+    # Zona 2: el anillo interior de cada faldón, cuatro rectángulos por
+    # faldón.
+    assert len(zonas[dos]) == 8
+    # Zona 3: el anillo perimetral de cada faldón, cuatro rectángulos por
+    # faldón, con la franja junto a la cumbrera incluida.
+    assert len(zonas[tres]) == 8
+    # Las franjas de Zona 3 junto a la cumbrera: se tocan entre faldones
+    # en X = 10.
+    assert any(r == pytest.approx((8.8, 10.0, 0.0, -12.0)) for r in zonas[tres])
+    assert any(r == pytest.approx((10.0, 11.2, 0.0, -12.0)) for r in zonas[tres])
+
+
 def test_rafaga_factor_simplificado():
     rafaga = Rafaga(
         ancho=20,

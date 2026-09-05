@@ -732,22 +732,30 @@ class DialogoTopografia(DialogoBase):
 class DialogoComponentes(DialogoBase):
     """DialogoComponentes.
 
-    Permite configurar los componentes y revestimientos para paredes y cubierta.
+    Permite configurar los componentes y revestimientos para paredes y
+    cubierta. En el modo "solo cubierta" -el de las cubiertas aisladas- se
+    piden únicamente los componentes de la cubierta, cuya área efectiva de
+    viento elige el rango de los coeficientes C_N de las Figuras 5.5-1 a
+    5.5-3: hasta a², hasta 4a², o mayor.
     """
 
-    def __init__(self, componentes: dict[str, dict[str, float] | None]) -> None:
+    def __init__(
+        self,
+        componentes: dict[str, dict[str, float] | None],
+        solo_cubierta: bool = False,
+    ) -> None:
         """
 
         Args:
             componentes: Los componentes de paredes y cubierta.
+            solo_cubierta: Indica si sólo se cargan los componentes de la
+                cubierta, para estructuras sin paredes.
         """
         super().__init__()
 
         self._componentes = componentes
+        self._solo_cubierta = solo_cubierta
 
-        self._componentes_paredes = WidgetComponentes(
-            componentes["componentes_paredes"]
-        )
         self._componentes_cubierta = WidgetComponentes(
             componentes["componentes_cubierta"]
         )
@@ -760,19 +768,36 @@ class DialogoComponentes(DialogoBase):
 
         layout_componentes = QtWidgets.QGridLayout()
         layout_componentes.addWidget(
-            QtWidgets.QLabel("PAREDES"), 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter
+            QtWidgets.QLabel("CUBIERTA"), 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter
         )
-        layout_componentes.addWidget(
-            QtWidgets.QLabel("CUBIERTA"), 0, 2, QtCore.Qt.AlignmentFlag.AlignCenter
-        )
-        layout_componentes.addWidget(self._componentes_paredes, 2, 0)
-        layout_componentes.addWidget(self._componentes_cubierta, 2, 2)
+        layout_componentes.addWidget(self._componentes_cubierta, 2, 0)
         layout_componentes.setVerticalSpacing(2)
-        layout_componentes.setColumnMinimumWidth(1, 20)
+
+        if solo_cubierta:
+            label_aviso_rangos = QtWidgets.QLabel(
+                "* El área de influencia del componente define su área efectiva de viento: el reglamento distingue"
+                " los coeficientes para áreas de hasta a², de más de a² y hasta 4a², y de más de 4a², con a la"
+                " distancia de la notación de las figuras."
+            )
+            label_aviso_rangos.setWordWrap(True)
+        else:
+            self._componentes_paredes = WidgetComponentes(
+                componentes["componentes_paredes"]
+            )
+            layout_componentes.addWidget(
+                QtWidgets.QLabel("PAREDES"),
+                0,
+                2,
+                QtCore.Qt.AlignmentFlag.AlignCenter,
+            )
+            layout_componentes.addWidget(self._componentes_paredes, 2, 2)
+            layout_componentes.setColumnMinimumWidth(1, 20)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_componentes)
         layout_principal.addWidget(label_aviso_geometria)
+        if solo_cubierta:
+            layout_principal.addWidget(label_aviso_rangos)
 
         layout_principal.addWidget(self._botones)
 
@@ -788,7 +813,9 @@ class DialogoComponentes(DialogoBase):
     def accept(self):
         try:
             self._componentes = {
-                "componentes_paredes": self._componentes_paredes(),
+                "componentes_paredes": (
+                    None if self._solo_cubierta else self._componentes_paredes()
+                ),
                 "componentes_cubierta": self._componentes_cubierta(),
             }
             super().accept()

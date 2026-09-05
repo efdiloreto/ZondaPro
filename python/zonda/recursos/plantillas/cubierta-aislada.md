@@ -94,3 +94,25 @@ parapetos o tímpanos y la fuerza de fricción, calculada con los coeficientes d
 que correspondan al tipo de superficie según su orientación respecto de la dirección del viento.
 
 {%- endblock %}
+
+{%- block presiones_componentes -%}
+{%- if estructura.resultados_componentes %}
+### COMPONENTES Y REVESTIMIENTOS
+Los coeficientes de presión neta C~N~ salen de la figura indicada en cada tabla, para edificios abiertos, según el área
+efectiva de viento de cada componente y la situación de bloqueo del flujo bajo la cubierta. La presión de cada zona es
+p = q~h~ · G · C~N~ (expresión 5.5-1), con q~h~ calculada a la altura media de la cubierta. Los coeficientes son
+presiones netas (contribuciones de las superficies superior e inferior) y no llevan presión interna. Los signos positivo
+y negativo indican presiones que actúan acercándose o alejándose de la superficie superior de la cubierta,
+respectivamente (nota 4), y para ángulos distintos de los tabulados se permite la interpolación lineal (nota 3). Las
+figuras cubren 0,25 ≤ h/L ≤ 1,0, con L medido a lo largo de la dirección del viento, normal a la cumbrera o a lo largo
+de la vertiente.
+
+{% for componente, area in estructura.componentes.items() %}
+{{ ma.presiones_componentes_cubierta_aislada(
+    estructura.resultados_componentes.filtrar(componente=componente),
+    "COMPONENTES Y REVESTIMIENTOS — %s (%s m^2^)"|format(componente, area),
+) }}
+
+{% endfor %}
+{%- endif -%}
+{%- endblock %}

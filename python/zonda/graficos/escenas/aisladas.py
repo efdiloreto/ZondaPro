@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from zonda.enums import CasoCargaCubiertaAislada
+from zonda.enums import CasoCargaCubiertaAislada, TipoPresionComponentesParedesCubierta
 from zonda.graficos.actores import ActorBarraEscala, ActorTexto2D
 from zonda.graficos.colores import TablaColores
 from zonda.graficos.directores import aisladas as director_aisladas
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from zonda.enums import (
         DireccionVientoCubiertaAislada,
         Unidad,
+        ZonaComponenteCubiertaAislada,
         ZonaPresionCubiertaAislada,
     )
     from zonda.graficos.escena import Escena3D
@@ -147,4 +148,114 @@ class Presiones(PresionesMixin):
 
         texto = f"Presión {self._direccion_actual.value} {self._caso_actual.value}"
 
+        self._titulo.setear_texto(texto)
+
+
+class Componentes(PresionesMixin):
+    """Componentes.
+
+    Representa la escena de la visualización de presiones de viento sobre
+    los componentes y revestimientos de una cubierta aislada, Figuras
+    5.5-1 a 5.5-3 del Reglamento.
+    """
+
+    def __init__(
+        self,
+        escena: Escena3D,
+        cubierta_aislada: CubiertaAislada,
+        unidad: Unidad,
+    ) -> None:
+        """
+
+        Args:
+            escena: La escena que junta los actores y los publica a la vista.
+            cubierta_aislada: Una instancia de CubiertaAislada.
+            unidad: La unidad en las que se muestran las presiones.
+        """
+        self.escena = escena
+        self.unidad = unidad
+
+        resultados = cubierta_aislada.resultados_componentes
+
+        # El signo entra en la clave: cada zona tiene coeficiente positivo y
+        # negativo propios (Nota 5 de las figuras).
+        self._filas = resultados.indexar(
+            "componente", "zona_componente", "tipo_presion"
+        )
+
+        tabla_colores = TablaColores(
+            *(
+                convertir_unidad(presion, self.unidad)
+                for presion in resultados.min_max()
+            )
+        )
+
+        self._barra_escala = ActorBarraEscala(self.escena, tabla_colores, self.unidad)
+
+        self._titulo = ActorTexto2D(self.escena)
+
+        self.director = director_aisladas.Componentes(
+            self.escena, tabla_colores, cubierta_aislada
+        )
+        self._actores_cubierta = self.director.obtener_actores()
+
+        self._componente_actual: str | None = None
+
+        self._tipo_presion_actual = TipoPresionComponentesParedesCubierta.NEGATIVA
+
+        self._actores_presion = self.escena.actores_presion
+
+    def actualizar_componente(self, componente: str) -> None:
+        """Actualiza el componente vigente.
+
+        Args:
+            componente: El nombre del componente.
+        """
+        self._componente_actual = componente
+        self._actualizar_presiones()
+        self._actualizar_titulo()
+
+    def actualizar_tipo_presion(
+        self, tipo_presion: TipoPresionComponentesParedesCubierta
+    ) -> None:
+        """Actualiza el signo de la presión mostrada.
+
+        Args:
+            tipo_presion: El tipo de presión a actualizar.
+        """
+        self._tipo_presion_actual = tipo_presion
+        self._actualizar_presiones()
+        self._actualizar_titulo()
+
+    def _actualizar_presiones(self) -> None:
+        """Asigna a cada actor la presión de su zona para el componente y el signo vigentes."""
+        if self._componente_actual is None:
+            return
+        for zona, actores in self._actores_cubierta.items():
+            presion = self._presion(zona)
+            try:
+                for actor in actores:
+                    actor.asignar_presion(presion=presion, unidad=self.unidad)
+            except TypeError:
+                actores.asignar_presion(presion=presion, unidad=self.unidad)
+
+    def _presion(self, zona: ZonaComponenteCubiertaAislada) -> float:
+        """La presión de una zona para el componente y el signo actuales.
+
+        Args:
+            zona: La zona de la cubierta.
+
+        Returns:
+            La presión correspondiente.
+        """
+        filas = self._filas[(self._componente_actual, zona, self._tipo_presion_actual)]
+        return filas.unica().presion
+
+    def _actualizar_titulo(self) -> None:
+        """Actualiza el título de la escena."""
+        if self._componente_actual is None:
+            return
+        texto = (
+            f"Componente: {self._componente_actual} ({self._tipo_presion_actual.value})"
+        )
         self._titulo.setear_texto(texto)

@@ -96,19 +96,19 @@ def test_archivo_inexistente(tmp_path):
         ),
         (
             "sin estado",
-            '{"programa": "zonda", "version_formato": 3,'
+            '{"programa": "zonda", "version_formato": 4,'
             ' "estructura": {"__enum__": "Estructura", "nombre": "CARTEL"}}',
             "incompleto o dañado",
         ),
         (
             "enum que no existe",
-            '{"programa": "zonda", "version_formato": 3, "estructura":'
+            '{"programa": "zonda", "version_formato": 4, "estructura":'
             ' {"__enum__": "TipoCubierta", "nombre": "INVENTADA"}, "estado": {}}',
             "valor desconocido",
         ),
         (
             "clase de enum que no existe",
-            '{"programa": "zonda", "version_formato": 3, "estructura":'
+            '{"programa": "zonda", "version_formato": 4, "estructura":'
             ' {"__enum__": "NoExiste", "nombre": "A"}, "estado": {}}',
             "tipo de dato desconocido",
         ),

@@ -490,7 +490,7 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
 
     @staticmethod
     def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada()
+        return WidgetPanelEntrada(componentes=True, solo_cubierta=True)
 
     @staticmethod
     def _generar_widget_estructura():
@@ -506,6 +506,7 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
             **self._widget_estructura.parametros(),
             **parametros_viento,
             **self._widget_panel_entrada.parametros_topografia,
+            componentes=self._widget_panel_entrada.componentes["componentes_cubierta"],
         )
         return WidgetResultadosCubiertaAislada(cubierta_aislada)
 
@@ -513,6 +514,10 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
 class WidgetModuloCartel(WidgetModuloCubiertaAislada):
     titulo = "Cartel"
     estructura = Estructura.CARTEL
+
+    @staticmethod
+    def _generar_widget_panel_entrada():
+        return WidgetPanelEntrada()
 
     @staticmethod
     def _generar_widget_estructura():

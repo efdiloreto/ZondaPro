@@ -161,6 +161,47 @@ def test_reporte_cubierta_aislada(cubierta_aislada):
     assert reporte._texto_md.strip()
 
 
+def test_reporte_cubierta_aislada_componentes():
+    """El reporte de componentes lista cada componente con sus zonas y signos."""
+    from zonda.cirsoc import CubiertaAislada
+
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5, "Correa": 2.0},
+    )
+    texto = Reporte("cubierta-aislada.md", cubierta, UNIDADES)._texto_md
+    assert "COMPONENTES Y REVESTIMIENTOS" in texto
+    assert "Figura 5.5-2" in texto
+    assert "Chapa" in texto
+    assert "Correa" in texto
+    # Cada zona con su positivo y su negativo, y la distancia "a" en el pie.
+    assert "1 (positiva)" in texto
+    assert "1 (negativa)" in texto
+    assert "3 (positiva)" in texto
+    assert "3 (negativa)" in texto
+    assert "a: 1.00 m" in texto
+    # La expresión del artículo y el alcance de las figuras.
+    assert "expresión 5.5-1" in texto
+    assert "0,25 ≤ h/L ≤ 1,0" in texto
+
+
+def test_reporte_cubierta_aislada_sin_componentes_no_tiene_la_seccion(
+    cubierta_aislada,
+):
+    """Sin componentes cargados, la sección de C&R no aparece."""
+    texto = Reporte("cubierta-aislada.md", cubierta_aislada, UNIDADES)._texto_md
+    assert "COMPONENTES Y REVESTIMIENTOS" not in texto
+
+
 def test_el_reporte_no_deja_marcas_de_jinja_sin_renderizar(cartel):
     reporte = Reporte("cartel.md", cartel, UNIDADES)
     assert "{{" not in reporte._texto_md

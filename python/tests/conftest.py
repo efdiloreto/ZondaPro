@@ -232,3 +232,20 @@ def cubierta_aislada() -> CubiertaAislada:
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,
     )
+
+
+@pytest.fixture(scope="session")
+def cubierta_aislada_con_componentes() -> CubiertaAislada:
+    return CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5, "Correa": 2.0},
+    )

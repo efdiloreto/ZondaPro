@@ -15,12 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-from zonda.cirsoc.cp.aisladas import CubiertaAislada
+from zonda.cirsoc.cp.aisladas import ComponentesCubiertaAislada, CubiertaAislada
 from zonda.cirsoc.cp.cartel import Cartel
 from zonda.cirsoc.cp.edificio import Edificio
 
 __all__ = [
     "Cartel",
+    "ComponentesCubiertaAislada",
     "CubiertaAislada",
     "Edificio",
 ]

@@ -359,3 +359,152 @@ class Presiones(Geometria):
                 for (origen, fin), rango_x in faldones
             )
         return zonas
+
+
+class Componentes(Geometria):
+    """Componentes.
+
+    Representa las zonas de componentes y revestimientos de las Figuras
+    5.5-1 a 5.5-3 para una cubierta aislada. Crea de una sola vez todos los
+    actores, visibles e indexados por zona: las figuras consideran una sola
+    disposición de zonas y no hay direcciones que conmutar.
+    """
+
+    def __init__(
+        self,
+        escena: Escena3D,
+        tabla_colores: TablaColores,
+        cubierta_aislada: CubiertaAislada,
+    ) -> None:
+        """
+
+        Args:
+            escena: La escena que junta los actores.
+            tabla_colores: La tabla de escalas de colores de la escena general.
+            cubierta_aislada: Una instancia de CubiertaAislada.
+        """
+        super().__init__(
+            escena,
+            cubierta_aislada.ancho,
+            cubierta_aislada.longitud,
+            cubierta_aislada.altura_alero,
+            cubierta_aislada.altura_cumbrera,
+            cubierta_aislada.tipo_cubierta,
+        )
+        self.tabla_colores = tabla_colores
+        # Los rectángulos de cada zona en planta los define el cálculo: la
+        # vista no recalcula nada del Reglamento.
+        self._rectangulos_zonas = cubierta_aislada.cpn_componentes.distancias_zonas
+        self.inicializar_actores()
+
+    def obtener_actores(self):
+        """Los actores de las zonas, indexados por zona.
+
+        Returns:
+            El diccionario de zona a actores.
+        """
+        return self.actores_zonas
+
+    def inicializar_actores(self) -> None:
+        """Genera y añade los actores de cada función."""
+        self.zonas()
+        self._crear_soportes()
+
+    @actores_poligonos(crear_atributo=True, presion=True, mostrar=True)
+    def zonas(self):
+        """Genera los actores de cada zona de componentes.
+
+        Returns:
+            Las coordenadas de los polígonos de cada zona.
+        """
+        return {
+            zona: self._proyectar_rectangulos(rectangulos)
+            for zona, rectangulos in self._rectangulos_zonas.items()
+        }
+
+    def _proyectar_rectangulos(self, rectangulos):
+        """Proyecta los rectángulos de una zona sobre la cubierta.
+
+        Args:
+            rectangulos: Los rectángulos (x0, x1, z0, z1) de la zona, en
+                coordenadas de planta.
+
+        Returns:
+            Una tupla con los polígonos de la zona, uno por rectángulo y
+            faldón.
+        """
+        poligonos = []
+        for x0, x1, z0, z1 in rectangulos:
+            poligonos.extend(self._proyectar_rectangulo(x0, x1, z0, z1))
+        return tuple(poligonos)
+
+    def _proyectar_rectangulo(
+        self, x0: float, x1: float, z0: float, z1: float
+    ) -> tuple:
+        """Proyecta un rectángulo en planta sobre la cubierta.
+
+        Args:
+            x0: La coordenada X inicial del rectángulo.
+            x1: La coordenada X final del rectángulo.
+            z0: La coordenada Z inicial del rectángulo.
+            z1: La coordenada Z final del rectángulo.
+
+        Returns:
+            Los polígonos que cubren el rectángulo: uno para la vertiente
+            única, hasta dos para la cubierta a dos aguas.
+        """
+        if self.tipo_cubierta == TipoCubierta.DOS_AGUAS:
+            return self._proyectar_rectangulo_dos_aguas(x0, x1, z0, z1)
+        return (
+            coords_zona_cubierta_desde_proyeccion(
+                (x0, x1),
+                (0, self.altura_alero),
+                (self.ancho, self.altura_cumbrera),
+                z0,
+                z1,
+            ),
+        )
+
+    def _proyectar_rectangulo_dos_aguas(
+        self, x0: float, x1: float, z0: float, z1: float
+    ) -> tuple:
+        """Proyecta un rectángulo sobre los faldones de una cubierta a dos aguas.
+
+        El rectángulo se parte en la cumbrera y cada mitad se proyecta sobre
+        su faldón. Ambos faldones se describen con X creciente -el izquierdo
+        desde el alero a la cumbrera, el derecho desde la cumbrera al
+        alero- para que las proyecciones y las normales salgan derechas.
+
+        Args:
+            x0: La coordenada X inicial del rectángulo.
+            x1: La coordenada X final del rectángulo.
+            z0: La coordenada Z inicial del rectángulo.
+            z1: La coordenada Z final del rectángulo.
+
+        Returns:
+            Los polígonos de las mitades del rectángulo que caen sobre cada
+            faldón.
+        """
+        mitad = self.ancho / 2
+        poligonos = []
+        if x0 < mitad:
+            poligonos.append(
+                coords_zona_cubierta_desde_proyeccion(
+                    (x0, min(x1, mitad)),
+                    (0, self.altura_alero),
+                    (mitad, self.altura_cumbrera),
+                    z0,
+                    z1,
+                )
+            )
+        if x1 > mitad:
+            poligonos.append(
+                coords_zona_cubierta_desde_proyeccion(
+                    (max(x0, mitad), x1),
+                    (mitad, self.altura_cumbrera),
+                    (self.ancho, self.altura_alero),
+                    z0,
+                    z1,
+                )
+            )
+        return tuple(poligonos)

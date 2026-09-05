@@ -46,6 +46,8 @@ from zonda.enums import (
     ParedEdificioSprfv,
     RegionCartel,
     SistemaResistente,
+    TipoPresionComponentesParedesCubierta,
+    ZonaComponenteCubiertaAislada,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
     ZonaEdificio,
@@ -57,7 +59,6 @@ if TYPE_CHECKING:
 
     from zonda.enums import (
         PosicionCubiertaAleroSprfv,
-        TipoPresionComponentesParedesCubierta,
         TipoPresionCubiertaBarloventoSprfv,
     )
 
@@ -218,6 +219,23 @@ class EntradaCpn:
 
 
 @dataclass(frozen=True, slots=True)
+class EntradaCpnComponentes:
+    """Un coeficiente de presión neta de componentes de cubierta aislada.
+
+    Las Figuras 5.5-1 a 5.5-3 dan, para cada zona, un coeficiente positivo y
+    uno negativo; ambos viajan en filas propias. Las presiones son netas
+    (superficie superior e inferior), así que no hay presión interna.
+    """
+
+    componente: str
+    zona_componente: ZonaComponenteCubiertaAislada
+    tipo_presion: TipoPresionComponentesParedesCubierta
+    valor: float
+    referencia: str
+    distancia_a: float
+
+
+@dataclass(frozen=True, slots=True)
 class FilaCartel:
     """Una línea de resultado de cartel.
 
@@ -260,6 +278,31 @@ class FilaCubiertaAislada:
     presion_friccion: float
     referencia: str
     zona: ZonaPresionCubiertaAislada | None = None
+
+    @property
+    def presiones(self) -> tuple[float, ...]:
+        return (self.presion,)
+
+
+@dataclass(frozen=True, slots=True)
+class FilaComponentesCubiertaAislada:
+    """Una línea de resultado de componentes y revestimientos de cubierta aislada.
+
+    Hay una fila por cada combinación de componente, zona y signo del
+    coeficiente de las Figuras 5.5-1 a 5.5-3. Los coeficientes son presiones
+    netas (contribuciones de las superficies superior e inferior), así que no
+    hay presión interna ni fricción.
+    """
+
+    componente: str
+    zona_componente: ZonaComponenteCubiertaAislada
+    tipo_presion: TipoPresionComponentesParedesCubierta
+    q: PresionVelocidad
+    cpn: float
+    factor_rafaga: float
+    presion: float
+    referencia: str
+    distancia_a: float
 
     @property
     def presiones(self) -> tuple[float, ...]:

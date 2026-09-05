@@ -21,7 +21,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from zonda.cirsoc.presiones.base import PresionesBase
-from zonda.cirsoc.resultados import FilaCubiertaAislada
+from zonda.cirsoc.resultados import (
+    FilaComponentesCubiertaAislada,
+    FilaCubiertaAislada,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -142,4 +145,75 @@ class CubiertaAislada(PresionesBase):
             categoria_exp,
             coeficiente_friccion,
             factor_altitud=factor_altitud,
+        )
+
+
+class ComponentesCubiertaAislada(PresionesBase):
+    """ComponentesCubiertaAislada.
+
+    Determina las presiones de viento sobre componentes y revestimientos de
+    una cubierta aislada, Figuras 5.5-1 a 5.5-3 del Reglamento.
+
+    Los coeficientes C_N son presiones netas (contribuciones de las
+    superficies superior e inferior), así que no interviene la presión
+    interna: la presión de cada fila es p = q_h G C_N, con la presión de
+    velocidad calculada a la altura media de la cubierta.
+    """
+
+    def __init__(
+        self,
+        altura_media: float,
+        velocidad: float,
+        rafaga: Rafaga,
+        factor_topografico: Sequence[float],
+        cpn: cp.ComponentesCubiertaAislada,
+        categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
+    ) -> None:
+        """
+        Args:
+            altura_media: La altura media de la cubierta.
+            velocidad: La velocidad del viento en m/s.
+            rafaga: Una instancia de la clase Ráfaga.
+            factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
+            cpn: Una instancia de ComponentesCubiertaAislada.
+            categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
+        """
+        super().__init__(
+            altura_media,
+            velocidad,
+            rafaga,
+            factor_topografico,
+            0.85,
+            categoria_exp,
+            factor_altitud=factor_altitud,
+        )
+        self.cpn = cpn
+        # La cubierta aislada se resuelve a una sola altura.
+        self.q = self.presion_velocidad_en(altura_media)
+        self._presion_parcial = self.q.valor * self.rafaga.factor
+
+    @cached_property
+    def filas(self) -> tuple[FilaComponentesCubiertaAislada, ...]:
+        """Calcula las presiones sobre los componentes.
+
+        Returns:
+            Una fila por cada combinación de componente, zona y signo del
+            coeficiente. Vacía si no se cargaron componentes.
+        """
+        factor_rafaga = float(self.rafaga.factor)
+        return tuple(
+            FilaComponentesCubiertaAislada(
+                componente=entrada.componente,
+                zona_componente=entrada.zona_componente,
+                tipo_presion=entrada.tipo_presion,
+                q=self.q,
+                cpn=entrada.valor,
+                factor_rafaga=factor_rafaga,
+                presion=float(self._presion_parcial * entrada.valor),
+                referencia=entrada.referencia,
+                distancia_a=entrada.distancia_a,
+            )
+            for entrada in self.cpn.entradas
         )

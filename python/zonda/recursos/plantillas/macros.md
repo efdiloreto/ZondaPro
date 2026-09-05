@@ -105,6 +105,28 @@
 {% endmacro %}
 
 {#
+  Tabla de presiones de componentes y revestimientos de una cubierta aislada
+  (Figuras 5.5-1 a 5.5-3). Cada zona trae una fila con el coeficiente positivo
+  y una con el negativo: los C_N son presiones netas y no llevan presión
+  interna.
+#}
+{% macro presiones_componentes_cubierta_aislada(filas, titulo) -%}
+{%- set primera = filas|first %}
+: {{ titulo }} _(Ref: {{ primera.referencia }}; a: {{ '%.2f'|format(primera.distancia_a) }} m)_
+
+| Zona | K~h~ | K~zth~ | C~N~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) |
+|:----:|:----:|:------:|:----:|:---------------------------:|:------------------------:|
+{% for fila in filas -%}
+| {{ fila.zona_componente.value }} ({{ fila.tipo_presion.value }}) |
+{{- '%.2f'|format(fila.q.kz) }} |
+{{- '%.2f'|format(fila.q.kzt) }} |
+{{- '%.2f'|format(fila.cpn) }} |
+{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} |
+{% endfor %}
+{% endmacro %}
+
+{#
   Tablas de presiones del cartel, una por caso de la Figura 4.4-1. Los Casos
   A y B llevan una fila con la superficie completa; el Caso C una fila por
   región, con los límites medidos desde el borde de barlovento.

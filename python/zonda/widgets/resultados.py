@@ -492,7 +492,7 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         )
         self._stacked_widget.addWidget(widget_resultados_sprfv)
 
-        widget_panel_resultados = WidgetPanelResultados(edificio=True)
+        widget_panel_resultados = WidgetPanelResultados(sistemas=True)
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
         widget_panel_resultados.boton_sprfv.clicked.connect(
@@ -535,14 +535,20 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
             widget.grafico.finalizar()
 
 
-class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
-    """WidgetResultadosCubiertaAislada.
+class _VistaCubiertaAislada(QtWidgets.QWidget):
+    """Una vista interna del stacked de resultados de la cubierta aislada."""
 
-    Representa el widget que visualiza los resultados para cubiertas aisladas. Presenta el gráfico junto con otros
-    widgets que interactuan con este para cambiar la dirección del viento y el caso de carga, entre otras opciones.
+    grafico: WidgetGraficoCubiertaAisladaPresiones
+
+
+class WidgetResultadosCubiertaAisladaSprfv(_VistaCubiertaAislada):
+    """WidgetResultadosCubiertaAisladaSprfv.
+
+    Representa el widget que visualiza los resultados de las presiones
+    normales de una cubierta aislada. Presenta el gráfico junto con otros
+    widgets que interactuan con este para cambiar la dirección del viento y
+    el caso de carga, entre otras opciones.
     """
-
-    plantilla_reporte = "cubierta-aislada.md"
 
     def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
         """
@@ -552,14 +558,9 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
         """
         super().__init__()
 
-        self._estructura = cubierta_aislada
-
-        self.grafico = WidgetGraficoCubiertaAisladaPresiones(cubierta_aislada)
-
-        widget_panel_resultados = WidgetPanelResultados()
-
-        widget_panel_resultados.boton_volver.clicked.connect(self._volver)
-        widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
+        self.grafico = WidgetGraficoCubiertaAisladaPresiones(
+            cubierta_aislada, SistemaResistente.SPRFV
+        )
 
         combobox_direccion = QtWidgets.QComboBox()
         for direccion in DireccionVientoCubiertaAislada:
@@ -596,12 +597,150 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.setContentsMargins(0, 0, 0, 0)
-        layout_principal.addWidget(widget_panel_resultados)
         layout_principal.addLayout(layout_resultados, 1)
 
         self.grafico.escena.actualizar_direccion(combobox_direccion.currentData())
 
         self.setLayout(layout_principal)
+
+
+class WidgetResultadosCubiertaAisladaComponentes(_VistaCubiertaAislada):
+    """WidgetResultadosCubiertaAisladaComponentes.
+
+    Representa el widget que visualiza los resultados de componentes y
+    revestimientos de una cubierta aislada, Figuras 5.5-1 a 5.5-3 del
+    Reglamento. Presenta el gráfico junto con los widgets que cambian el
+    componente y el signo de la presión.
+    """
+
+    def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
+        """
+
+        Args:
+            cubierta_aislada: Una instancia de CubiertaAislada con
+                componentes cargados.
+        """
+        super().__init__()
+
+        self.grafico = WidgetGraficoCubiertaAisladaPresiones(
+            cubierta_aislada, SistemaResistente.COMPONENTES
+        )
+
+        layout_parametros = QtWidgets.QGridLayout()
+
+        combobox_componentes = QtWidgets.QComboBox()
+        if cubierta_aislada.componentes is not None:
+            combobox_componentes.addItems(cubierta_aislada.componentes.keys())
+        combobox_componentes.currentTextChanged.connect(
+            self.grafico.escena.actualizar_componente
+        )
+        layout_parametros.addWidget(
+            QtWidgets.QLabel("Componente"),
+            0,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignRight,
+        )
+        layout_parametros.addWidget(combobox_componentes, 0, 1)
+
+        combobox_presion = QtWidgets.QComboBox()
+        for enum in TipoPresionComponentesParedesCubierta:
+            combobox_presion.addItem(enum.value.capitalize(), enum)
+        combobox_presion.currentTextChanged.connect(
+            lambda: self.grafico.escena.actualizar_tipo_presion(
+                combobox_presion.currentData()
+            )
+        )
+        layout_parametros.addWidget(
+            QtWidgets.QLabel("Presión"), 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        layout_parametros.addWidget(combobox_presion, 1, 1)
+        layout_parametros.setRowStretch(2, 1)
+
+        box_parametros = QtWidgets.QGroupBox("Parámetros")
+        box_parametros.setLayout(layout_parametros)
+
+        layout_resultados = QtWidgets.QHBoxLayout()
+        layout_resultados.setContentsMargins(11, 11, 11, 11)
+        layout_resultados.addWidget(box_parametros)
+        layout_resultados.addStretch()
+        layout_resultados.addWidget(self.grafico, 1)
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.setContentsMargins(0, 0, 0, 0)
+        layout_principal.addLayout(layout_resultados, 1)
+
+        self.grafico.escena.actualizar_componente(combobox_componentes.currentText())
+
+        self.setLayout(layout_principal)
+
+
+class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
+    """WidgetResultadosCubiertaAislada.
+
+    Representa el widget que visualiza los resultados para cubiertas
+    aisladas. Alterna entre las presiones normales (SPRFV) y las de
+    componentes y revestimientos con los botones del panel.
+    """
+
+    plantilla_reporte = "cubierta-aislada.md"
+
+    def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
+        """
+
+        Args:
+            cubierta_aislada: Una instancia de CubiertaAislada.
+        """
+        super().__init__()
+
+        self._estructura = cubierta_aislada
+
+        self._stacked_widget = QtWidgets.QStackedWidget()
+
+        widget_resultados_sprfv = WidgetResultadosCubiertaAisladaSprfv(cubierta_aislada)
+        self._stacked_widget.addWidget(widget_resultados_sprfv)
+
+        widget_panel_resultados = WidgetPanelResultados(sistemas=True)
+
+        widget_panel_resultados.boton_volver.clicked.connect(self._volver)
+        widget_panel_resultados.boton_sprfv.clicked.connect(
+            lambda: self._stacked_widget.setCurrentIndex(0)
+        )
+        widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
+
+        if cubierta_aislada.componentes:
+            try:
+                widget_resultados_componentes = (
+                    WidgetResultadosCubiertaAisladaComponentes(cubierta_aislada)
+                )
+                self._stacked_widget.addWidget(widget_resultados_componentes)
+                widget_panel_resultados.boton_componentes.setEnabled(True)
+                widget_panel_resultados.boton_componentes.clicked.connect(
+                    lambda: self._stacked_widget.setCurrentIndex(1)
+                )
+            except ErrorLineamientos as error:
+                mensaje = (
+                    str(error)
+                    + " No se pudieron determinar las presiones sobre los componentes y revestimientos.\n\n Verifique"
+                    " la geometría o elimine los componentes necesarios."
+                )
+                msg = QtWidgets.QMessageBox()
+                msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+                msg.setWindowTitle("Advertencia Lineamientos")
+                msg.setText(mensaje)
+                msg.exec()
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.setContentsMargins(0, 0, 0, 0)
+        layout_principal.addWidget(widget_panel_resultados)
+        layout_principal.addWidget(self._stacked_widget, 1)
+
+        self.setLayout(layout_principal)
+
+    def finalizar(self) -> None:
+        for i in range(self._stacked_widget.count()):
+            widget = self._stacked_widget.widget(i)
+            if isinstance(widget, _VistaCubiertaAislada):
+                widget.grafico.finalizar()
 
 
 class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):

@@ -35,6 +35,7 @@ from zonda.enums import (
 if TYPE_CHECKING:
     from zonda.cirsoc.resultados import (
         FilaCartel,
+        FilaComponentesCubiertaAislada,
         FilaCubiertaAislada,
         FilaEdificio,
         Tabla,
@@ -210,6 +211,7 @@ class CubiertaAislada:
         altitud: float = 0,
         factor_altitud: float | None = None,
         categoria: CategoriaEstructura = CategoriaEstructura.II,
+        componentes: dict[str, float] | None = None,
     ) -> None:
         """
 
@@ -239,6 +241,10 @@ class CubiertaAislada:
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
             altitud: Altitud del terreno sobre el nivel del mar en metros.
             factor_altitud: Factor de altitud Ke explícito. Si es None, se calcula a partir de altitud.
+            componentes: Los componentes de la cubierta para calcular los
+                valores de C_N de componentes y revestimientos, donde la
+                clave es el nombre del componente y el valor es su área
+                efectiva de viento en m².
         """
         self.ancho = ancho
         self.longitud = longitud
@@ -260,6 +266,7 @@ class CubiertaAislada:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
+        self.componentes = componentes
         self.altitud = altitud
         self.factor_altitud = (
             factores.factor_altitud(altitud)
@@ -307,6 +314,18 @@ class CubiertaAislada:
             coeficiente_friccion,
             factor_altitud=self.factor_altitud,
         )
+        self.cpn_componentes = cp.ComponentesCubiertaAislada.desde_cubierta(
+            self.geometria, componentes
+        )
+        self.presiones_componentes = presiones.ComponentesCubiertaAislada(
+            self.geometria.altura_media,
+            velocidad,
+            self.rafaga,
+            self.topografia.factor,
+            self.cpn_componentes,
+            categoria_exp,
+            factor_altitud=self.factor_altitud,
+        )
 
     @cached_property
     def resultados(self) -> Tabla[FilaCubiertaAislada]:
@@ -317,6 +336,24 @@ class CubiertaAislada:
             carga y zona.
         """
         return resultados.Tabla(self.presiones.filas)
+
+    @cached_property
+    def resultados_componentes(self) -> Tabla[FilaComponentesCubiertaAislada]:
+        """La tabla de resultados de componentes y revestimientos.
+
+        Se calcula por separado de las presiones normales porque el
+        Reglamento puede no proveer lineamientos para la geometría de la
+        cubierta, y en ese caso las presiones normales siguen siendo válidas.
+
+        Returns:
+            Una fila por cada combinación de componente, zona y signo del
+            coeficiente. Vacía si no se cargaron componentes.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                Reglamento para componentes y revestimientos.
+        """
+        return resultados.Tabla(self.presiones_componentes.filas)
 
 
 class Edificio:

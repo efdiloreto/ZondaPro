@@ -105,10 +105,11 @@ class WidgetLogo(QtWidgets.QLabel):
 
 
 class WidgetPanelEntrada(WidgetPanel):
-    def __init__(self, componentes=False):
+    def __init__(self, componentes=False, solo_cubierta=False):
         super().__init__(altura_fija=57)
 
         self._tiene_componentes = componentes
+        self._solo_cubierta = solo_cubierta
 
         self.parametros_viento = {
             "categoria_exp": CategoriaExposicion.B,
@@ -212,13 +213,15 @@ class WidgetPanelEntrada(WidgetPanel):
             self.parametros_topografia = dialogo.parametros()
 
     def _dialogo_componentes(self):
-        dialogo = dialogos.DialogoComponentes(self.componentes)
+        dialogo = dialogos.DialogoComponentes(
+            self.componentes, solo_cubierta=self._solo_cubierta
+        )
         if dialogo.exec():
             self.componentes = dialogo.componentes()
 
 
 class WidgetPanelResultados(WidgetPanel):
-    def __init__(self, edificio: bool = False):
+    def __init__(self, sistemas: bool = False):
         super().__init__(altura_fija=57)
 
         self.boton_volver = WidgetBotonPanel("VOLVER")
@@ -231,7 +234,7 @@ class WidgetPanelResultados(WidgetPanel):
         layout_botones.addWidget(self.boton_volver)
         layout_botones.addStretch()
 
-        if edificio:
+        if sistemas:
             self.boton_sprfv = WidgetBotonPanel("SPRFV")
             self.boton_sprfv.setProperty("class", "tab")
             self.boton_sprfv.setCheckable(True)

@@ -194,7 +194,63 @@ def test_resultados_cubierta_aislada(qapp, cubierta_aislada):
 
     widget = WidgetResultadosCubiertaAislada(cubierta_aislada)
     assert widget is not None
+    # Sin componentes cargados, la vista de C&R no existe.
+    assert widget._stacked_widget.count() == 1
     widget.close()
+
+
+@necesita_opengl
+def test_resultados_cubierta_aislada_con_componentes(
+    qapp, cubierta_aislada_con_componentes
+):
+    from zonda.widgets.resultados import WidgetResultadosCubiertaAislada
+
+    widget = WidgetResultadosCubiertaAislada(cubierta_aislada_con_componentes)
+    assert widget._stacked_widget.count() == 2
+    # Conmutar a la vista de C&R arma la escena y pinta las zonas.
+    widget._stacked_widget.setCurrentIndex(1)
+    widget._stacked_widget.setCurrentIndex(0)
+    widget.close()
+
+
+def test_el_dialogo_de_componentes_en_modo_cubierta_ignora_las_paredes(qapp):
+    from zonda.widgets.dialogos import DialogoComponentes
+
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": {"Viga": 10.0},
+            "componentes_cubierta": {"Correa": 2.0},
+        },
+        solo_cubierta=True,
+    )
+    dialogo.accept()
+    componentes = dialogo.componentes()
+    assert componentes["componentes_paredes"] is None
+    assert componentes["componentes_cubierta"] == {"Correa": 2.0}
+
+
+@necesita_opengl
+def test_el_panel_de_aislada_va_y_vuelve_del_archivo(qapp, tmp_path):
+    from zonda import proyecto
+    from zonda.enums import Estructura
+    from zonda.widgets.custom import WidgetPanelEntrada
+
+    panel = WidgetPanelEntrada(componentes=True, solo_cubierta=True)
+    panel.parametros_viento["velocidad"] = 50
+    panel.componentes = {
+        "componentes_paredes": None,
+        "componentes_cubierta": {"Correa": 2.5},
+    }
+    esperado = panel.estado()
+
+    archivo = tmp_path / f"panel-aislada{proyecto.EXTENSION}"
+    proyecto.guardar(archivo, Estructura.CUBIERTA_AISLADA, esperado)
+    _, guardado = proyecto.abrir(archivo)
+
+    otro = WidgetPanelEntrada(componentes=True, solo_cubierta=True)
+    otro.cargar_estado(guardado)
+
+    assert otro.estado() == esperado
 
 
 # --- El event loop y la vista 3D ----------------------------------------

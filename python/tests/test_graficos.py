@@ -506,6 +506,132 @@ def test_escena_cubierta_aislada_normales_hacia_arriba(qapp, cubierta_aislada):
                 assert actores.normal[1] > 0
 
 
+def _area_de_actores(actores) -> float:
+    """El área total de un grupo de actores, sueltos o en tuplas."""
+    try:
+        return sum(_area_de_actores(a) for a in actores)
+    except TypeError:
+        return actores.poligono.area()
+
+
+def _contar_actores(actores) -> int:
+    """La cantidad de actores de un grupo, sueltos o en tuplas."""
+    try:
+        return sum(_contar_actores(a) for a in actores)
+    except TypeError:
+        return 1
+
+
+def test_escena_cubierta_aislada_componentes(qapp, cubierta_aislada_con_componentes):
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    escena = Escena3D()
+    componentes = escena_aisladas.Componentes(
+        escena, cubierta_aislada_con_componentes, enums.Unidad.N
+    )
+    componentes.actualizar_componente("Chapa")
+    componentes.actualizar_tipo_presion(
+        enums.TipoPresionComponentesParedesCubierta.POSITIVA
+    )
+    assert escena.caras
+    assert escena.lineas  # los soportes
+    assert escena.presiones
+    assert "Chapa" in escena.titulo
+    assert "positiva" in escena.titulo
+
+    componentes.actualizar_componente("Correa")
+    componentes.actualizar_tipo_presion(
+        enums.TipoPresionComponentesParedesCubierta.NEGATIVA
+    )
+    assert "Correa" in escena.titulo
+    assert "negativa" in escena.titulo
+
+    # Cada zona muestra la presión de su fila para el componente y el signo
+    # vigentes: ninguna flecha queda sin valor ni con el de otra zona.
+    from zonda.unidades import convertir_unidad
+
+    textos = [flecha.texto for flecha in escena.presiones if flecha.visible]
+    assert len(textos) == sum(
+        _contar_actores(actores) for actores in componentes._actores_cubierta.values()
+    )
+    for zona in enums.ZonaComponenteCubiertaAislada:
+        fila = componentes._filas[
+            ("Correa", zona, enums.TipoPresionComponentesParedesCubierta.NEGATIVA)
+        ].unica()
+        valor = f"{convertir_unidad(fila.presion, enums.Unidad.N):.2f}"
+        assert any(valor in texto for texto in textos), (
+            f"la zona {zona.value} no muestra su presión"
+        )
+
+
+def test_escena_componentes_zonas_cubren_la_superficie(
+    qapp, cubierta_aislada_con_componentes
+):
+    """Las zonas de componentes cubren la cubierta sin huecos ni solapes."""
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    escena = Escena3D()
+    componentes = escena_aisladas.Componentes(
+        escena, cubierta_aislada_con_componentes, enums.Unidad.N
+    )
+    actores = componentes._actores_cubierta
+    assert set(actores) == set(enums.ZonaComponenteCubiertaAislada)
+    for tipo in enums.TipoPresionComponentesParedesCubierta:
+        for zona in actores:
+            fila = componentes._filas[("Chapa", zona, tipo)]
+            assert fila, f"la zona {zona} quedó sin presión para {tipo.value}"
+    assert sum(_area_de_actores(actores[zona]) for zona in actores) == pytest.approx(
+        cubierta_aislada_con_componentes.geometria.area, rel=0.01
+    )
+
+
+def test_escena_componentes_normales_hacia_arriba(
+    qapp, cubierta_aislada_con_componentes
+):
+    """Las normales de todos los actores de zonas apuntan hacia arriba."""
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    escena = Escena3D()
+    componentes = escena_aisladas.Componentes(
+        escena, cubierta_aislada_con_componentes, enums.Unidad.N
+    )
+    for actores in componentes._actores_cubierta.values():
+        try:
+            for actor in actores:
+                assert actor.normal[1] > 0, (
+                    "la normal de un polígono apunta hacia abajo"
+                )
+        except TypeError:
+            assert actores.normal[1] > 0
+
+
+def test_escena_componentes_anillos_cubren_la_superficie(qapp):
+    """Vertiente única: los anillos también cubren la cubierta entera."""
+    from zonda.cirsoc import CubiertaAislada
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6.325,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5},
+    )
+    escena = Escena3D()
+    componentes = escena_aisladas.Componentes(escena, cubierta, enums.Unidad.N)
+    actores = componentes._actores_cubierta
+    assert set(actores) == set(enums.ZonaComponenteCubiertaAislada)
+    assert sum(_area_de_actores(actores[zona]) for zona in actores) == pytest.approx(
+        cubierta.geometria.area, rel=0.01
+    )
+
+
 def test_escena_del_edificio_sprfv(qapp, edificio):
     from zonda.graficos.escenas import edificio as escena_edificio
 

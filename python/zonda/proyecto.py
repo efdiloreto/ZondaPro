@@ -47,7 +47,8 @@ from zonda.excepciones import ErrorArchivo
 EXTENSION = ".zda"
 FILTRO = f"Proyecto Zonda (*{EXTENSION})"
 
-VERSION_FORMATO = 3
+# 4: agrega el bloque "componentes" al panel de la cubierta aislada.
+VERSION_FORMATO = 4
 
 _CLAVE_ENUM = "__enum__"
 
