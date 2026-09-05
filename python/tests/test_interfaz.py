@@ -408,7 +408,7 @@ def test_cargar_un_estado_no_abre_el_aviso_de_parapeto(qapp):
     """El aviso es para cuando lo tilda el usuario, no para cuando se abre un archivo.
 
     El estado se arma a mano en vez de tildando el checkbox: hacerlo sobre el
-    widget dispara justamente el ``QErrorMessage`` modal que este test quiere
+    widget dispara justamente el ``QMessageBox`` modal que este test quiere
     ver que *no* aparezca, y deja la corrida esperando a que alguien lo cierre.
     """
     from zonda.widgets.entrada import WidgetEstructuraEdificio

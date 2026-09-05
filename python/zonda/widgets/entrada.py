@@ -246,10 +246,24 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
             self._habilitar_deshabilitar_parapeto
         )
 
-        self._mensaje_parapeto = QtWidgets.QErrorMessage()
+        self._mensaje_parapeto = QtWidgets.QMessageBox(self)
+        self._mensaje_parapeto.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         self._mensaje_parapeto.setWindowTitle("Aviso parapeto")
+        self._mensaje_parapeto.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self._mensaje_parapeto.setText(
+            "<p style='font-weight: normal'>La altura del parapeto se utiliza"
+            " para determinar los coeficientes de presión para componentes y"
+            " revestimientos de la cubierta (Notas 5 y 7 de las figuras).</p>"
+            "<p style='font-weight: normal'>Para los edificios de cubierta plana,"
+            " además, se calculan las presiones de diseño sobre el parapeto del"
+            " Art. 2.4.5 (SPRFV) y del Art. 5.6 (componentes y revestimientos),"
+            " con la presión dinámica evaluada en su coronación.</p>"
+            "<p style='font-weight: normal'>El área efectiva de viento del"
+            " parapeto se carga en el diálogo de componentes y"
+            " revestimientos.</p>"
+        )
         self._mensaje_parapeto.setFixedWidth(350)
-        self._mensaje_parapeto.setFixedHeight(250)
+        self._mensaje_parapeto.setFixedHeight(300)
 
         self._alturas_personalizadas = WidgetLineEditAlturasPersonalizadas()
 
@@ -413,16 +427,7 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
             estado: Indica el estado del checkbox de parapeto.
         """
         if self._checkbox_parapeto.isChecked() and not self._cargando:
-            self._mensaje_parapeto.showMessage(
-                "La altura del parapeto se utiliza para determinar los coeficientes"
-                " de presión para componentes y revestimientos de la cubierta (Notas"
-                " 5 y 7 de las figuras). Para los edificios de cubierta plana, además,"
-                " se calculan las presiones de diseño sobre el parapeto del Art. 2.4.5"
-                " (SPRFV) y del Art. 5.6 (componentes y revestimientos), con la"
-                " presión dinámica evaluada en su coronación. El área efectiva de"
-                " viento del parapeto se carga en el diálogo de componentes y"
-                " revestimientos."
-            )
+            self._mensaje_parapeto.exec()
         self._spinboxs["parapeto"].setEnabled(estado)
 
     def hay_parapeto_plana(self) -> bool:
