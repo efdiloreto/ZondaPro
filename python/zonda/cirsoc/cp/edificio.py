@@ -353,9 +353,8 @@ VALORES_CUBIERTA_COMPONENTES: dict[
         },
     },
     # Figura 5.4-1 (h > 20 m y ángulo <= 7°): los GCp de cubierta de C&R de
-    # edificios de gran altura, la reemplazante de la Figura 8 del 2005. La
-    # cubierta no lleva positivo. El rango de áreas es el de la Figura,
-    # (1, 50).
+    # edificios de gran altura. La cubierta no lleva positivo. El rango de
+    # áreas es el de la Figura, (1, 50).
     "Figura 5.4-1": {
         ZonaComponenteCubiertaEdificio.UNO: {
             "cp": (-1.4, -0.9),
@@ -504,8 +503,7 @@ class ParedesComponentes:
     Determina los coeficientes de presión de paredes de edificio para Componentes y Revestimientos.
 
     La Tabla C 5.3-1 cubre hasta 20 m de altura media y la Figura 5.4-1 desde
-    ahí en adelante: es la reemplazante de la Figura 8 del CIRSOC 102-2005,
-    con los mismos valores y la misma distribución de Zonas 4 y 5.
+    ahí en adelante.
 
     TODO (#9): falta la zona 4+ de la superficie inferior de los edificios
     separados del suelo (Figura 5.4-1A). El dato de entrada existe -la

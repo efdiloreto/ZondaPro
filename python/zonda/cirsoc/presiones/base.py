@@ -34,8 +34,7 @@ if TYPE_CHECKING:
 
 
 #: Presión neta mínima de diseño para componentes y revestimientos, en N/m²
-#: (CIRSOC 102-2025, Art. 5.2.2). Reemplaza a los 500 N/m² del Art. 1.4.2 del
-#: reglamento 2005.
+#: (CIRSOC 102-2025, Art. 5.2.2).
 PRESION_MINIMA_COMPONENTES = 800
 
 

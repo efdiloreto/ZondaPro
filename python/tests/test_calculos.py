@@ -2339,11 +2339,7 @@ def test_cubierta_componentes_benchmark_calcpad():
 
 
 def test_presion_minima_componentes():
-    """Art. 5.2.2: la presión neta de C&R no baja de 0,80 kN/m² en ningún signo.
-
-    El valor del CIRSOC 102-2025 reemplaza a los 500 N/m² del Art. 1.4.2 del
-    reglamento 2005.
-    """
+    """Art. 5.2.2: la presión neta de C&R no baja de 0,80 kN/m² en ningún signo."""
     assert presion_minima(120) == pytest.approx(800)
     assert presion_minima(-120) == pytest.approx(-800)
     # Por encima del mínimo el valor no se toca, y el signo se conserva.
@@ -2374,7 +2370,7 @@ def test_presion_minima_se_aplica_a_los_componentes(edificio: Edificio):
 
 
 def test_factor_reduccion_gcpi_gran_volumen():
-    """Verifica el factor de reducción Ri y GCpi reducido según Art. 1.11.1 (CIRSOC 102-2005).
+    """Verifica el factor de reducción Ri y GCpi reducido según Art. 1.11.1.
 
     Caso Calcpad:
     Vi = 10000 m3
@@ -2405,7 +2401,7 @@ def test_factor_reduccion_gcpi_gran_volumen():
 
 
 def test_cerramiento_condiciones_edificio():
-    """Verifica las condiciones de cerramiento según Tabla 1.11-1 CIRSOC 102-2005."""
+    """Verifica las condiciones de cerramiento según Tabla 1.11-1."""
     from zonda.cirsoc import geometria
 
     # Edificio cerrado estándar (sin aberturas)

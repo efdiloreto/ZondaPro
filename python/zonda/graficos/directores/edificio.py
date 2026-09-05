@@ -1365,7 +1365,7 @@ class PresionesComponentes(Geometria):
     def _cubierta_figura_5_4_1(self):
         """Determina las coordenadas de las zonas de la Figura 5.4-1.
 
-        La Figura 5.4-1 (la reemplazante de la Figura 8 del 2005) reparte las
+        La Figura 5.4-1 reparte las
         zonas con la distancia "a": la Zona 3 es la franja de "a" de ancho de
         los bordes perimetrales (la "L" que corre por las paredes y el borde
         de la cumbrera), la Zona 2 la franja de "2a" que le sigue y la Zona 1
@@ -1785,8 +1785,8 @@ class PresionesComponentes(Geometria):
     def _cubierta_tabla_c_5_3_5a(self):
         """Determina las coordenadas de las zonas de la Figura 5.3-5A.
 
-        La cubierta a un agua para 3° < ángulo <= 10° reparte las zonas como
-        la "Figura 7A" del CIRSOC 102-2005: las Zonas 3' y 2' están contra el
+        La cubierta a un agua para 3° < ángulo <= 10° reparte las zonas así:
+        las Zonas 3' y 2' están contra el
         borde de la cumbrera (el de la pared derecha) y las Zonas 3 y 2 contra
         el borde del alero. La Zona 3 son los cuadrados de 2a de lado de las
         esquinas del alero; la Zona 3' los de la cumbrera, pero de 4a de
@@ -1847,8 +1847,8 @@ class PresionesComponentes(Geometria):
     def _cubierta_tabla_c_5_3_5b(self):
         """Determina las coordenadas de las zonas de la Figura 5.3-5B.
 
-        La cubierta a un agua para 10° < ángulo <= 30° reparte las zonas como
-        la "Figura 7A (cont.)" del CIRSOC 102-2005: la Zona 3 son los
+        La cubierta a un agua para 10° < ángulo <= 30° reparte las zonas así:
+        la Zona 3 son los
         rectángulos de 2a de ancho y 4a de profundidad contra la cumbrera en
         las cabeceras; la Zona 2 la franja perimetral del resto -las dos
         bandas de "a" de los bordes testeros, el tramo de cumbrera entre las
