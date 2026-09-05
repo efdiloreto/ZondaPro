@@ -395,6 +395,7 @@ class Edificio:
         componentes_cubierta: dict[str, float] | None = None,
         altitud: float = 0,
         factor_altitud: float | None = None,
+        area_parapeto: float | None = None,
     ) -> None:
         self.ancho = ancho
         self.longitud = longitud
@@ -426,6 +427,7 @@ class Edificio:
         self.direccion = direccion
         self.componentes_paredes = componentes_paredes
         self.componentes_cubierta = componentes_cubierta
+        self.area_parapeto = area_parapeto
         self.altitud = altitud
         self.factor_altitud = (
             factores.factor_altitud(altitud)
@@ -451,6 +453,7 @@ class Edificio:
             metodo_sprfv,
             componentes_paredes=componentes_paredes,
             componentes_cubierta=componentes_cubierta,
+            area_parapeto=area_parapeto,
         )
         self.rafaga = Rafaga.desde_edificio_metodo_direccional(
             self.geometria,
@@ -482,6 +485,10 @@ class Edificio:
             reducir_gcpi,
             metodo_sprfv,
             factor_altitud=self.factor_altitud,
+            altura_parapeto=self.geometria.altura_parapeto,
+            factor_topografico_parapeto=self.topografia.factor_en(
+                self.geometria.altura_parapeto
+            ),
         )
 
     @cached_property
@@ -489,7 +496,7 @@ class Edificio:
         """La tabla de resultados del SPRFV.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
         """
         return resultados.Tabla(self.presiones.filas_sprfv)
 
@@ -502,7 +509,7 @@ class Edificio:
         resultados del SPRFV siguen siendo válidos.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
 
         Raises:
             ErrorLineamientos: Cuando la geometría excede el alcance del

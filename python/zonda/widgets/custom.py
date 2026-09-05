@@ -105,11 +105,14 @@ class WidgetLogo(QtWidgets.QLabel):
 
 
 class WidgetPanelEntrada(WidgetPanel):
-    def __init__(self, componentes=False, solo_cubierta=False):
+    def __init__(self, componentes=False, solo_cubierta=False, hay_parapeto=None):
         super().__init__(altura_fija=57)
 
         self._tiene_componentes = componentes
         self._solo_cubierta = solo_cubierta
+        # Callable que indica si hay que pedir el área efectiva del parapeto
+        # en el diálogo de componentes; None para los módulos sin parapeto.
+        self._hay_parapeto = hay_parapeto
 
         self.parametros_viento = {
             "categoria_exp": CategoriaExposicion.B,
@@ -160,6 +163,7 @@ class WidgetPanelEntrada(WidgetPanel):
             self.componentes = {
                 "componentes_paredes": None,
                 "componentes_cubierta": None,
+                "area_parapeto": None,
             }
             boton_dialogo_componentes = WidgetBotonPanel("C&&R")
             boton_dialogo_componentes.clicked.connect(self._dialogo_componentes)
@@ -181,8 +185,12 @@ class WidgetPanelEntrada(WidgetPanel):
         }
         if self._tiene_componentes:
             estado["componentes"] = {
-                zona: dict(componentes) if componentes else None
-                for zona, componentes in self.componentes.items()
+                zona: (
+                    valores
+                    if zona == "area_parapeto"
+                    else (dict(valores) if valores else None)
+                )
+                for zona, valores in self.componentes.items()
             }
         return estado
 
@@ -198,9 +206,16 @@ class WidgetPanelEntrada(WidgetPanel):
             componentes = estado.get("componentes")
             if componentes is not None:
                 self.componentes = {
-                    zona: dict(valores) if valores else None
+                    zona: (
+                        valores
+                        if zona == "area_parapeto"
+                        else (dict(valores) if valores else None)
+                    )
                     for zona, valores in componentes.items()
                 }
+                # Los proyectos de versiones anteriores no traen el área del
+                # parapeto: falta cargarla antes de calcular.
+                self.componentes.setdefault("area_parapeto", None)
 
     def _dialogo_viento(self):
         dialogo = dialogos.DialogoViento(**self.parametros_viento)
@@ -214,7 +229,9 @@ class WidgetPanelEntrada(WidgetPanel):
 
     def _dialogo_componentes(self):
         dialogo = dialogos.DialogoComponentes(
-            self.componentes, solo_cubierta=self._solo_cubierta
+            self.componentes,
+            solo_cubierta=self._solo_cubierta,
+            con_parapeto=self._hay_parapeto() if self._hay_parapeto else False,
         )
         if dialogo.exec():
             self.componentes = dialogo.componentes()

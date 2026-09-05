@@ -405,6 +405,83 @@ class AleroComponentes(ComponentesBase, AleroSprfvMetodoDireccional):
     """
 
 
+class ParapetoSprfvMetodoDireccional(PresionesEdificioBase):
+    """ParapetoSprfvMetodoDireccional.
+
+    Determina las presiones del parapeto de un edificio con cubierta plana
+    para SPRFV usando el método direccional (CIRSOC 102-2025, Art. 2.4.5).
+
+    Es una superficie sin presión interna, como el alero: el coeficiente
+    (GC_pn) es una presión neta combinada que ya incluye el efecto de ráfaga,
+    así que el factor de ráfaga vale 1,0 y ambos signos coinciden.
+    """
+
+    con_presion_interna = False
+
+    def __init__(
+        self,
+        alturas: np.ndarray,
+        altura_coronacion: float,
+        velocidad: float,
+        rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
+        factor_topografico: Sequence[float],
+        cp,
+        categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
+    ) -> None:
+        """
+
+        Args:
+            alturas: Las alturas donde calcular las presiones. Para el
+                parapeto es sólo su coronación.
+            altura_coronacion: La altura de la coronación del parapeto, donde
+                el Reglamento pide evaluar la presión dinámica q_p.
+            velocidad: La velocidad del viento en m/s.
+            rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
+            factor_topografico: Los factores topográficos correspondientes a las alturas de la estructura.
+            cp: La clase de coeficientes de presión del parapeto.
+            categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
+        """
+        super().__init__(
+            alturas,
+            altura_coronacion,
+            velocidad,
+            rafaga,
+            factor_topografico,
+            Cerramiento.ABIERTO,
+            cp,
+            categoria_exp,
+            factor_altitud=factor_altitud,
+        )
+
+    @cached_property
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Calcula las presiones del parapeto.
+
+        Returns:
+            Una fila por cada coeficiente de presión.
+        """
+        return tuple(
+            self._fila(entrada, self.q_media, 1.0) for entrada in self.cp.entradas
+        )
+
+
+class ParapetoComponentes(ComponentesBase):
+    """ParapetoComponentes.
+
+    Determina las presiones para componentes y revestimientos del parapeto de
+    un edificio con cubierta plana (CIRSOC 102-2025, Art. 5.6).
+
+    La Ec. 5.6-1 evalúa también la presión interna con q_p, la presión
+    dinámica en la coronación del parapeto, y no con qh como el resto de las
+    superficies: las alturas de esta clase son sólo esa coronación, así que
+    ``q_media`` es q_p y la fórmula común la aplica tal cual. El coeficiente
+    de presión interna es el de la envolvente no porosa del parapeto
+    (±0,18, Tabla 1.11-1), y no el del edificio.
+    """
+
+
 class ParedesComponentes(ComponentesBase, ParedesSprfvMetodoDireccional):
     """ParedesComponentes.
 
@@ -550,6 +627,68 @@ class Alero:
         return (*self.sprfv.filas, *self.componentes.filas)
 
 
+class Parapeto:
+    """Parapeto.
+
+    Determina las presiones de viento sobre el parapeto de un edificio con
+    cubierta plana, para SPRFV (Art. 2.4.5) y para componentes y
+    revestimientos (Art. 5.6). La presión dinámica se evalúa en la coronación
+    del parapeto, así que sus alturas son sólo esa coronación.
+    """
+
+    def __init__(
+        self,
+        altura_coronacion: float,
+        velocidad: float,
+        rafaga: dict[DireccionVientoMetodoDireccionalSprfv, Rafaga],
+        factor_topografico: float,
+        cp: clases_cp_edificio.Parapeto,
+        categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
+    ) -> None:
+        """
+
+        Args:
+            altura_coronacion: La altura de la coronación del parapeto.
+            velocidad: La velocidad del viento en m/s.
+            rafaga: Diccionario con instancia de Rafaga para direcciones de viento paralelo y normal a la cumbrera.
+            factor_topografico: El factor topográfico de la coronación del parapeto.
+            cp: Una instancia de Parapeto.
+            categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
+        """
+        alturas = np.array([altura_coronacion])
+        factores_topograficos = (factor_topografico,)
+        self.sprfv = ParapetoSprfvMetodoDireccional(
+            alturas,
+            altura_coronacion,
+            velocidad,
+            rafaga,
+            factores_topograficos,
+            cp.sprfv,
+            categoria_exp,
+            factor_altitud,
+        )
+        # El coeficiente de presión interna es el de la envolvente no porosa
+        # del parapeto (Tabla 1.11-1, cerrado): ±0,18, y no el del edificio.
+        self.componentes = ParapetoComponentes(
+            alturas,
+            altura_coronacion,
+            velocidad,
+            rafaga,
+            factores_topograficos,
+            Cerramiento.CERRADO,
+            cp.componentes,
+            categoria_exp,
+            factor_altitud=factor_altitud,
+        )
+
+    @cached_property
+    def filas(self) -> tuple[FilaEdificio, ...]:
+        """Las presiones del SPRFV seguidas por las de componentes."""
+        return (*self.sprfv.filas, *self.componentes.filas)
+
+
 class Paredes:
     """Paredes.
 
@@ -645,6 +784,8 @@ class Edificio:
         volumen_interno: float | None = None,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
         factor_altitud: float = 1.0,
+        altura_parapeto: float | None = None,
+        factor_topografico_parapeto: float | None = None,
     ):
         """
 
@@ -665,6 +806,10 @@ class Edificio:
             volumen_interno: El volumen interno no dividido del edificio.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
             factor_altitud: El factor de altitud del terreno Ke.
+            altura_parapeto: La altura de la coronación del parapeto. Requerida
+                cuando el cp trae parapeto.
+            factor_topografico_parapeto: El factor topográfico de la coronación
+                del parapeto. Requerido cuando el cp trae parapeto.
         """
         self.cubierta = Cubierta(
             alturas,
@@ -710,18 +855,36 @@ class Edificio:
                 metodo_sprfv,
                 factor_altitud,
             )
+        parapeto: clases_cp_edificio.Parapeto | None = getattr(cp, "parapeto", None)
+        if (
+            parapeto is not None
+            and altura_parapeto is not None
+            and factor_topografico_parapeto is not None
+        ):
+            self.parapeto = Parapeto(
+                altura_parapeto,
+                velocidad,
+                rafaga,
+                factor_topografico_parapeto,
+                parapeto,
+                categoria_exp,
+                factor_altitud=factor_altitud,
+            )
 
     @cached_property
     def filas_sprfv(self) -> tuple[FilaEdificio, ...]:
         """Las presiones del sistema principal resistente a la fuerza del viento.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
         """
         filas = (*self.paredes.sprfv.filas, *self.cubierta.sprfv.filas)
         alero: Alero | None = getattr(self, "alero", None)
         if alero is not None:
             filas += alero.sprfv.filas
+        parapeto: Parapeto | None = getattr(self, "parapeto", None)
+        if parapeto is not None:
+            filas += parapeto.sprfv.filas
         return filas
 
     @cached_property
@@ -729,7 +892,7 @@ class Edificio:
         """Las presiones sobre componentes y revestimientos.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
 
         Raises:
             ErrorLineamientos: Cuando la geometría excede el alcance del
@@ -739,6 +902,9 @@ class Edificio:
         alero: Alero | None = getattr(self, "alero", None)
         if alero is not None:
             filas += alero.componentes.filas
+        parapeto: Parapeto | None = getattr(self, "parapeto", None)
+        if parapeto is not None:
+            filas += parapeto.componentes.filas
         return filas
 
     @classmethod
@@ -754,6 +920,8 @@ class Edificio:
         reducir_gcpi: bool = False,
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
         factor_altitud: float = 1.0,
+        altura_parapeto: float | None = None,
+        factor_topografico_parapeto: float | None = None,
     ) -> Edificio:
         """Crea una instancia desde la geometria de un edificio.
 
@@ -768,6 +936,10 @@ class Edificio:
             reducir_gcpi: Indica si hay que reducir el valor de gcpi.
             metodo_sprfv: El metodo a utilizar para determinar que clase se usa para seleccionar los coeficientes de presión para el SPRFV.
             factor_altitud: El factor de altitud del terreno Ke.
+            altura_parapeto: La altura de la coronación del parapeto. Requerida
+                cuando el cp trae parapeto.
+            factor_topografico_parapeto: El factor topográfico de la coronación
+                del parapeto. Requerido cuando el cp trae parapeto.
         """
         return cls(
             edificio.alturas,
@@ -786,4 +958,6 @@ class Edificio:
             edificio.volumen_interno,
             metodo_sprfv,
             factor_altitud,
+            altura_parapeto,
+            factor_topografico_parapeto,
         )

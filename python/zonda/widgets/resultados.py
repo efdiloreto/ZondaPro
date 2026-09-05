@@ -500,7 +500,15 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         )
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        if any((edificio.componentes_paredes, edificio.componentes_cubierta)):
+        if any(
+            (
+                edificio.componentes_paredes,
+                edificio.componentes_cubierta,
+                # El parapeto de un edificio de cubierta plana trae filas
+                # propias de componentes (Art. 5.6), aunque no haya otros.
+                edificio.parapeto and edificio.tipo_cubierta == TipoCubierta.PLANA,
+            )
+        ):
             try:
                 # Se verifica que la referencia del código exista
                 widget_resultados_componentes = WidgetResultadosEdificioComponentes(

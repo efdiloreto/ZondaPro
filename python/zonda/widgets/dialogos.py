@@ -737,24 +737,33 @@ class DialogoComponentes(DialogoBase):
     piden únicamente los componentes de la cubierta, cuya área efectiva de
     viento elige el rango de los coeficientes C_N de las Figuras 5.5-1 a
     5.5-3: hasta a², hasta 4a², o mayor.
+
+    Para un edificio de cubierta plana con parapeto también pide el área
+    efectiva de viento del parapeto, que el Art. 5.6 usa para los
+    coeficientes de sus dos caras.
     """
 
     def __init__(
         self,
         componentes: dict[str, dict[str, float] | None],
         solo_cubierta: bool = False,
+        con_parapeto: bool = False,
     ) -> None:
         """
 
         Args:
-            componentes: Los componentes de paredes y cubierta.
+            componentes: Los componentes de paredes y cubierta, y el área
+                efectiva de viento del parapeto.
             solo_cubierta: Indica si sólo se cargan los componentes de la
                 cubierta, para estructuras sin paredes.
+            con_parapeto: Indica si hay que pedir el área efectiva de viento
+                del parapeto.
         """
         super().__init__()
 
         self._componentes = componentes
         self._solo_cubierta = solo_cubierta
+        self._con_parapeto = con_parapeto
 
         self._componentes_cubierta = WidgetComponentes(
             componentes["componentes_cubierta"]
@@ -795,6 +804,24 @@ class DialogoComponentes(DialogoBase):
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_componentes)
+
+        if con_parapeto:
+            self._area_parapeto = QtWidgets.QDoubleSpinBox()
+            self._area_parapeto.setRange(0.1, 1000.0)
+            self._area_parapeto.setSingleStep(0.5)
+            self._area_parapeto.setSuffix(" m²")
+            area_guardada = componentes.get("area_parapeto")
+            self._area_parapeto.setValue(
+                area_guardada if isinstance(area_guardada, float) else 1.0
+            )
+            layout_parapeto = QtWidgets.QHBoxLayout()
+            layout_parapeto.addWidget(
+                QtWidgets.QLabel("Parapeto - Área efectiva de viento (Art. 5.6):")
+            )
+            layout_parapeto.addWidget(self._area_parapeto)
+            layout_parapeto.addStretch()
+            layout_principal.addLayout(layout_parapeto)
+
         layout_principal.addWidget(label_aviso_geometria)
         if solo_cubierta:
             layout_principal.addWidget(label_aviso_rangos)
@@ -817,6 +844,13 @@ class DialogoComponentes(DialogoBase):
                     None if self._solo_cubierta else self._componentes_paredes()
                 ),
                 "componentes_cubierta": self._componentes_cubierta(),
+                # Sin el campo, el área guardada no se toca: no aplica al
+                # módulo o el parapeto dejó de corresponder por ahora.
+                "area_parapeto": (
+                    self._area_parapeto.value()
+                    if self._con_parapeto
+                    else self._componentes.get("area_parapeto")
+                ),
             }
             super().accept()
         except ErrorComponentes as error:

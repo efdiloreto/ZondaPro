@@ -167,6 +167,19 @@ class ZonaEdificio(Enum):
     PAREDES = "paredes"
     CUBIERTA = "cubierta"
     ALERO = "alero"
+    PARAPETO = "parapeto"
+
+
+class ZonaParapeto(Enum):
+    """El segmento del parapeto según la zona que tiene detrás.
+
+    El Art. 5.6 combina la presión positiva de pared de la cara exterior con
+    una presión negativa de zona: la de borde en los tramos que corren a lo
+    largo de la pared y la de esquina en los tramos de los extremos.
+    """
+
+    BORDE = "borde"
+    ESQUINA = "esquina"
 
 
 class ParedEdificioSprfv(Enum):

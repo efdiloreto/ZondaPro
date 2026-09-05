@@ -48,7 +48,9 @@ EXTENSION = ".zda"
 FILTRO = f"Proyecto Zonda (*{EXTENSION})"
 
 # 4: agrega el bloque "componentes" al panel de la cubierta aislada.
-VERSION_FORMATO = 4
+# 5: agrega el área efectiva de viento del parapeto al bloque "componentes"
+# del panel de entrada del edificio.
+VERSION_FORMATO = 5
 
 _CLAVE_ENUM = "__enum__"
 

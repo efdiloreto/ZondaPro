@@ -400,6 +400,25 @@ class Topografia:
                 return k3
         raise ValueError(f"No hay factor topográfico calculado para {altura} m.")
 
+    def factor_en(self, altura: float) -> float:
+        """Calcula el factor topográfico Kzt a una altura arbitraria.
+
+        Las superficies del edificio usan el factor de las alturas de la
+        estructura (``factor``); el parapeto necesita el de su coronación,
+        que no es una de esas alturas.
+
+        Args:
+            altura: La altura sobre el terreno donde evaluar el factor.
+
+        Returns:
+            El factor topográfico a esa altura.
+        """
+        if not self.topografia_considerada():
+            return 1.0
+        parametros = self.parametros
+        k3 = math.e ** (-parametros.gamma * altura / parametros.lh)
+        return float((1 + parametros.k1 * parametros.k2 * k3) ** 2)
+
 
 def factor_altitud(altitud: float = 0.0) -> float:
     """Calcula el factor de altitud del terreno Ke (CIRSOC 102 Art. 1.12).

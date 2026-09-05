@@ -1705,3 +1705,175 @@ def test_la_escena_de_componentes_pinta_todas_las_zonas_de_la_tabla_c_5_3_2(qapp
             for zona, actores_zona in actores.items():
                 for actor in actores_zona:
                     assert actor.flecha.texto, f"zona {zona.value} sin presión"
+
+
+# --- Parapeto --------------------------------------------------------------
+
+
+def _edificio_plana_con_parapeto(ancho: float = 30, parapeto: float = 1):
+    """Un edificio de cubierta plana con parapeto.
+
+    30 (o el ancho dado) x 40 con alero y cumbrera a 10 m, así que la
+    coronación del parapeto queda a 11 m.
+
+    Args:
+        ancho: El ancho del edificio.
+        parapeto: La dimensión del parapeto.
+
+    Returns:
+        El edificio, con componentes de pared y cubierta cargados.
+    """
+    from zonda.cirsoc import Edificio
+
+    return Edificio(
+        ancho=ancho,
+        longitud=40,
+        elevacion=0,
+        altura_alero=10,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=parapeto,
+        area_parapeto=2,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+def test_la_geometria_dibuja_las_bandas_del_parapeto(qapp):
+    """La vista de geometría agrega una franja por pared, de alero a coronación."""
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.Geometria(
+        Escena3D(), 30, 40, 10, 10, enums.TipoCubierta.PLANA, parapeto=1
+    )
+    director.inicializar_actores()
+
+    paredes = enums.ParedEdificioSprfv
+    actores = director.actores_parapeto
+    assert actores[paredes.BARLOVENTO].poligono.area() == pytest.approx(30)
+    assert actores[paredes.SOTAVENTO].poligono.area() == pytest.approx(30)
+    assert sum(a.poligono.area() for a in actores[paredes.LATERAL]) == pytest.approx(
+        2 * 40
+    )
+
+
+def test_la_geometria_sin_parapeto_no_dibuja_bandas(qapp):
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.Geometria(
+        Escena3D(), 30, 40, 10, 10, enums.TipoCubierta.PLANA
+    )
+    director.inicializar_actores()
+    assert director.actores_parapeto is None
+
+
+def test_las_bandas_del_parapeto_cubren_el_perimetro_sin_huecos_ni_solapes(qapp):
+    """Cada banda se parte en borde y esquinas y cubre su pared completa.
+
+    Con h = 10 m la esquina del Caso A mide 0,6 h = 6 m y la del Caso B, la
+    distancia "a" = 3 m: en ambos casos entran dos esquinas y el borde.
+    """
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_plana_con_parapeto()
+    )
+
+    paredes = enums.ParedEdificioSprfv
+    zonas = enums.ZonaParapeto
+    actores = director.actores_parapeto
+    assert set(actores) == {paredes.BARLOVENTO, paredes.SOTAVENTO}
+    for banda in actores.values():
+        assert set(banda) == {zonas.BORDE, zonas.ESQUINA}
+        assert len(banda[zonas.ESQUINA]) == 2
+        largo = sum(
+            actor.poligono.area() for tramos in banda.values() for actor in tramos
+        )
+        assert largo == pytest.approx(30)
+
+
+def test_cuando_el_ancho_no_alcanza_la_banda_entra_entera_en_la_esquina(qapp):
+    from zonda.graficos.directores import edificio as directores_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_plana_con_parapeto(ancho=10)
+    )
+    zonas = enums.ZonaParapeto
+    banda = director.actores_parapeto[enums.ParedEdificioSprfv.BARLOVENTO]
+    # Con ancho 10 y esquina 6 m no hay tramo de borde.
+    assert set(banda) == {zonas.ESQUINA}
+    assert len(banda[zonas.ESQUINA]) == 1
+    assert banda[zonas.ESQUINA][0].poligono.area() == pytest.approx(10)
+
+
+def test_la_escena_sprfv_actualiza_las_bandas_del_parapeto_por_direccion(qapp):
+    """En cada dirección el parapeto a barlovento y el de sotavento tienen su valor.
+
+    El coeficiente no depende de la dirección, así que las bandas que cambian
+    de pared conservan el mismo valor.
+    """
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    paredes = enums.ParedEdificioSprfv
+    direcciones = enums.DireccionVientoMetodoDireccionalSprfv
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesSprfvMetodoDireccional(
+        escena, _edificio_plana_con_parapeto(), enums.Unidad.N
+    )
+    presiones.actualizar_direccion_viento(direcciones.PARALELO)
+    actores = presiones.director.obtener_parapeto()
+    assert set(actores) == {paredes.BARLOVENTO, paredes.SOTAVENTO}
+    texto_barlovento = actores[paredes.BARLOVENTO].flecha.texto
+    texto_sotavento = actores[paredes.SOTAVENTO].flecha.texto
+
+    presiones.actualizar_direccion_viento(direcciones.NORMAL)
+    actores = presiones.director.obtener_parapeto()
+    # En la dirección normal son los laterales los que toman los roles.
+    assert actores[paredes.BARLOVENTO].flecha.texto == texto_barlovento
+    assert actores[paredes.SOTAVENTO].flecha.texto == texto_sotavento
+
+
+def test_la_escena_de_componentes_asigna_presion_a_todas_las_bandas_del_parapeto(qapp):
+    """Los dos casos de carga quedan pintados y responden al signo del GCpi."""
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    paredes = enums.ParedEdificioSprfv
+    zonas = enums.ZonaParapeto
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesComponentes(
+        escena, _edificio_plana_con_parapeto(), enums.Unidad.N
+    )
+    banda = presiones.director.actores_parapeto[paredes.BARLOVENTO]
+    for tramos in presiones.director.actores_parapeto.values():
+        for actores in tramos.values():
+            for actor in actores:
+                assert actor.flecha.texto
+
+    texto_positiva = banda[zonas.BORDE][0].flecha.texto
+    presiones.actualizar_gcpi(1)
+    assert banda[zonas.BORDE][0].flecha.texto != texto_positiva
+
+
+def test_sin_parapeto_las_escenas_no_tienen_bandas(qapp):
+    from zonda.graficos.directores import edificio as directores_edificio
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    director = directores_edificio.PresionesComponentes(
+        Escena3D(), TablaColores(-500, 500), _edificio_dos_aguas_angulo_bajo()
+    )
+    assert director.obtener_parapeto() == {}
+
+    presiones = escena_edificio.PresionesSprfvMetodoDireccional(
+        Escena3D(), _edificio_dos_aguas_angulo_bajo(), enums.Unidad.N
+    )
+    presiones.actualizar_direccion_viento(
+        enums.DireccionVientoMetodoDireccionalSprfv.PARALELO
+    )
+    assert presiones.director.obtener_parapeto() is None

@@ -32,10 +32,12 @@ from zonda.enums import (
     TipoCubierta,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
+    ZonaParapeto,
 )
 from zonda.excepciones import ErrorLineamientos
 from zonda.graficos.actores import (
     ActorPresion,
+    Poligono,
     actores_poligonos,
     crear_poligono,
     recortar_poligono,
@@ -167,6 +169,7 @@ class Geometria:
         tipo_cubierta: TipoCubierta,
         alero: float = 0,
         elevacion: float = 0,
+        parapeto: float = 0,
     ) -> None:
         """
 
@@ -179,10 +182,12 @@ class Geometria:
             tipo_cubierta: El tipo de cubierta.
             alero: La dimensión del alero.
             elevacion: La elevación sobre el suelo.
+            parapeto: La dimensión del parapeto.
         """
         self.actores_paredes = None
         self.actores_cubierta = None
         self.actores_alero = None
+        self.actores_parapeto: dict | None = None
 
         self.escena = escena
         self.ancho = ancho
@@ -192,6 +197,7 @@ class Geometria:
         self.altura_cumbrera = altura_cumbrera
         self.tipo_cubierta = tipo_cubierta
         self.alero_ = alero
+        self.parapeto_ = parapeto
         self.elevacion = elevacion
 
     @actores_poligonos(crear_atributo=True, color="BlanchedAlmond", mostrar=True)
@@ -299,6 +305,108 @@ class Geometria:
             (0, self.elevacion, self.longitud),
         )
 
+    @actores_poligonos(crear_atributo=True, mostrar=True)
+    def parapeto(self):
+        """Genera los actores del parapeto sobre las cuatro paredes.
+
+        La función en sí genera las coordenadas para la creación de los actores, que luego son generados por el decorador.
+
+        Returns:
+            Las coordenadas de la banda de cada pared.
+        """
+        return self._coords_parapeto()
+
+    def _coords_parapeto(self):
+        """Determina las coordenadas de las bandas del parapeto.
+
+        Son franjas verticales sobre el borde superior de cada pared, con el
+        mismo sentido de recorrido que la pared a la que pertenecen, para que
+        la normal de la banda quede del mismo lado que la de la pared.
+
+        Returns:
+            Las coordenadas de la banda de cada pared.
+        """
+        alero = self.altura_alero
+        coronacion = alero + self.parapeto_
+        ancho, longitud = self.ancho, self.longitud
+
+        def banda(puntos, invertir_sentido):
+            if invertir_sentido:
+                return puntos[::-1]
+            return puntos
+
+        return {
+            ParedEdificioSprfv.BARLOVENTO: banda(
+                [
+                    (0, alero, 0),
+                    (0, coronacion, 0),
+                    (ancho, coronacion, 0),
+                    (ancho, alero, 0),
+                ],
+                True,
+            ),
+            ParedEdificioSprfv.SOTAVENTO: banda(
+                [
+                    (0, alero, longitud),
+                    (0, coronacion, longitud),
+                    (ancho, coronacion, longitud),
+                    (ancho, alero, longitud),
+                ],
+                False,
+            ),
+            ParedEdificioSprfv.LATERAL: (
+                banda(
+                    [
+                        (0, alero, 0),
+                        (0, coronacion, 0),
+                        (0, coronacion, longitud),
+                        (0, alero, longitud),
+                    ],
+                    False,
+                ),
+                banda(
+                    [
+                        (ancho, alero, 0),
+                        (ancho, coronacion, 0),
+                        (ancho, coronacion, longitud),
+                        (ancho, alero, longitud),
+                    ],
+                    True,
+                ),
+            ),
+        }
+
+    def _banda_parapeto(
+        self, x0: float, x1: float, z0: float, invertir_sentido: bool = False
+    ):
+        """Las coordenadas de un tramo de la banda del parapeto.
+
+        El tramo corre sobre una pared frontal o trasera, variando el eje X
+        entre x0 y x1 a la profundidad z0, con el sentido de recorrido de la
+        pared a la que pertenece.
+
+        Args:
+            x0: El inicio del tramo sobre el eje X.
+            x1: El fin del tramo sobre el eje X.
+            z0: La profundidad sobre el eje Z en la que se encuentra.
+            invertir_sentido: Indica si los puntos se tienen que retornar en
+                el sentido inverso.
+
+        Returns:
+            Las coordenadas del tramo de banda.
+        """
+        alero = self.altura_alero
+        coronacion = alero + self.parapeto_
+        coords = [
+            (x0, alero, z0),
+            (x0, coronacion, z0),
+            (x1, coronacion, z0),
+            (x1, alero, z0),
+        ]
+        if invertir_sentido:
+            coords.reverse()
+        return coords
+
     def volumen(self) -> float:
         """Calcula el volumen del edificio en m3.
 
@@ -316,6 +424,8 @@ class Geometria:
         self.base()
         if self.alero_:
             self.alero(0, self.longitud)
+        if self.parapeto_ and self.tipo_cubierta == TipoCubierta.PLANA:
+            self.parapeto()
 
     def setear_posicion_camara(self, camara: Camara, posicion: PosicionCamara) -> None:
         """Setea la posición de la camara.
@@ -498,6 +608,7 @@ class PresionesSprfvMetodoDireccional(Geometria):
         altura_alero = edificio.altura_alero
         altura_cumbrera = edificio.altura_cumbrera
         alero = getattr(edificio.geometria.cubierta, "alero", 0)
+        parapeto = getattr(edificio.geometria.cubierta, "parapeto", 0)
         super().__init__(
             escena,
             edificio.ancho,
@@ -507,6 +618,7 @@ class PresionesSprfvMetodoDireccional(Geometria):
             edificio.tipo_cubierta,
             alero=alero,
             elevacion=edificio.elevacion,
+            parapeto=parapeto,
         )
 
         self.tabla_colores = tabla_colores  # Es usada por el decorador.
@@ -590,6 +702,24 @@ class PresionesSprfvMetodoDireccional(Geometria):
             return None
         return actores_alero[self.direccion]
 
+    def obtener_parapeto(
+        self,
+    ) -> dict[ParedEdificioSprfv, ActorPresion] | None:
+        """Selecciona los actores del parapeto para la dirección actual.
+
+        El coeficiente del parapeto (Art. 2.4.5) no depende de la dirección:
+        en cada una hay un parapeto a barlovento y otro a sotavento, así que
+        las bandas se re-etiquetan como las paredes.
+
+        Returns:
+            Los actores de las bandas a barlovento y sotavento, o None si el
+            edificio no tiene parapeto.
+        """
+        actores_parapeto = self.actores_parapeto
+        if not actores_parapeto:
+            return None
+        return actores_parapeto[self.direccion]
+
     @actores_poligonos(crear_atributo=True, presion=True, mostrar=False)
     def paredes(self):
         """Genera los actores de las paredes.
@@ -662,6 +792,33 @@ class PresionesSprfvMetodoDireccional(Geometria):
             DireccionVientoMetodoDireccionalSprfv.NORMAL: alero_normal,
         }
 
+    @actores_poligonos(crear_atributo=True, presion=True, mostrar=False)
+    def parapeto(self):
+        """Genera los actores del parapeto para cada dirección del viento.
+
+        El Reglamento da el coeficiente del parapeto a barlovento y del de
+        sotavento en cada dirección, así que sólo se dibujan esas dos bandas:
+        las frontales y traseras toman esos roles según la dirección.
+
+        Returns:
+            Las coordenadas de las bandas de parapeto para cada dirección.
+        """
+        if not self.parapeto_ or self.tipo_cubierta != TipoCubierta.PLANA:
+            return {}
+        coords = self._coords_parapeto()
+        paralelo = {
+            ParedEdificioSprfv.BARLOVENTO: coords[ParedEdificioSprfv.BARLOVENTO],
+            ParedEdificioSprfv.SOTAVENTO: coords[ParedEdificioSprfv.SOTAVENTO],
+        }
+        normal = {
+            ParedEdificioSprfv.BARLOVENTO: coords[ParedEdificioSprfv.LATERAL][1],
+            ParedEdificioSprfv.SOTAVENTO: coords[ParedEdificioSprfv.LATERAL][0],
+        }
+        return {
+            DireccionVientoMetodoDireccionalSprfv.PARALELO: paralelo,
+            DireccionVientoMetodoDireccionalSprfv.NORMAL: normal,
+        }
+
     def inicializar_actores(self) -> None:
         """Inicializa todos los actores."""
         self.paredes()
@@ -669,6 +826,8 @@ class PresionesSprfvMetodoDireccional(Geometria):
         self.base()
         if self.alero:
             self.alero()
+        if self.parapeto_:
+            self.parapeto()
 
     def volumen(self):
         raise NotImplementedError()
@@ -833,6 +992,7 @@ class PresionesComponentes(Geometria):
         altura_alero = edificio.altura_alero
         altura_cumbrera = edificio.altura_cumbrera
         alero = getattr(edificio.geometria.cubierta, "alero", 0)
+        parapeto = getattr(edificio.geometria.cubierta, "parapeto", 0)
         super().__init__(
             escena,
             edificio.ancho,
@@ -842,6 +1002,7 @@ class PresionesComponentes(Geometria):
             edificio.tipo_cubierta,
             alero=alero,
             elevacion=edificio.elevacion,
+            parapeto=parapeto,
         )
         self.tabla_colores = tabla_colores
         self._distancia_a = edificio.cp.paredes.componentes.distancia_a
@@ -855,6 +1016,13 @@ class PresionesComponentes(Geometria):
                 )
         except ErrorLineamientos:
             self._referencia_cubierta = None
+        self._distancias_esquina_parapeto = None
+        parapeto_cp = getattr(edificio.cp, "parapeto", None)
+        if parapeto_cp is not None:
+            self._distancias_esquina_parapeto = (
+                parapeto_cp.componentes.distancias_esquina
+            )
+        self.actores_parapeto = {}
         self.inicializar_actores()
 
     def alero(self):
@@ -942,6 +1110,17 @@ class PresionesComponentes(Geometria):
     def obtener_alero(self):
         return self.actores_alero
 
+    def obtener_parapeto(self):
+        """Los actores del parapeto, indexados por caso de carga y segmento.
+
+        Returns:
+            Un diccionario con la banda del Caso de carga A (parapeto a
+            barlovento, pared frontal) y la del Caso B (parapeto a sotavento,
+            pared trasera), cada una partida en sus tramos de borde y de
+            esquina. Vacío si el edificio no tiene parapeto.
+        """
+        return self.actores_parapeto
+
     def inicializar_actores(self) -> None:
         """Inicializa los actores."""
         # if self._referencia_cubierta is not None:
@@ -952,6 +1131,67 @@ class PresionesComponentes(Geometria):
         self.base()
         if self.alero_:
             self.alero()
+        self.parapeto()
+
+    def _segmentos_parapeto(self, esquina: float):
+        """Los tramos en que se parte la banda del parapeto.
+
+        Args:
+            esquina: El largo del tramo de esquina que define la figura de la
+                cara posterior.
+
+        Returns:
+            Pares de zona del parapeto y rango de X de cada tramo. Cuando el
+            ancho no alcanza a dos esquinas, la banda entera es esquina.
+        """
+        if self.ancho <= 2 * esquina:
+            return ((ZonaParapeto.ESQUINA, 0.0, self.ancho),)
+        return (
+            (ZonaParapeto.ESQUINA, 0.0, esquina),
+            (ZonaParapeto.BORDE, esquina, self.ancho - esquina),
+            (ZonaParapeto.ESQUINA, self.ancho - esquina, self.ancho),
+        )
+
+    def parapeto(self):
+        """Genera los actores del parapeto.
+
+        El Caso de carga A (parapeto a barlovento) va sobre la pared frontal
+        y el Caso B (parapeto a sotavento) sobre la trasera; en cada una la
+        cara posterior ve la zona de borde en el tramo central y la de
+        esquina en los extremos.
+        """
+        self.actores_parapeto = {}
+        if self._distancias_esquina_parapeto is None:
+            return
+        casos = (
+            (
+                ParedEdificioSprfv.BARLOVENTO,
+                0,
+                self._distancias_esquina_parapeto[0],
+                True,
+            ),
+            (
+                ParedEdificioSprfv.SOTAVENTO,
+                self.longitud,
+                self._distancias_esquina_parapeto[1],
+                False,
+            ),
+        )
+        for pared, z0, esquina, invertir_sentido in casos:
+            zonas = defaultdict(list)
+            for zona_parapeto, x0, x1 in self._segmentos_parapeto(esquina):
+                zonas[zona_parapeto].append(
+                    ActorPresion(
+                        self.escena,
+                        poligono=Poligono(
+                            self._banda_parapeto(x0, x1, z0, invertir_sentido)
+                        ),
+                        tabla_colores=self.tabla_colores,
+                        presion=True,
+                        mostrar=True,
+                    )
+                )
+            self.actores_parapeto[pared] = dict(zonas)
 
     def _pared_frente(self, z0, invertir_sentido=False):
         """Determina las coordenadas de una pared de frente (o contrafrente).

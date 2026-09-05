@@ -51,6 +51,7 @@ from zonda.enums import (
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
     ZonaEdificio,
+    ZonaParapeto,
     ZonaPresionCubiertaAislada,
 )
 
@@ -91,6 +92,11 @@ class FilaEdificio:
     una fila negativa y una positiva, como pide la Nota 5 de la Figura 5.3-2A
     cuando hay parapeto. Cuando el positivo es único para todas las zonas, su
     fila va con ``zona_componente`` en ``TODAS``.
+
+    Las filas del parapeto llevan ``zona_parapeto``, que distingue el tramo de
+    borde del de esquina, y el desglose del coeficiente combinado en
+    ``cp_frontal`` y ``cp_posterior``, las presiones externas de las caras
+    exterior y posterior que el Art. 5.6 suma para armar el valor neto.
     """
 
     zona: ZonaEdificio
@@ -111,6 +117,9 @@ class FilaEdificio:
     zona_componente: (
         ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio | None
     ) = None
+    zona_parapeto: ZonaParapeto | None = None
+    cp_frontal: float | None = None
+    cp_posterior: float | None = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
     tipo_presion: TipoPresionComponentesParedesCubierta | None = None
@@ -156,6 +165,9 @@ class EntradaCp:
     zona_componente: (
         ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio | None
     ) = None
+    zona_parapeto: ZonaParapeto | None = None
+    cp_frontal: float | None = None
+    cp_posterior: float | None = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
     tipo_presion: TipoPresionComponentesParedesCubierta | None = None
@@ -201,6 +213,9 @@ class EntradaCp:
             caso=self.caso,
             componente=self.componente,
             zona_componente=self.zona_componente,
+            zona_parapeto=self.zona_parapeto,
+            cp_frontal=self.cp_frontal,
+            cp_posterior=self.cp_posterior,
             rango=self.rango,
             distancia_a=self.distancia_a,
             tipo_presion=self.tipo_presion,

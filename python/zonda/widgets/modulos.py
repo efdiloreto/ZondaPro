@@ -475,9 +475,11 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         )
         return WidgetResultadosEdificio(edificio)
 
-    @staticmethod
-    def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada(componentes=True)
+    def _generar_widget_panel_entrada(self):
+        return WidgetPanelEntrada(
+            componentes=True,
+            hay_parapeto=self._widget_estructura.hay_parapeto_plana,
+        )
 
     @staticmethod
     def _generar_widget_estructura():

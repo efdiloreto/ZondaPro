@@ -70,6 +70,30 @@ def test_reporte_edificio_con_parapeto_distingue_el_positivo_por_zona(
     assert "3 (positiva)" in texto
 
 
+def test_reporte_edificio_plana_con_parapeto(edificio_plana_con_parapeto):
+    """El reporte de cubierta plana con parapeto agrega las tablas del parapeto.
+
+    El SPRFV trae la tabla del Art. 2.4.5 con el coeficiente de presión neta
+    combinada, y componentes la del Art. 5.6 con el desglose de las caras
+    exterior y posterior y el área efectiva de viento.
+    """
+    texto = Reporte("edificio.md", edificio_plana_con_parapeto, UNIDADES)._texto_md
+    assert "#### PARAPETO" in texto
+    assert "Art. 2.4.5" in texto
+    assert "GC~pn~" in texto
+    assert "Art. 5.6" in texto
+    assert "GC~p~ frontal" in texto
+    assert "área efectiva: 2 m^2^" in texto
+    assert "Barlovento | Borde" in texto
+
+
+def test_reporte_edificio_sin_parapeto_no_muestra_las_tablas_del_parapeto(edificio):
+    """Sin parapeto no hay secciones de parapeto en el reporte."""
+    texto = Reporte("edificio.md", edificio, UNIDADES)._texto_md
+    assert "Art. 2.4.5" not in texto
+    assert "Art. 5.6" not in texto
+
+
 def test_reporte_edificio_gran_altura_resuelve_las_paredes_por_altura():
     """Con h > 20 m la Figura 5.4-1 evalúa las paredes con qz a cada altura
     (Nota 4), tanto las positivas como las negativas.

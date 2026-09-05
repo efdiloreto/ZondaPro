@@ -26,6 +26,7 @@ from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio, cp
 from zonda.cirsoc.cp.edificio import (
     CubiertaComponentes,
+    ParapetoComponentes,
     ParedesComponentes,
     cp_positivo_paredes,
     distancia_a,
@@ -2453,3 +2454,308 @@ def test_cerramiento_condiciones_edificio():
         aberturas=(45.0, 90.0, 45.0, 90.0, 0.0),
     )
     assert all(geom_abierto.cerramiento_condicion_1)
+
+
+# ---------------------------------------------------------------------------
+# Parapetos (Arts. 2.4.5 y 5.6)
+# ---------------------------------------------------------------------------
+
+
+def test_altura_parapeto(edificio_plana_con_parapeto: Edificio):
+    """La coronación del parapeto queda en cumbrera + parapeto.
+
+    Con cubierta plana la cumbrera coincide con el alero, así que la
+    coronación es alero + parapeto. No es una altura de la estructura: el
+    array de alturas termina en la cubierta.
+    """
+    geometria = edificio_plana_con_parapeto.geometria
+    assert geometria.altura_parapeto == pytest.approx(11)
+    assert np.asarray(geometria.alturas).max() == pytest.approx(10)
+    assert 11 not in np.asarray(geometria.alturas)
+
+
+def test_topografia_factor_en():
+    """El factor topográfico a una altura arbitraria sale de la misma fórmula.
+
+    El parapeto necesita el Kzt de su coronación, que no es una de las alturas
+    de la estructura: en las alturas consideradas tiene que coincidir con el
+    factor del array y fuera de ellas, con la expresión 1.8-1.
+    """
+    alturas = np.arange(0.0, 21.0, 1.0)
+    topografia = Topografia(
+        enums.CategoriaExposicion.C,
+        True,
+        enums.TipoTerrenoTopografia.LOMA_BIDIMENSIONAL,
+        30,
+        100,
+        50,
+        enums.DireccionTopografia.BARLOVENTO,
+        alturas,
+    )
+    for altura, factor in zip(alturas, topografia.factor, strict=True):
+        assert topografia.factor_en(altura) == pytest.approx(factor)
+    k3 = np.e ** (-3.0 * 20.5 / 100)
+    parametros = topografia.parametros
+    assert topografia.factor_en(20.5) == pytest.approx(
+        (1 + parametros.k1 * parametros.k2 * k3) ** 2
+    )
+
+
+def test_parapeto_sprfv_valores(edificio_plana_con_parapeto: Edificio):
+    """Art. 2.4.5: p = q_p (GC_pn), con GC_pn de +1,5 y -1,0.
+
+    El coeficiente ya incluye el ráfaga (factor 1,0) y no interviene la
+    presión interna: ambos signos de la fila coinciden.
+    """
+    filas = edificio_plana_con_parapeto.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.PARAPETO
+    )
+    assert len(filas) == 2
+    por_pared = {fila.pared: fila for fila in filas}
+    barlovento = por_pared[enums.ParedEdificioSprfv.BARLOVENTO]
+    sotavento = por_pared[enums.ParedEdificioSprfv.SOTAVENTO]
+    assert barlovento.referencia == "Art. 2.4.5"
+    assert barlovento.cp == pytest.approx(1.5)
+    assert sotavento.cp == pytest.approx(-1.0)
+    assert barlovento.factor_rafaga == pytest.approx(1.0)
+    assert not barlovento.con_presion_interna
+    q_p = barlovento.q.valor
+    assert barlovento.pos == pytest.approx(1.5 * q_p)
+    assert barlovento.neg == pytest.approx(barlovento.pos)
+    assert sotavento.pos == pytest.approx(-q_p)
+    assert sotavento.neg == pytest.approx(sotavento.pos)
+
+
+def test_parapeto_presion_dinamica_en_la_coronacion(
+    edificio_plana_con_parapeto: Edificio,
+):
+    """q_p se evalúa en la coronación del parapeto y no en la cubierta.
+
+    Con exposición B (alfa = 7,5), el Kz de 11 m sobre el de 10 m guarda la
+    relación (11/10)^(2/7,5), y con Kzt = Ke = 1 la presión de velocidad
+    escala igual.
+    """
+    q_p = (
+        edificio_plana_con_parapeto.resultados_sprfv.filtrar(
+            zona=enums.ZonaEdificio.PARAPETO
+        )
+        .filas[0]
+        .q
+    )
+    qz_10 = next(
+        fila.q
+        for fila in edificio_plana_con_parapeto.resultados_sprfv
+        if fila.q.altura == 10
+    )
+    assert q_p.altura == pytest.approx(11)
+    assert q_p.kz == pytest.approx(qz_10.kz * 1.1 ** (2 / 7.5))
+    assert q_p.valor == pytest.approx(qz_10.valor * 1.1 ** (2 / 7.5))
+
+
+def test_parapeto_componentes_valores(edificio_plana_con_parapeto: Edificio):
+    """Art. 5.6: cuatro filas, dos casos de carga por dos segmentos.
+
+    El coeficiente combinado es el positivo de pared menos el negativo de la
+    zona posterior (la succión suma al empuje). Referencias reglamentarias
+    fijas: positivo de pared con el descuento por pendiente baja (0,8522) y
+    negativos de la Tabla C 5.3-2 (Zona 2) y de la Tabla C 5.3-1 (Zonas 4 y
+    5) interpolados con A = 2 m². La Nota 5 iguala la esquina al borde.
+    """
+    filas = edificio_plana_con_parapeto.resultados_componentes.filtrar(
+        zona=enums.ZonaEdificio.PARAPETO
+    )
+    assert len(filas) == 4
+    referencias = {
+        (enums.ParedEdificioSprfv.BARLOVENTO, enums.ZonaParapeto.BORDE): 2.9927,
+        (enums.ParedEdificioSprfv.BARLOVENTO, enums.ZonaParapeto.ESQUINA): 2.9927,
+        (enums.ParedEdificioSprfv.SOTAVENTO, enums.ZonaParapeto.BORDE): 1.7943,
+        (enums.ParedEdificioSprfv.SOTAVENTO, enums.ZonaParapeto.ESQUINA): 2.0165,
+    }
+    for fila in filas:
+        clave = (fila.pared, fila.zona_parapeto)
+        assert fila.referencia == "Art. 5.6"
+        assert fila.componente == "Parapeto"
+        assert fila.q.altura == pytest.approx(11)
+        assert fila.cp == pytest.approx(referencias[clave], abs=0.001)
+        assert fila.cp == pytest.approx(fila.cp_frontal - fila.cp_posterior)
+        assert fila.cp_frontal == pytest.approx(0.8522, abs=0.001)
+        # La envolvente no porosa del parapeto: ±0,18 (Tabla 1.11-1).
+        assert fila.gcpi == pytest.approx(0.18)
+        assert fila.pos == pytest.approx(fila.q.valor * (fila.cp - 0.18))
+        assert fila.neg == pytest.approx(fila.q.valor * (fila.cp + 0.18))
+
+
+def test_parapeto_componentes_nota_iguala_esquina_al_borde():
+    """Con parapeto de 1 m o más, la esquina del Caso A usa la Zona 2."""
+    parapeto = {
+        (entrada.pared, entrada.zona_parapeto): entrada.valor
+        for entrada in ParapetoComponentes(30, 40, 10, 1, 2).entradas
+    }
+    barlovento = enums.ParedEdificioSprfv.BARLOVENTO
+    borde, esquina = enums.ZonaParapeto.BORDE, enums.ZonaParapeto.ESQUINA
+    assert parapeto[(barlovento, esquina)] == pytest.approx(
+        parapeto[(barlovento, borde)]
+    )
+
+    # Con menos de 1 m la Nota 5 no aplica: la esquina recupera la Zona 3 de
+    # la Tabla C 5.3-2, (-3.2, -1.4) interpolada con A = 2 m².
+    sin_nota = {
+        (entrada.pared, entrada.zona_parapeto): entrada.valor
+        for entrada in ParapetoComponentes(30, 40, 10, 0.5, 2).entradas
+    }
+    assert sin_nota[(barlovento, esquina)] == pytest.approx(3.7332, abs=0.001)
+    assert sin_nota[(barlovento, esquina)] != pytest.approx(
+        sin_nota[(barlovento, borde)]
+    )
+
+
+def test_parapeto_componentes_valores_figura_5_4_1():
+    """Gran altura (h > 20 m): el positivo y los negativos salen de la Figura 5.4-1.
+
+    El positivo va sin descuento por pendiente baja (0,9); los negativos se
+    interpolan con A = 2 m² en el rango de áreas (1, 50) de la Figura para la
+    cubierta y en el (2, 50) del positivo de pared para las Zonas 4 y 5. La
+    Nota 7 iguala la esquina al borde.
+    """
+    entradas = {
+        (entrada.pared, entrada.zona_parapeto): entrada
+        for entrada in ParapetoComponentes(30, 40, 25, 1, 2).entradas
+    }
+    referencia = {
+        (enums.ParedEdificioSprfv.BARLOVENTO, enums.ZonaParapeto.BORDE): 3.076,
+        (enums.ParedEdificioSprfv.BARLOVENTO, enums.ZonaParapeto.ESQUINA): 3.076,
+        (enums.ParedEdificioSprfv.SOTAVENTO, enums.ZonaParapeto.BORDE): 1.8,
+        (enums.ParedEdificioSprfv.SOTAVENTO, enums.ZonaParapeto.ESQUINA): 2.7,
+    }
+    for clave, entrada in entradas.items():
+        assert entrada.valor == pytest.approx(referencia[clave], abs=0.001)
+        assert entrada.cp_frontal == pytest.approx(0.9)
+
+
+def test_parapeto_componentes_sin_area_lanza_error():
+    """Sin área efectiva de viento no hay coeficientes del Art. 5.6."""
+    with pytest.raises(ErrorLineamientos):
+        _ = ParapetoComponentes(30, 40, 10, 1, None).entradas
+
+
+def test_parapeto_distancias_esquina():
+    """El largo del tramo de esquina sale de la figura de cada cara posterior.
+
+    En el Caso A es el brazo de la Zona 3 de la cubierta (0,6 h con la Tabla
+    C 5.3-2, la distancia "a" con la Figura 5.4-1) y en el Caso B la
+    distancia "a" de las paredes, con la excepción de edificios bajos y
+    planos de la Tabla C 5.3-1.
+    """
+    parapeto = ParapetoComponentes(30, 40, 10, 1, 2)
+    assert parapeto.distancias_esquina == pytest.approx(
+        (0.6 * 10, distancia_a(30, 40, 10))
+    )
+
+    gran_altura = ParapetoComponentes(30, 40, 25, 1, 2)
+    assert gran_altura.distancias_esquina == pytest.approx(
+        (distancia_a(30, 40, 25), distancia_a(30, 40, 25))
+    )
+
+    # Edificio plano de dimensión mínima > 90 m: "a" se limita a 0,8 h.
+    excepcion = ParapetoComponentes(95, 120, 4, 1, 2)
+    assert excepcion.distancias_esquina[1] == pytest.approx(
+        min(distancia_a(95, 120, 4), 0.8 * 4)
+    )
+
+
+def test_parapeto_solo_cubierta_plana(edificio_con_parapeto: Edificio):
+    """El cálculo del parapeto es de cubierta plana: a dos aguas quedan las notas.
+
+    El parapeto de 1 m del fixture activa la Nota 5 sobre los coeficientes de
+    la cubierta, pero no agrega filas de parapeto a ningún sistema resistente.
+    """
+    assert not edificio_con_parapeto.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.PARAPETO
+    )
+    assert not edificio_con_parapeto.resultados_componentes.filtrar(
+        zona=enums.ZonaEdificio.PARAPETO
+    )
+
+
+def test_parapeto_no_extiende_las_alturas_del_edificio():
+    """La coronación no es una altura de la estructura.
+
+    La pared a barlovento y los componentes de pared de gran altura se
+    resuelven con qz altura por altura hasta la altura de la cubierta: si la
+    coronación entrara al array de alturas aparecerían filas extra a esa
+    altura, y las presiones del parapeto son filas propias.
+    """
+    edificio = Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=25,
+        altura_cumbrera=25,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        area_parapeto=2,
+        componentes_paredes={"Viga": 10.0},
+    )
+    assert np.asarray(edificio.geometria.alturas).max() == pytest.approx(25)
+    alturas_barlovento = {
+        fila.q.altura
+        for fila in edificio.resultados_sprfv.filtrar(
+            zona=enums.ZonaEdificio.PAREDES,
+            pared=enums.ParedEdificioSprfv.BARLOVENTO,
+        )
+    }
+    assert max(alturas_barlovento) == pytest.approx(25)
+    alturas_componentes = {
+        fila.q.altura
+        for fila in edificio.resultados_componentes
+        if fila.zona != enums.ZonaEdificio.PARAPETO
+    }
+    assert max(alturas_componentes) == pytest.approx(25)
+    # Las filas del parapeto, en cambio, están en su coronación.
+    alturas_parapeto = {
+        fila.q.altura
+        for fila in edificio.resultados_sprfv.filtrar(zona=enums.ZonaEdificio.PARAPETO)
+    }
+    assert alturas_parapeto == {26.0}
+
+
+def test_presion_minima_se_aplica_al_parapeto():
+    """El recorte del Art. 5.2.2 también alcanza a las filas del parapeto.
+
+    Con V = 20 m/s el valor neto del Caso A queda por debajo de 0,80 kN/m² en
+    ambos signos de presión interna, y sube al mínimo. El SPRFV no lo usa.
+    """
+    edificio = Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=10,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=20,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        area_parapeto=2,
+    )
+    filas = edificio.resultados_componentes.filtrar(zona=enums.ZonaEdificio.PARAPETO)
+    assert filas
+    for fila in filas:
+        assert fila.pos == pytest.approx(800)
+        assert fila.neg == pytest.approx(800)
+
+    q_p = (
+        edificio.resultados_sprfv.filtrar(zona=enums.ZonaEdificio.PARAPETO)
+        .filas[0]
+        .q.valor
+    )
+    assert edificio.resultados_sprfv.filtrar(zona=enums.ZonaEdificio.PARAPETO).filas[
+        0
+    ].pos == pytest.approx(1.5 * q_p)

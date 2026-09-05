@@ -414,14 +414,32 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
         """
         if self._checkbox_parapeto.isChecked() and not self._cargando:
             self._mensaje_parapeto.showMessage(
-                "La altura del parapeto solo se utiliza para determinar los coeficientes"
-                " de presión para componentes y revestimientos. Para determinar las"
-                " presiones sobre el mismo se debe calcular como un cartel elevado"
-                " a la altura deseada, tal y como se calcula en el ejemplo Nº3 de la"
-                " Guía para el uso del Reglamento Argentino de acción del viento"
-                " sobre las construcciones."
+                "La altura del parapeto se utiliza para determinar los coeficientes"
+                " de presión para componentes y revestimientos de la cubierta (Notas"
+                " 5 y 7 de las figuras). Para los edificios de cubierta plana, además,"
+                " se calculan las presiones de diseño sobre el parapeto del Art. 2.4.5"
+                " (SPRFV) y del Art. 5.6 (componentes y revestimientos), con la"
+                " presión dinámica evaluada en su coronación. El área efectiva de"
+                " viento del parapeto se carga en el diálogo de componentes y"
+                " revestimientos."
             )
         self._spinboxs["parapeto"].setEnabled(estado)
+
+    def hay_parapeto_plana(self) -> bool:
+        """Indica si el edificio tiene parapeto y cubierta plana.
+
+        Es la condición con la que el Reglamento da lineamientos para las
+        presiones sobre el parapeto (Arts. 2.4.5 y 5.6), y la que hace falta
+        para pedir el área efectiva de viento en el diálogo de componentes.
+
+        Returns:
+            True si hay que pedir el área efectiva del parapeto.
+        """
+        return (
+            self._checkbox_parapeto.isChecked()
+            and self._spinboxs["parapeto"].value() > 0
+            and self._combobox_tipo_cubierta.currentData() == TipoCubierta.PLANA
+        )
 
     def _habilitar_deshabilitar_volumen(self, estado: bool) -> None:
         """Habilita o deshabilita el widget de volumen.
@@ -553,6 +571,9 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
             alero = 0
             if self._checkbox_alero.isChecked():
                 alero = self._spinboxs["alero"].value()
+            parapeto = 0
+            if self._checkbox_parapeto.isChecked():
+                parapeto = self._spinboxs["parapeto"].value()
             self.grafico.escena.generar(
                 ancho,
                 longitud,
@@ -561,6 +582,7 @@ class WidgetEstructuraEdificio(WidgetEstructuraBase):
                 tipo_cubierta,
                 alero,
                 elevacion,
+                parapeto=parapeto,
             )
             self._spinbox_volumen.setValue(self.grafico.escena.director.volumen())
 

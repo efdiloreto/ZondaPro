@@ -229,6 +229,56 @@ def test_el_dialogo_de_componentes_en_modo_cubierta_ignora_las_paredes(qapp):
     assert componentes["componentes_cubierta"] == {"Correa": 2.0}
 
 
+def test_el_dialogo_de_componentes_pide_el_area_del_parapeto(qapp):
+    """Con parapeto de cubierta plana, el diálogo carga el área efectiva."""
+    from zonda.widgets.dialogos import DialogoComponentes
+
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": None,
+            "componentes_cubierta": None,
+            "area_parapeto": None,
+        },
+        con_parapeto=True,
+    )
+    dialogo._area_parapeto.setValue(2.5)
+    dialogo.accept()
+    assert dialogo.componentes()["area_parapeto"] == 2.5
+
+    # Sin el campo, el área guardada no se toca.
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": None,
+            "componentes_cubierta": None,
+            "area_parapeto": 2.5,
+        }
+    )
+    dialogo.accept()
+    assert dialogo.componentes()["area_parapeto"] == 2.5
+
+
+@necesita_opengl
+def test_hay_parapeto_plana(qapp):
+    """El área del parapeto se pide sólo con parapeto cargado y cubierta plana."""
+    from zonda import enums
+    from zonda.widgets.entrada import WidgetEstructuraEdificio
+
+    widget = WidgetEstructuraEdificio()
+    widget.finalizar()
+
+    # El valor por defecto es cubierta a dos aguas y parapeto deshabilitado.
+    assert not widget.hay_parapeto_plana()
+
+    widget._checkbox_parapeto.setChecked(True)
+    widget._spinboxs["parapeto"].setValue(1)
+    assert not widget.hay_parapeto_plana()
+
+    widget._combobox_tipo_cubierta.setCurrentIndex(
+        widget._combobox_tipo_cubierta.findData(enums.TipoCubierta.PLANA)
+    )
+    assert widget.hay_parapeto_plana()
+
+
 @necesita_opengl
 def test_el_panel_de_aislada_va_y_vuelve_del_archivo(qapp, tmp_path):
     from zonda import proyecto
@@ -240,6 +290,7 @@ def test_el_panel_de_aislada_va_y_vuelve_del_archivo(qapp, tmp_path):
     panel.componentes = {
         "componentes_paredes": None,
         "componentes_cubierta": {"Correa": 2.5},
+        "area_parapeto": None,
     }
     esperado = panel.estado()
 
@@ -388,6 +439,7 @@ def test_el_panel_de_entrada_va_y_vuelve_del_archivo(qapp, tmp_path):
     panel.componentes = {
         "componentes_paredes": {"Chapa": 3.5},
         "componentes_cubierta": None,
+        "area_parapeto": None,
     }
     esperado = panel.estado()
 

@@ -157,6 +157,34 @@ def edificio_con_parapeto() -> Edificio:
 
 
 @pytest.fixture(scope="session")
+def edificio_plana_con_parapeto() -> Edificio:
+    """Edificio de cubierta plana con parapeto de 1 m.
+
+    30 x 40 con alero y cumbrera a 10 m, así que la coronación del parapeto
+    queda a 11 m. Además de las notas de las figuras de cubierta, activa el
+    cálculo de las presiones sobre el parapeto del Art. 2.4.5 (SPRFV) y del
+    Art. 5.6 (C&R), con q_p en la coronación y área efectiva de 2 m².
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=10,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        area_parapeto=2,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
 def edificio_tabla_c_5_3_3() -> Edificio:
     """Edificio de la Tabla C 5.3-3 (Figura 5.3-2B).
 

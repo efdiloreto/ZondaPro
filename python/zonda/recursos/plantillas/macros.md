@@ -172,3 +172,51 @@ Fuerza total del {{ caso.value }}: {{ '%.2f'|format(estructura.presiones.fuerzas
 {{- base }} {{ clave[0].value|upper }}{% if clave[1] %} - {{ clave[1].value|upper }}{% endif %}
 {%- endif -%}
 {%- endmacro %}
+
+{#
+  Tabla de presiones del parapeto para SPRFV (Art. 2.4.5). Una fila por cada
+  posición del parapeto respecto del viento: el coeficiente (GC_pn) es una
+  presión neta combinada que ya incluye el efecto de ráfaga y no lleva
+  presión interna. La presión dinámica se evalúa en la coronación.
+#}
+{% macro presiones_parapeto_sprfv(filas, titulo) -%}
+{%- set primera = filas|first -%}
+: {{ titulo }} _(Ref: {{ primera.referencia }}; q~p~: presión dinámica en la coronación del parapeto)_
+
+| Caso | K~z~ | K~zt~ | GC~pn~ | q~p~ ({{ unidad_presion }}) | p~p~ ({{ unidad_presion }}) |
+|:----:|:----:|:-----:|:------:|:---------------------------:|:---------------------------:|
+{% for fila in filas -%}
+| {{ fila.pared.value|capitalize }} |
+{{- '%.2f'|format(fila.q.kz) }} |
+{{- '%.2f'|format(fila.q.kzt) }} |
+{{- '%.2f'|format(fila.cp) }} |
+{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.pos|convertir_unidad(unidades.presion)) }} |
+{% endfor %}
+{% endmacro %}
+
+{#
+  Tabla de presiones del parapeto para componentes y revestimientos
+  (Art. 5.6). Una fila por cada caso de carga (A barlovento y B sotavento) y
+  segmento del parapeto. El coeficiente combinado se muestra con el desglose
+  de las presiones externas de la cara exterior (frontal) y de la posterior,
+  y la presión interna es la de la envolvente no porosa del parapeto.
+#}
+{% macro presiones_parapeto_componentes(filas, titulo) -%}
+{%- set primera = filas|first -%}
+: {{ titulo }} _(Ref: {{ primera.referencia }}; GC~pi~: ±{{ '%.2f'|format(primera.gcpi) }})_
+
+| Caso | Zona | K~z~ | K~zt~ | GC~p~ frontal | GC~p~ posterior | GC~p~ | q~p~ ({{ unidad_presion }}) | p~n~ [+GC~pi~] ({{ unidad_presion }}) | p~n~ [−GC~pi~] ({{ unidad_presion }}) |
+|:----:|:----:|:----:|:-----:|:-------------:|:---------------:|:-----:|:---------------------------:|:-------------------------------------:|:-------------------------------------:|
+{% for fila in filas -%}
+| {{ fila.pared.value|capitalize }} | {{ fila.zona_parapeto.value|capitalize }} |
+{{- '%.2f'|format(fila.q.kz) }} |
+{{- '%.2f'|format(fila.q.kzt) }} |
+{{- '%.2f'|format(fila.cp_frontal) }} |
+{{- '%.2f'|format(fila.cp_posterior) }} |
+{{- '%.2f'|format(fila.cp) }} |
+{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.pos|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.neg|convertir_unidad(unidades.presion)) }} |
+{% endfor %}
+{% endmacro %}

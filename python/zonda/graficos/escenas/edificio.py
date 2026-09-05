@@ -89,6 +89,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._alero = resultados.filtrar(zona=ZonaEdificio.ALERO).indexar(
             "direccion", "posicion", "caso"
         )
+        # El parapeto no depende de la dirección: el mismo parapeto toma el
+        # rol de barlovento o de sotavento en cada una.
+        self._parapeto = resultados.filtrar(zona=ZonaEdificio.PARAPETO).indexar("pared")
 
         # La pared a barlovento tiene una presión por altura.
         self._barlovento_por_altura = {
@@ -157,6 +160,7 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
 
         # Inicialización de variables internas que serán actualizadas cuando los métodos correspondientes sean llamados.
         self._actores_actuales_paredes = self._actores_actuales_cubierta = None
+        self._actores_actuales_parapeto: dict | None = None
         self._direccion_actual = None
         if self._alero:
             self._actores_actuales_alero = None
@@ -192,6 +196,7 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
         self._actualizar_cubierta(regenerar_actores=True)
         if self._alero:
             self._actualizar_alero(regenerar_actores=True)
+        self._actualizar_parapeto()
         self._actualizar_titulo()
 
     def actualizar_posicion_cubierta_un_agua(
@@ -366,6 +371,26 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             fila = self._fila_superficie(self._cubierta, posicion)
             actor.asignar_presion(fila.presion(self._gcpi_actual), unidad=self.unidad)
 
+    def _actualizar_parapeto(self) -> None:
+        """Actualiza las bandas del parapeto para la dirección actual.
+
+        El coeficiente del parapeto (Art. 2.4.5) no depende de la dirección ni
+        del signo de la presión interna: las filas se indexan por pared y el
+        mismo valor sirve en las dos direcciones.
+        """
+        if self._actores_actuales_parapeto is not None:
+            aplicar_func_recursivamente(
+                self._actores_actuales_parapeto, lambda actor: actor.ocultar()
+            )
+        self._actores_actuales_parapeto = self.director.obtener_parapeto()
+        if self._actores_actuales_parapeto is None:
+            return
+        for pared, actor in self._actores_actuales_parapeto.items():
+            filas = self._parapeto.get(pared)
+            if filas is None:
+                continue
+            actor.asignar_presion(filas.unica().pos, unidad=self.unidad)
+
     def _actualizar_alero(self, regenerar_actores=False) -> None:
         """Actualiza los actores y presiones para los aleros.
 
@@ -449,6 +474,7 @@ class PresionesComponentes(PresionesMixin):
         filas_paredes = resultados.filtrar(zona=ZonaEdificio.PAREDES)
         filas_cubierta = resultados.filtrar(zona=ZonaEdificio.CUBIERTA)
         filas_alero = resultados.filtrar(zona=ZonaEdificio.ALERO)
+        filas_parapeto = resultados.filtrar(zona=ZonaEdificio.PARAPETO)
 
         # El signo entra en la clave porque una zona puede tener a la vez fila
         # negativa y positiva (Fig. 5.3-2A, Nota 5, con parapeto).
@@ -459,6 +485,7 @@ class PresionesComponentes(PresionesMixin):
             "componente", "zona_componente", "tipo_presion"
         )
         self._alero = filas_alero.indexar("componente", "zona_componente")
+        self._parapeto = filas_parapeto.indexar("pared", "zona_parapeto")
 
         # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a cada altura
         # (Nota 4), así que la misma clave agrupa varias filas y el valor
@@ -500,6 +527,8 @@ class PresionesComponentes(PresionesMixin):
                 self._actores_alero, lambda actor: actor.flecha.ocultar()
             )
 
+        self._actores_parapeto = self.director.obtener_parapeto()
+
         self._gcpi_actual = 0
         self._textos_presion_interna = ("+", "-")
 
@@ -509,6 +538,7 @@ class PresionesComponentes(PresionesMixin):
         self._componente_actual_pared = self._componente_actual_cubierta = None
         alturas_paredes = self.alturas_presiones_paredes
         self._altura_paredes_actual = alturas_paredes[-1] if alturas_paredes else None
+        self._actualizar_parapeto()
 
         self._actores_presion = self.escena.actores_presion
 
@@ -537,6 +567,7 @@ class PresionesComponentes(PresionesMixin):
             self._actualizar_paredes()
         if self._componentes_cubierta is not None:
             self._actualizar_cubierta()
+        self._actualizar_parapeto()
         self._actualizar_titulo()
 
     def actualizar_tipo_presion(
@@ -701,6 +732,27 @@ class PresionesComponentes(PresionesMixin):
                     actor.asignar_presion(presion, unidad=self.unidad)
             except TypeError:
                 actores.asignar_presion(presion, unidad=self.unidad)
+
+    def _actualizar_parapeto(self) -> None:
+        """Actualiza las presiones de las bandas del parapeto.
+
+        Los dos casos de carga se muestran a la vez: el A en la pared a
+        barlovento y el B en la de sotavento. La presión responde al signo de
+        la presión interna elegido.
+        """
+        if not self._actores_parapeto:
+            return
+        for pared, banda in self._actores_parapeto.items():
+            for zona_parapeto, actores in banda.items():
+                filas = self._parapeto.get((pared, zona_parapeto))
+                if filas is None:
+                    continue
+                presion = filas.unica().presion(self._gcpi_actual)
+                try:
+                    for actor in actores:
+                        actor.asignar_presion(presion=presion, unidad=self.unidad)
+                except TypeError:
+                    actores.asignar_presion(presion=presion, unidad=self.unidad)
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
