@@ -805,9 +805,9 @@ class WidgetEstructuraCubiertaAislada(WidgetEstructuraBase):
         datos_spinboxs = (
             ("ancho", 1, 300, 30, " m"),
             ("altura_alero", 1, 200, 6, " m"),
-            ("altura_cumbrera", 1, 200, 9, " m"),
+            ("altura_cumbrera", 1, 200, 12, " m"),
             ("bloqueo", 0, 100, 0, " %"),
-            ("longitud", 1, 300, 60, " m"),
+            ("longitud", 1, 300, 25, " m"),
         )
 
         self._spinboxs = {}
