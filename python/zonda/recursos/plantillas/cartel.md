@@ -127,4 +127,8 @@ La fuerza de diseño es la del Caso C.
 {%- else -%}
 La fuerza de diseño es la de los Casos A y B.
 {%- endif %}
+
+Notas:
+
+- **Cargas de viento de diseño mínimas (Art. 4.8):** La fuerza de viento de diseño no debe ser menor que 0,80 kN/m^2^ multiplicada por el área proyectada del cartel A~f~. Los valores de las tablas ya la tienen aplicada.
 {%- endblock %}

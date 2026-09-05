@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.presiones.base import PresionesBase, presion_minima
 from zonda.cirsoc.resultados import (
     FilaComponentesCubiertaAislada,
     FilaCubiertaAislada,
@@ -157,7 +157,8 @@ class ComponentesCubiertaAislada(PresionesBase):
     Los coeficientes C_N son presiones netas (contribuciones de las
     superficies superior e inferior), así que no interviene la presión
     interna: la presión de cada fila es p = q_h G C_N, con la presión de
-    velocidad calculada a la altura media de la cubierta.
+    velocidad calculada a la altura media de la cubierta y el mínimo del
+    Art. 5.2.2 aplicado a cada signo.
     """
 
     def __init__(
@@ -200,7 +201,8 @@ class ComponentesCubiertaAislada(PresionesBase):
 
         Returns:
             Una fila por cada combinación de componente, zona y signo del
-            coeficiente. Vacía si no se cargaron componentes.
+            coeficiente, con la presión mínima del Art. 5.2.2 aplicada. Vacía
+            si no se cargaron componentes.
         """
         factor_rafaga = float(self.rafaga.factor)
         return tuple(
@@ -211,7 +213,7 @@ class ComponentesCubiertaAislada(PresionesBase):
                 q=self.q,
                 cpn=entrada.valor,
                 factor_rafaga=factor_rafaga,
-                presion=float(self._presion_parcial * entrada.valor),
+                presion=float(presion_minima(self._presion_parcial * entrada.valor)),
                 referencia=entrada.referencia,
                 distancia_a=entrada.distancia_a,
             )

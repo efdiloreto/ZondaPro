@@ -97,9 +97,10 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
-- **Presión mínima:** Hay dos, con distinto alcance:
-  - **Componentes y revestimientos:** ±800 N/m² (Art. 5.2.2, `PRESION_MINIMA_COMPONENTES` en `presiones/edificio.py`), aplicado al módulo de cada signo del valor neto, incluyendo las paredes bajo la Figura 5.4-1 y el alero. Ojo al escribir tests: en edificios chicos el recorte tapa las diferencias entre zonas, así que un test que compare zonas necesita una velocidad alta.
-  - **SPRFV:** Cargas de viento de diseño mínimas (Art. 2.1.5): 0,75 kN/m² por el área de pared más 0,4 kN/m² por el área de cubierta, proyectadas. Son fuerzas sobre áreas proyectadas, no presiones por superficie, así que hoy van sólo como nota en la plantilla del reporte y no se aplican a los valores calculados (issue #10, junto con el cartel y la cubierta aislada, que no aplican ningún mínimo).
+- **Presión mínima:** Hay tres, con distinto alcance:
+  - **Componentes y revestimientos:** ±800 N/m² (Art. 5.2.2, "edificios y otras estructuras"; `presion_minima` en `presiones/base.py`), aplicado al módulo de cada signo del valor neto, incluyendo las paredes bajo la Figura 5.4-1, el alero y los componentes de cubiertas aisladas. Ojo al escribir tests: en edificios chicos el recorte tapa las diferencias entre zonas, así que un test que compare zonas necesita una velocidad alta.
+  - **Otras estructuras:** 0,80 kN/m² por el área proyectada A_f (Art. 4.8, `PRESION_MINIMA_OTRAS_ESTRUCTURAS` en `presiones/cartel.py`), aplicado como piso de la presión de cada fila del cartel: sus filas son fuerzas (presión × área), así que recortar la presión deja la fuerza por encima del mínimo.
+  - **SPRFV:** Cargas de viento de diseño mínimas (Art. 2.1.5): 0,75 kN/m² por el área de pared proyectada sobre un plano vertical más 0,4 kN/m² por el área de cubierta proyectada sobre un plano horizontal, y 0,75 kN/m² × A_f para edificios abiertos, criterio con el que se trata al SPRFV de la cubierta aislada. Son fuerzas sobre áreas proyectadas, no presiones por superficie, así que van sólo como nota en las plantillas del reporte y no se aplican a los valores calculados (issue #10).
 - **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
   interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
   `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras

@@ -30,11 +30,18 @@ if TYPE_CHECKING:
     from zonda.enums import CategoriaExposicion, RegionCartel
 
 
+#: Presión mínima de diseño para otras estructuras, en N/m² (CIRSOC 102-2025,
+#: Art. 4.8): la fuerza de viento de diseño no debe ser menor que 0,80 kN/m²
+#: multiplicada por el área proyectada A~f~.
+PRESION_MINIMA_OTRAS_ESTRUCTURAS = 800
+
+
 class Cartel(PresionesBase):
     """Cartel.
 
     Determina las presiones de viento sobre un cartel de acuerdo a la
-    Ec. 4.4-1: F = qh·G·Cf·As, con qh evaluada a la altura h de la Figura 4.4-1.
+    Ec. 4.4-1: F = qh·G·Cf·As, con qh evaluada a la altura h de la Figura 4.4-1
+    y el mínimo del Art. 4.8 aplicado a la presión de cada caso.
     """
 
     def __init__(
@@ -97,7 +104,14 @@ class Cartel(PresionesBase):
             region: RegionCartel | None = None,
             excentricidad: float | None = None,
         ) -> FilaCartel:
-            presion = q.valor * factor_rafaga * float(cf)
+            # El mínimo del Art. 4.8 es una fuerza sobre el área proyectada,
+            # así que basta con recortar la presión de cada fila: la fuerza
+            # queda F ≥ 0,80 kN/m² × A_f, y en el Caso C la suma de las
+            # regiones cubre el mínimo del cartel completo.
+            presion = max(
+                q.valor * factor_rafaga * float(cf),
+                PRESION_MINIMA_OTRAS_ESTRUCTURAS,
+            )
             return FilaCartel(
                 q=q,
                 caso=caso,

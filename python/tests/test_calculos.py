@@ -31,7 +31,8 @@ from zonda.cirsoc.cp.edificio import (
     distancia_a,
 )
 from zonda.cirsoc.factores import Rafaga, Topografia, factor_altitud
-from zonda.cirsoc.presiones.edificio import presion_minima
+from zonda.cirsoc.presiones.base import presion_minima
+from zonda.cirsoc.presiones.cartel import PRESION_MINIMA_OTRAS_ESTRUCTURAS
 from zonda.excepciones import ErrorLineamientos
 
 
@@ -158,6 +159,43 @@ def test_cartel_valores_de_referencia(cartel: Cartel):
     fila_c = cartel.resultados.filtrar(caso=enums.CasoCartel.CASO_C)
     assert [f.cf for f in fila_c] == pytest.approx([2.25, 1.50])
     assert fila_c[0].presion == pytest.approx(1424.260995149032, rel=1e-6)
+
+
+def test_cartel_presion_minima_articulo_4_8():
+    """Art. 4.8: la fuerza de diseño no baja de 0,80 kN/m² por el área A_f.
+
+    Con una velocidad baja varias filas calculadas quedan por debajo del
+    mínimo: el recorte deja la presión de cada fila en 800 N/m² y, con ella,
+    la fuerza de cada caso sobre el área proyectada. En el Caso C, la suma de
+    las fuerzas de las regiones cubre el mínimo del cartel completo.
+    """
+    cartel = Cartel(
+        profundidad=1,
+        ancho=10,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=25,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    filas = cartel.resultados
+    assert filas
+    assert any(
+        fila.q.valor * fila.factor_rafaga * fila.cf < PRESION_MINIMA_OTRAS_ESTRUCTURAS
+        for fila in filas
+    )
+    for fila in filas:
+        esperado = max(
+            fila.q.valor * fila.factor_rafaga * fila.cf,
+            PRESION_MINIMA_OTRAS_ESTRUCTURAS,
+        )
+        assert fila.presion == pytest.approx(esperado)
+        assert fila.fuerza == pytest.approx(fila.presion * fila.area)
+
+    area_total = cartel.presiones.area
+    for fuerza in cartel.presiones.fuerzas_totales.values():
+        assert fuerza >= 800 * area_total - 1e-9
 
 
 def test_cartel_casos_a_y_b_comparten_coeficiente_y_fuerza(cartel: Cartel):
@@ -945,7 +983,7 @@ def test_componentes_aislada_relacion_h_l_fuera_de_lineamientos():
 
 
 def test_componentes_aislada_presiones():
-    """La presión de cada fila es q_h · G · C_N, sin presión interna."""
+    """La presión de cada fila es q_h · G · C_N, sin presión interna, con el mínimo del Art. 5.2.2 aplicado."""
     cubierta = CubiertaAislada(
         ancho=10,
         longitud=20,
@@ -962,7 +1000,7 @@ def test_componentes_aislada_presiones():
     filas = cubierta.resultados_componentes
     assert len(filas) == 12
     for fila in filas:
-        esperado = fila.q.valor * fila.factor_rafaga * fila.cpn
+        esperado = presion_minima(fila.q.valor * fila.factor_rafaga * fila.cpn)
         assert fila.presion == pytest.approx(esperado)
     # El área elige la columna: Chapa (0,5 m² ≤ a²) y Correa (> a², ≤ 4a²)
     # tienen valores distintos en la misma zona.
@@ -978,6 +1016,41 @@ def test_componentes_aislada_presiones():
         tipo_presion=pos,
     ).unica()
     assert chapa.cpn != pytest.approx(correa.cpn)
+
+
+def test_presion_minima_se_aplica_a_los_componentes_aislada():
+    """Art. 5.2.2: ninguna fila de C&R de la aislada baja de ±0,80 kN/m².
+
+    Con una velocidad baja varias filas calculadas quedan por debajo del
+    mínimo: el test exige que el recorte ocurra y que el signo sobreviva. El
+    SPRFV de la aislada (Figuras 2.4-4 a 2.4-7) no aplica este mínimo.
+    """
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=25,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 5.0, "Correa": 10.0},
+    )
+    filas = cubierta.resultados_componentes
+    assert filas
+    assert any(
+        abs(fila.q.valor * fila.factor_rafaga * fila.cpn) < 800 for fila in filas
+    )
+    for fila in filas:
+        assert abs(fila.presion) >= 800 - 1e-9
+        # El recorte conserva el signo del coeficiente.
+        assert (fila.presion > 0) == (fila.cpn > 0)
+
+    # El mínimo es de componentes: el SPRFV de la aislada tiene el suyo, y es
+    # sólo una nota (Art. 2.1.5, edificios abiertos).
+    assert any(abs(fila.presion) < 800 for fila in cubierta.resultados)
 
 
 def test_componentes_aislada_distancias_zonas_anillos():

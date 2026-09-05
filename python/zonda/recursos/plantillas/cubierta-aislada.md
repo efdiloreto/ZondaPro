@@ -93,6 +93,10 @@ Según el artículo 2.4.3.1, para viento paralelo a la cumbrera se debe agregar 
 parapetos o tímpanos y la fuerza de fricción, calculada con los coeficientes de empuje por fricción de la Tabla 2.4-1
 que correspondan al tipo de superficie según su orientación respecto de la dirección del viento.
 
+Notas:
+
+- **Cargas de viento de diseño mínimas (Art. 2.1.5):** La fuerza de viento de diseño para edificios abiertos, como la cubierta aislada, no debe ser menor que 0,75 kN/m^2^ multiplicada por el área proyectada A~f~.
+
 {%- endblock %}
 
 {%- block presiones_componentes -%}
@@ -114,5 +118,9 @@ de la vertiente.
 ) }}
 
 {% endfor %}
+
+Notas:
+
+- **Presiones de viento de diseño mínimas (Art. 5.2.2):** La presión de viento de diseño para componentes y revestimientos de edificios y otras estructuras no debe ser menor que una presión neta de 0,80 kN/m^2^ actuando en cualquier dirección normal a la superficie. Los valores de las tablas ya la tienen aplicada.
 {%- endif -%}
 {%- endblock %}

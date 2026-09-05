@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from zonda.cirsoc.presiones.base import PresionesBase
+from zonda.cirsoc.presiones.base import PresionesBase, presion_minima
 from zonda.cirsoc.resultados import PresionVelocidad
 from zonda.enums import (
     Cerramiento,
@@ -55,32 +55,6 @@ GCPI_CERRAMIENTO = {
     Cerramiento.PARCIALMENTE_CERRADO: 0.55,
     Cerramiento.ABIERTO: 0.0,
 }
-
-
-#: Presión neta mínima de diseño para componentes y revestimientos, en N/m²
-#: (CIRSOC 102-2025, Art. 5.2.2). Reemplaza a los 500 N/m² del Art. 1.4.2 del
-#: reglamento 2005.
-PRESION_MINIMA_COMPONENTES = 800
-
-
-def presion_minima(presion: float) -> float:
-    """Asigna el valor de presión mínima según CIRSOC 102-2025 Art. 5.2.2.
-
-    El Artículo pide que la presión neta no sea menor que 0,80 kN/m² actuando en
-    cualquier dirección normal a la superficie, así que se recorta el módulo de
-    cada signo del valor neto y se le devuelve su signo.
-
-    TODO (#10): Las cargas de viento de diseño mínimas del SPRFV (Art. 2.1.5)
-    siguen siendo sólo una nota del reporte, y ni el cartel ni la cubierta
-    aislada aplican mínimo alguno.
-
-    Args:
-        presion: El valor de presión a comparar.
-
-    Returns:
-        Maximo entre valor de presión minima y el valor de presión.
-    """
-    return np.sign(presion) * max(PRESION_MINIMA_COMPONENTES, abs(presion))
 
 
 class PresionesEdificioBase(PresionesBase):

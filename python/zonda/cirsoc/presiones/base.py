@@ -33,6 +33,32 @@ if TYPE_CHECKING:
     from zonda.cirsoc.factores import Rafaga
 
 
+#: Presión neta mínima de diseño para componentes y revestimientos, en N/m²
+#: (CIRSOC 102-2025, Art. 5.2.2). Reemplaza a los 500 N/m² del Art. 1.4.2 del
+#: reglamento 2005.
+PRESION_MINIMA_COMPONENTES = 800
+
+
+def presion_minima(presion: float) -> float:
+    """Asigna el valor de presión mínima según CIRSOC 102-2025 Art. 5.2.2.
+
+    El Artículo pide que la presión neta de componentes y revestimientos, de
+    edificios y otras estructuras, no sea menor que 0,80 kN/m² actuando en
+    cualquier dirección normal a la superficie, así que se recorta el módulo de
+    cada signo del valor neto y se le devuelve su signo.
+
+    TODO (#10): Las cargas de viento de diseño mínimas del SPRFV (Art. 2.1.5)
+    siguen siendo sólo una nota del reporte.
+
+    Args:
+        presion: El valor de presión a comparar.
+
+    Returns:
+        Maximo entre valor de presión minima y el valor de presión.
+    """
+    return np.sign(presion) * max(PRESION_MINIMA_COMPONENTES, abs(presion))
+
+
 class PresionesBase:
     """PresionesBase.
 

@@ -113,7 +113,7 @@ Notas:
 
 Notas:
 
-- **Cargas de viento de diseño mínimas (Art. 2.1.5):** La carga de viento que se debe usar en el diseño del SPRFV para un edificio cerrado o parcialmente cerrado, no debe ser menor que 0,75 kN/m^2^ multiplicado por el área de la pared del edificio y 0,4 kN/m^2^ multiplicado por el área de cubierta del edificio, proyectadas sobre un plano vertical normal a la dirección supuesta del viento. Las cargas de paredes y cubiertas se deben aplicar simultáneamente. La fuerza del viento de diseño para edificios abiertos no debe ser menor que 0,75 kN/m^2^ multiplicado por el área A~f~.
+- **Cargas de viento de diseño mínimas (Art. 2.1.5):** La carga de viento que se debe usar en el diseño del SPRFV para un edificio cerrado o parcialmente cerrado, no debe ser menor que 0,75 kN/m^2^ multiplicado por el área de la pared del edificio proyectada sobre un plano vertical normal a la dirección supuesta del viento, y 0,4 kN/m^2^ multiplicado por el área de la cubierta proyectada sobre un plano horizontal. Las cargas de paredes y cubiertas se deben aplicar simultáneamente. La fuerza del viento de diseño para edificios abiertos no debe ser menor que 0,75 kN/m^2^ multiplicado por el área A~f~.
 {%- endblock -%}
 
 {%- block presiones_componentes -%}
