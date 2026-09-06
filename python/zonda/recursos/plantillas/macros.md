@@ -65,6 +65,12 @@
 {%- set etiqueta = '%.2f a %.2f'|format(fila.rango[0], fila.rango[1]) -%}
 {%- elif fila.zona_componente -%}
 {%- set etiqueta = fila.zona_componente.value|capitalize -%}
+{#- El positivo suele ser único y viajar en la zona "todas". Cuando el
+    Reglamento lo distingue por zona (Fig. 5.3-2A, Nota 5, con parapeto), la
+    zona aparece con dos filas y hay que decir cuál es cuál. -#}
+{%- if fila.tipo_presion == enums.TipoPresionComponentesParedesCubierta.POSITIVA and fila.zona_componente.name != 'TODAS' -%}
+{%- set etiqueta = '%s (positiva)'|format(etiqueta) -%}
+{%- endif -%}
 {%- else -%}
 {%- set etiqueta = 'Total' -%}
 {%- endif -%}
@@ -85,15 +91,10 @@
 {%- set primera = filas|first %}
 : {{ titulo }} _(Ref: {{ primera.referencia }})_
 
-| {{ 'Zona - Tipo' if primera.zona else 'Tipo' }} | K~h~ | K~zth~ | C~pn~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | p~fricción~ ({{ unidad_presion }}) |
-|:-----------:|:----:|:------:|:-----:|:---------------------------:|:------------------------:|:----------------------------------:|
+| Caso | Zona | K~h~ | K~zth~ | C~pn~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | p~fricción~ ({{ unidad_presion }}) |
+|:----:|:----:|:----:|:------:|:-----:|:---------------------------:|:------------------------:|:----------------------------------:|
 {% for fila in filas -%}
-|
-{%- if fila.zona -%}
-{{ "%s - %s"|format(fila.zona.value|upper, fila.extremo.value|capitalize) }} |
-{%- else -%}
-{{ fila.extremo.value|capitalize }} |
-{%- endif -%}
+| {{ fila.caso.value }} | {{ fila.zona.value }} |
 {{- '%.2f'|format(fila.q.kz) }} |
 {{- '%.2f'|format(fila.q.kzt) }} |
 {{- '%.2f'|format(fila.cpn) }} |
@@ -103,36 +104,119 @@
 {% endfor %}
 {% endmacro %}
 
-{% macro presiones_cartel(filas) -%}
+{#
+  Tabla de presiones de componentes y revestimientos de una cubierta aislada
+  (Figuras 5.5-1 a 5.5-3). Cada zona trae una fila con el coeficiente positivo
+  y una con el negativo: los C_N son presiones netas y no llevan presión
+  interna.
+#}
+{% macro presiones_componentes_cubierta_aislada(filas, titulo) -%}
 {%- set primera = filas|first %}
-: PRESIONES LOCALES _(Ref: {{ primera.referencia }})_
+: {{ titulo }} _(Ref: {{ primera.referencia }}; a: {{ '%.2f'|format(primera.distancia_a) }} m)_
 
-| Alturas (m) | K~z~ | K~zt~ | C~f~ | q~z~ ({{ unidad_presion }}) | p~n~ ({{ unidad_presion }}) | Área Parcial (m^2^) | F~z~ ({{ unidades.fuerza.value }}) |
-|:-----------:|:----:|:-----:|:----:|:---------------------------:|:---------------------------:|:-------------------:|:----------------------------------:|
+| Zona | K~h~ | K~zth~ | C~N~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) |
+|:----:|:----:|:------:|:----:|:---------------------------:|:------------------------:|
 {% for fila in filas -%}
-|
-{{- '%.2f'|format(fila.q.altura) }} |
+| {{ fila.zona_componente.value }} ({{ fila.tipo_presion.value }}) |
 {{- '%.2f'|format(fila.q.kz) }} |
 {{- '%.2f'|format(fila.q.kzt) }} |
-{{- '%.2f'|format(fila.cf) }} |
+{{- '%.2f'|format(fila.cpn) }} |
 {{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
 {{- '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} |
-{%- if fila.area_parcial is none -%}- | - |
-{% else -%}
-{{- '%.2f'|format(fila.area_parcial) }} |
-{{- '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
-{% endif -%}
 {% endfor %}
 {% endmacro %}
 
 {#
+  Tablas de presiones del cartel, una por caso de la Figura 4.4-1. Los Casos
+  A y B llevan una fila con la superficie completa; el Caso C una fila por
+  región, con los límites medidos desde el borde de barlovento.
+#}
+{% macro presiones_cartel(estructura) -%}
+{%- set filas = estructura.resultados %}
+{%- set primera = filas|first %}
+: PRESIONES _(Ref: {{ primera.referencia }})_
+
+{% for caso in (enums.CasoCartel.CASO_A, enums.CasoCartel.CASO_B, enums.CasoCartel.CASO_C) -%}
+{%- set filas_caso = filas.filtrar(caso=caso) -%}
+{%- if filas_caso %}
+### {{ caso.value }}
+{% if (filas_caso|first).region -%}
+| Región | C~f~ | p ({{ unidad_presion }}) | Área (m^2^) | F ({{ unidades.fuerza.value }}) |
+|:------:|:----:|:---------------------------:|:-----------:|:------------------------------:|
+{% for fila in filas_caso -%}
+{%- set limites = estructura.cf.limites_regiones[fila.region] %}
+| {{ '%.2f'|format(limites[0]) }} a {{ '%.2f'|format(limites[1]) }} m | {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
+{% endfor %}
+{%- else -%}
+| C~f~ | q~h~ ({{ unidad_presion }}) | p ({{ unidad_presion }}) | Área (m^2^) | F ({{ unidades.fuerza.value }}) |
+|:----:|:---------------------------:|:---------------------------:|:-----------:|:------------------------------:|
+{% for fila in filas_caso -%}
+| {{ '%.2f'|format(fila.cf) }} | {{ '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.presion|convertir_unidad(unidades.presion)) }} | {{ '%.2f'|format(fila.area) }} | {{ '%.2f'|format(fila.fuerza|convertir_unidad(unidades.fuerza)) }} |
+{% endfor %}
+{%- endif %}
+Fuerza total del {{ caso.value }}: {{ '%.2f'|format(estructura.presiones.fuerzas_totales[caso]|convertir_unidad(unidades.fuerza)) }} {{ unidades.fuerza.value }}
+
+{% endif -%}
+{% endfor -%}
+{% endmacro %}
+
+{#
   Arma el título de una superficie de cubierta o alero. Cuando la superficie
-  está dividida en zonas no hay posición ni caso, y el título es sólo la base.
+  está dividida en zonas sin posición se muestra igualmente el caso de presión
+  si la fila lo tiene (el caso positivo del nuevo Reglamento con ángulo < 10°).
 #}
 {% macro titulo_superficie(base, clave, sin_posicion=none) -%}
 {%- if clave[0] is none -%}
-{{- sin_posicion or base -}}
+{{- sin_posicion or base }}{% if clave[1] %} - {{ clave[1].value|upper }}{% endif %}
 {%- else -%}
 {{- base }} {{ clave[0].value|upper }}{% if clave[1] %} - {{ clave[1].value|upper }}{% endif %}
 {%- endif -%}
 {%- endmacro %}
+
+{#
+  Tabla de presiones del parapeto para SPRFV (Art. 2.4.5). Una fila por cada
+  posición del parapeto respecto del viento: el coeficiente (GC_pn) es una
+  presión neta combinada que ya incluye el efecto de ráfaga y no lleva
+  presión interna. La presión dinámica se evalúa en la coronación.
+#}
+{% macro presiones_parapeto_sprfv(filas, titulo) -%}
+{%- set primera = filas|first -%}
+: {{ titulo }} _(Ref: {{ primera.referencia }}; q~p~: presión dinámica en la coronación del parapeto)_
+
+| Caso | K~z~ | K~zt~ | GC~pn~ | q~p~ ({{ unidad_presion }}) | p~p~ ({{ unidad_presion }}) |
+|:----:|:----:|:-----:|:------:|:---------------------------:|:---------------------------:|
+{% for fila in filas -%}
+| {{ fila.pared.value|capitalize }} |
+{{- '%.2f'|format(fila.q.kz) }} |
+{{- '%.2f'|format(fila.q.kzt) }} |
+{{- '%.2f'|format(fila.cp) }} |
+{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.pos|convertir_unidad(unidades.presion)) }} |
+{% endfor %}
+{% endmacro %}
+
+{#
+  Tabla de presiones del parapeto para componentes y revestimientos
+  (Art. 5.6). Una fila por cada caso de carga (A barlovento y B sotavento) y
+  segmento del parapeto. El coeficiente combinado se muestra con el desglose
+  de las presiones externas de la cara exterior (frontal) y de la posterior,
+  y la presión interna es la de la envolvente no porosa del parapeto.
+#}
+{% macro presiones_parapeto_componentes(filas, titulo) -%}
+{%- set primera = filas|first -%}
+: {{ titulo }} _(Ref: {{ primera.referencia }}; GC~pi~: ±{{ '%.2f'|format(primera.gcpi) }})_
+
+| Caso | Zona | K~z~ | K~zt~ | GC~p~ frontal | GC~p~ posterior | GC~p~ | q~p~ ({{ unidad_presion }}) | p~n~ [+GC~pi~] ({{ unidad_presion }}) | p~n~ [−GC~pi~] ({{ unidad_presion }}) |
+|:----:|:----:|:----:|:-----:|:-------------:|:---------------:|:-----:|:---------------------------:|:-------------------------------------:|:-------------------------------------:|
+{% for fila in filas -%}
+| {{ fila.pared.value|capitalize }} | {{ fila.zona_parapeto.value|capitalize }} |
+{{- '%.2f'|format(fila.q.kz) }} |
+{{- '%.2f'|format(fila.q.kzt) }} |
+{{- '%.2f'|format(fila.cp_frontal) }} |
+{{- '%.2f'|format(fila.cp_posterior) }} |
+{{- '%.2f'|format(fila.cp) }} |
+{{- '%.2f'|format(fila.q.valor|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.pos|convertir_unidad(unidades.presion)) }} |
+{{- '%.2f'|format(fila.neg|convertir_unidad(unidades.presion)) }} |
+{% endfor %}
+{% endmacro %}

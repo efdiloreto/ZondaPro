@@ -20,155 +20,177 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from zonda.cirsoc.presiones.base import PresionesBase
 from zonda.cirsoc.resultados import FilaCartel
+from zonda.enums import CasoCartel
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from zonda.cirsoc import cp, geometria
     from zonda.cirsoc.factores import Rafaga
-    from zonda.enums import CategoriaEstructura, CategoriaExposicion
+    from zonda.enums import CategoriaExposicion, RegionCartel
+
+
+#: Presión mínima de diseño para otras estructuras, en N/m² (CIRSOC 102-2025,
+#: Art. 4.8): la fuerza de viento de diseño no debe ser menor que 0,80 kN/m²
+#: multiplicada por el área proyectada A~f~.
+PRESION_MINIMA_OTRAS_ESTRUCTURAS = 800
 
 
 class Cartel(PresionesBase):
     """Cartel.
 
-    Determina las presiones de viento sobre un cartel.
+    Determina las presiones de viento sobre un cartel de acuerdo a la
+    Ec. 4.4-1: F = qh·G·Cf·As, con qh evaluada a la altura h de la Figura 4.4-1
+    y el mínimo del Art. 4.8 aplicado a la presión de cada caso.
     """
 
     def __init__(
         self,
-        alturas: np.ndarray,
-        areas_parciales: tuple[float, ...],
-        categoria: CategoriaEstructura,
+        altura: float,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: Sequence[float],
+        factor_topografico: float,
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
+        area: float,
+        areas_regiones: dict[RegionCartel, float],
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
         Args:
-            alturas: Las alturas donde calcular las presiones sobre el cartel.
-            areas_parciales: Las areas entre las alturas consideradas.
-            categoria: La categoría de la estructura.
+            altura: La altura h a la que se evalúa la presión dinámica: la punta
+                del cartel según la Figura 4.4-1.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de Rafaga.
-            factor_topografico: Los factores topográficos correspondientes a cada altura de la estructura.
-            cf: Una instancia de cartel.
+            factor_topografico: El factor topográfico correspondiente a la altura.
+            cf: Una instancia de Cartel de cp, con los coeficientes de fuerza.
             categoria_exp: La categoría de exposición.
+            area: El área total de la superficie del cartel.
+            areas_regiones: El área de cada región del Caso C. Vacío cuando el
+                Caso C no aplica.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         super().__init__(
-            alturas,
-            categoria,
+            altura,
             velocidad,
             rafaga,
             factor_topografico,
             0.85,
             categoria_exp,
+            factor_altitud=factor_altitud,
         )
-        self.areas_parciales = areas_parciales
         self.cf = cf
+        self.area = area
+        self.areas_regiones = areas_regiones
         self.factor_rafaga = rafaga.factor
 
     @cached_property
-    def valores(self) -> tuple[float, ...]:
-        """Calcula los valores de presión para el cartel para cada altura.
-
-        Returns:
-            Los valores de presión.
-        """
-        return tuple(
-            float(q.valor * self.factor_rafaga * self.cf())
-            for q in self.presiones_velocidad
-        )
-
-    @cached_property
-    def fuerzas_parciales(self) -> tuple[float, ...]:
-        """Calcula las fuerzas (presión x área) en cada tramo entre alturas.
-
-        Returns:
-            Los valores de fuerza.
-        """
-        return tuple(
-            presion * area
-            for presion, area in zip(
-                self.valores[1:], self.areas_parciales, strict=True
-            )
-        )
-
-    @cached_property
     def filas(self) -> tuple[FilaCartel, ...]:
-        """Calcula las presiones sobre el cartel.
+        """Calcula las filas de resultado del cartel.
 
         Returns:
-            Una fila por cada altura. El área parcial y la fuerza corresponden
-            al tramo que arranca en la altura anterior, así que la primera fila
-            no las tiene.
+            Una fila para el Caso A, otra para el Caso B con su excentricidad
+            y, si B/s ≥ 2, una por cada región del Caso C.
         """
-        cf = float(self.cf())
+        q = self.presiones_velocidad[0]
+        referencia = self.cf.referencia
         factor_rafaga = float(self.factor_rafaga)
-        return tuple(
-            FilaCartel(
+
+        def crear(
+            caso: CasoCartel,
+            cf: float,
+            area: float,
+            region: RegionCartel | None = None,
+            excentricidad: float | None = None,
+        ) -> FilaCartel:
+            # El mínimo del Art. 4.8 es una fuerza sobre el área proyectada,
+            # así que basta con recortar la presión de cada fila: la fuerza
+            # queda F ≥ 0,80 kN/m² × A_f, y en el Caso C la suma de las
+            # regiones cubre el mínimo del cartel completo.
+            presion = max(
+                q.valor * factor_rafaga * float(cf),
+                PRESION_MINIMA_OTRAS_ESTRUCTURAS,
+            )
+            return FilaCartel(
                 q=q,
-                cf=cf,
+                caso=caso,
+                cf=float(cf),
                 factor_rafaga=factor_rafaga,
                 presion=presion,
-                referencia="Tabla 11",
-                area_parcial=None
-                if indice == 0
-                else float(self.areas_parciales[indice - 1]),
-                fuerza=None
-                if indice == 0
-                else float(self.fuerzas_parciales[indice - 1]),
+                referencia=referencia,
+                area=area,
+                fuerza=presion * area,
+                region=region,
+                excentricidad=excentricidad,
             )
-            for indice, (q, presion) in enumerate(
-                zip(self.presiones_velocidad, self.valores, strict=True)
+
+        filas = [
+            crear(CasoCartel.CASO_A, self.cf.cf_casos_ab, self.area),
+            crear(
+                CasoCartel.CASO_B,
+                self.cf.cf_casos_ab,
+                self.area,
+                excentricidad=float(self.cf.excentricidad),
+            ),
+        ]
+        filas.extend(
+            crear(
+                CasoCartel.CASO_C,
+                self.cf.cf_por_region[region],
+                area,
+                region=region,
             )
+            for region, area in self.areas_regiones.items()
         )
+        return tuple(filas)
 
     @cached_property
-    def fuerza_total(self) -> float:
-        """Calcula la fuerza total sobre el cartel.
+    def fuerzas_totales(self) -> dict[CasoCartel, float]:
+        """La fuerza total de cada caso.
 
         Returns:
-            La fuerza total.
+            Cada caso con la suma de las fuerzas de sus filas.
         """
-        return sum(self.fuerzas_parciales)
+        totales: dict[CasoCartel, float] = {}
+        for fila in self.filas:
+            totales[fila.caso] = totales.get(fila.caso, 0.0) + fila.fuerza
+        return totales
 
     @classmethod
     def desde_cartel(
         cls,
         cartel: geometria.Cartel,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
-        factor_topografico: Sequence[float],
+        factor_topografico: float,
         cf: cp.Cartel,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> Cartel:
         """Crea una instancia a partir de la geometria de un Cartel.
 
         Args:
             cartel: Una instancia de Cartel.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de Rafaga.
-            factor_topografico: Los factores topográficos correspondientes a cada altura de la estructura.
-            cf: Una instancia de cartel.
+            factor_topografico: El factor topográfico correspondiente a la altura.
+            cf: Una instancia de Cartel de cp.
             categoria_exp: La categoría de exposición.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
+        areas_regiones = {
+            region: (fin - inicio) * cartel.altura_neta
+            for region, (inicio, fin) in cf.limites_regiones.items()
+        }
         return cls(
-            cartel.alturas,
-            cartel.areas_parciales,
-            categoria,
+            cartel.altura_superior,
             velocidad,
             rafaga,
             factor_topografico,
             cf,
             categoria_exp,
+            cartel.area,
+            areas_regiones,
+            factor_altitud=factor_altitud,
         )

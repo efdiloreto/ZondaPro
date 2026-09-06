@@ -142,6 +142,44 @@ def test_resultados_edificio(qapp, edificio):
 
 
 @necesita_opengl
+def test_resultados_edificio_plana_tiene_caso_cubierta_barlovento(qapp):
+    """La cubierta plana (ángulo < 10°) muestra el caso de cubierta barlovento.
+
+    El nuevo Reglamento agrega el caso de presión positiva a las cubiertas de
+    ángulo menor que 10° con viento normal a la cumbrera, incluida la plana.
+    """
+    from zonda import enums
+    from zonda.cirsoc import Edificio
+    from zonda.widgets.resultados import WidgetResultadosEdificioSprfvMetodoDireccional
+
+    edificio = Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=6,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    widget = WidgetResultadosEdificioSprfvMetodoDireccional(edificio)
+    combobox = widget._combobox_presion_cubierta_inclinada
+    assert combobox is not None
+
+    widget._combobox_direccion.setCurrentIndex(
+        widget._combobox_direccion.findData(
+            enums.DireccionVientoMetodoDireccionalSprfv.NORMAL
+        )
+    )
+    assert combobox.isEnabled()
+    combobox.setCurrentText("Presión positiva")
+    widget.close()
+
+
+@necesita_opengl
 def test_resultados_cartel(qapp, cartel):
     from zonda.widgets.resultados import WidgetResultadosCartel
 
@@ -156,7 +194,114 @@ def test_resultados_cubierta_aislada(qapp, cubierta_aislada):
 
     widget = WidgetResultadosCubiertaAislada(cubierta_aislada)
     assert widget is not None
+    # Sin componentes cargados, la vista de C&R no existe.
+    assert widget._stacked_widget.count() == 1
     widget.close()
+
+
+@necesita_opengl
+def test_resultados_cubierta_aislada_con_componentes(
+    qapp, cubierta_aislada_con_componentes
+):
+    from zonda.widgets.resultados import WidgetResultadosCubiertaAislada
+
+    widget = WidgetResultadosCubiertaAislada(cubierta_aislada_con_componentes)
+    assert widget._stacked_widget.count() == 2
+    # Conmutar a la vista de C&R arma la escena y pinta las zonas.
+    widget._stacked_widget.setCurrentIndex(1)
+    widget._stacked_widget.setCurrentIndex(0)
+    widget.close()
+
+
+def test_el_dialogo_de_componentes_en_modo_cubierta_ignora_las_paredes(qapp):
+    from zonda.widgets.dialogos import DialogoComponentes
+
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": {"Viga": 10.0},
+            "componentes_cubierta": {"Correa": 2.0},
+        },
+        solo_cubierta=True,
+    )
+    dialogo.accept()
+    componentes = dialogo.componentes()
+    assert componentes["componentes_paredes"] is None
+    assert componentes["componentes_cubierta"] == {"Correa": 2.0}
+
+
+def test_el_dialogo_de_componentes_pide_el_area_del_parapeto(qapp):
+    """Con parapeto de cubierta plana, el diálogo carga el área efectiva."""
+    from zonda.widgets.dialogos import DialogoComponentes
+
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": None,
+            "componentes_cubierta": None,
+            "area_parapeto": None,
+        },
+        con_parapeto=True,
+    )
+    dialogo._area_parapeto.setValue(2.5)
+    dialogo.accept()
+    assert dialogo.componentes()["area_parapeto"] == 2.5
+
+    # Sin el campo, el área guardada no se toca.
+    dialogo = DialogoComponentes(
+        {
+            "componentes_paredes": None,
+            "componentes_cubierta": None,
+            "area_parapeto": 2.5,
+        }
+    )
+    dialogo.accept()
+    assert dialogo.componentes()["area_parapeto"] == 2.5
+
+
+@necesita_opengl
+def test_hay_parapeto_plana(qapp):
+    """El área del parapeto se pide sólo con parapeto cargado y cubierta plana."""
+    from zonda import enums
+    from zonda.widgets.entrada import WidgetEstructuraEdificio
+
+    widget = WidgetEstructuraEdificio()
+    widget.finalizar()
+
+    # El valor por defecto es cubierta a dos aguas y parapeto deshabilitado.
+    assert not widget.hay_parapeto_plana()
+
+    widget._checkbox_parapeto.setChecked(True)
+    widget._spinboxs["parapeto"].setValue(1)
+    assert not widget.hay_parapeto_plana()
+
+    widget._combobox_tipo_cubierta.setCurrentIndex(
+        widget._combobox_tipo_cubierta.findData(enums.TipoCubierta.PLANA)
+    )
+    assert widget.hay_parapeto_plana()
+
+
+@necesita_opengl
+def test_el_panel_de_aislada_va_y_vuelve_del_archivo(qapp, tmp_path):
+    from zonda import proyecto
+    from zonda.enums import Estructura
+    from zonda.widgets.custom import WidgetPanelEntrada
+
+    panel = WidgetPanelEntrada(componentes=True, solo_cubierta=True)
+    panel.parametros_viento["velocidad"] = 50
+    panel.componentes = {
+        "componentes_paredes": None,
+        "componentes_cubierta": {"Correa": 2.5},
+        "area_parapeto": None,
+    }
+    esperado = panel.estado()
+
+    archivo = tmp_path / f"panel-aislada{proyecto.EXTENSION}"
+    proyecto.guardar(archivo, Estructura.CUBIERTA_AISLADA, esperado)
+    _, guardado = proyecto.abrir(archivo)
+
+    otro = WidgetPanelEntrada(componentes=True, solo_cubierta=True)
+    otro.cargar_estado(guardado)
+
+    assert otro.estado() == esperado
 
 
 # --- El event loop y la vista 3D ----------------------------------------
@@ -236,12 +381,11 @@ def test_la_pantalla_de_entrada_va_y_vuelve_del_archivo(
     qapp, tmp_path, nombre, estructura
 ):
     from zonda import proyecto
-    from zonda.enums import CategoriaEstructura, Estructura
+    from zonda.enums import Estructura
     from zonda.widgets import entrada
 
     widget = getattr(entrada, nombre)()
     widget._spinboxs["ancho"].setValue(23.5)
-    widget._categoria.cargar(CategoriaEstructura.IV)
     esperado = widget.estado()
 
     archivo = tmp_path / f"proyecto{proyecto.EXTENSION}"
@@ -264,7 +408,7 @@ def test_cargar_un_estado_no_abre_el_aviso_de_parapeto(qapp):
     """El aviso es para cuando lo tilda el usuario, no para cuando se abre un archivo.
 
     El estado se arma a mano en vez de tildando el checkbox: hacerlo sobre el
-    widget dispara justamente el ``QErrorMessage`` modal que este test quiere
+    widget dispara justamente el ``QMessageBox`` modal que este test quiere
     ver que *no* aparezca, y deja la corrida esperando a que alguien lo cierre.
     """
     from zonda.widgets.entrada import WidgetEstructuraEdificio
@@ -295,6 +439,7 @@ def test_el_panel_de_entrada_va_y_vuelve_del_archivo(qapp, tmp_path):
     panel.componentes = {
         "componentes_paredes": {"Chapa": 3.5},
         "componentes_cubierta": None,
+        "area_parapeto": None,
     }
     esperado = panel.estado()
 
@@ -444,3 +589,53 @@ def test_guardar_y_abrir_desde_el_modulo(modulo, tmp_path):
     _, estado = proyecto.abrir(archivo)
     modulo._cargar_estado(estado)
     assert modulo._widget_estructura._spinboxs["ancho"].value() == 77.5
+
+
+def test_widget_cerramiento_edificio(qapp):
+    from zonda import enums
+    from zonda.widgets.entrada import WidgetCerramientoEdificio
+
+    widget = WidgetCerramientoEdificio(
+        parent=None,
+        ancho=10.0,
+        longitud=20.0,
+        elevacion=0.0,
+        altura_alero=5.0,
+        altura_cumbrera=5.0,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        aberturas=(20.0, 1.0, 1.0, 1.0, 0.0),
+    )
+    assert widget.windowTitle() == "Verificación de cerramiento"
+    widget.close()
+
+
+def test_dialogo_viento(qapp):
+    from zonda.enums import CategoriaEstructura, CategoriaExposicion, Flexibilidad
+    from zonda.widgets.dialogos import DialogoViento
+
+    dialogo = DialogoViento(
+        categoria_exp=CategoriaExposicion.B,
+        velocidad=55.1,
+        frecuencia=1.0,
+        beta=0.02,
+        flexibilidad=Flexibilidad.RIGIDA,
+        ciudad="Buenos Aires",
+        factor_g_simplificado=True,
+        editar_velocidad=False,
+        altitud=500.0,
+        categoria_riesgo_viento=CategoriaEstructura.II,
+    )
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(55.1)
+    assert dialogo._spinboxs["altitud"].value() == 500.0
+
+    # Cambiar ciudad actualiza velocidad
+    dialogo._combobox_ciudades.setCurrentText("Rosario")
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(61.2)
+
+    # Cambiar mapa a Cat I actualiza velocidad para Rosario
+    dialogo._combobox_mapa.setCurrentIndex(
+        dialogo._combobox_mapa.findData(CategoriaEstructura.I)
+    )
+    assert dialogo._spinboxs["velocidad"].value() == pytest.approx(57.1)
+
+    dialogo.close()

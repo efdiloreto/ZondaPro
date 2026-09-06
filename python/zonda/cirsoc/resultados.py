@@ -39,14 +39,19 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zonda.enums import (
+    CasoCargaCubiertaAislada,
+    CasoCartel,
+    DireccionVientoCubiertaAislada,
     DireccionVientoMetodoDireccionalSprfv,
-    ExtremoPresion,
     ParedEdificioSprfv,
+    RegionCartel,
     SistemaResistente,
-    TipoPresionCubiertaAislada,
+    TipoPresionComponentesParedesCubierta,
+    ZonaComponenteCubiertaAislada,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
     ZonaEdificio,
+    ZonaParapeto,
     ZonaPresionCubiertaAislada,
 )
 
@@ -72,6 +77,7 @@ class PresionVelocidad:
     kz: float
     kzt: float
     valor: float
+    ke: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +86,17 @@ class FilaEdificio:
 
     Los campos opcionales son las claves que no aplican a la fila: una pared a
     sotavento no tiene rango de zona, una zona de cubierta no tiene componente.
+
+    ``tipo_presion`` sólo lo traen las filas de componentes, y distingue el
+    signo del coeficiente externo. Es lo que permite que una zona tenga a la vez
+    una fila negativa y una positiva, como pide la Nota 5 de la Figura 5.3-2A
+    cuando hay parapeto. Cuando el positivo es único para todas las zonas, su
+    fila va con ``zona_componente`` en ``TODAS``.
+
+    Las filas del parapeto llevan ``zona_parapeto``, que distingue el tramo de
+    borde del de esquina, y el desglose del coeficiente combinado en
+    ``cp_frontal`` y ``cp_posterior``, las presiones externas de las caras
+    exterior y posterior que el Art. 5.6 suma para armar el valor neto.
     """
 
     zona: ZonaEdificio
@@ -100,8 +117,12 @@ class FilaEdificio:
     zona_componente: (
         ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio | None
     ) = None
+    zona_parapeto: ZonaParapeto | None = None
+    cp_frontal: float | None = None
+    cp_posterior: float | None = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
+    tipo_presion: TipoPresionComponentesParedesCubierta | None = None
 
     @property
     def presiones(self) -> tuple[float, ...]:
@@ -144,8 +165,12 @@ class EntradaCp:
     zona_componente: (
         ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio | None
     ) = None
+    zona_parapeto: ZonaParapeto | None = None
+    cp_frontal: float | None = None
+    cp_posterior: float | None = None
     rango: tuple[float, float] | None = None
     distancia_a: float | None = None
+    tipo_presion: TipoPresionComponentesParedesCubierta | None = None
 
     def fila(
         self,
@@ -188,8 +213,12 @@ class EntradaCp:
             caso=self.caso,
             componente=self.componente,
             zona_componente=self.zona_componente,
+            zona_parapeto=self.zona_parapeto,
+            cp_frontal=self.cp_frontal,
+            cp_posterior=self.cp_posterior,
             rango=self.rango,
             distancia_a=self.distancia_a,
+            tipo_presion=self.tipo_presion,
         )
 
 
@@ -197,24 +226,49 @@ class EntradaCp:
 class EntradaCpn:
     """Un coeficiente de presión neta de cubierta aislada, con sus claves."""
 
-    tipo: TipoPresionCubiertaAislada
-    extremo: ExtremoPresion
+    direccion: DireccionVientoCubiertaAislada
+    caso: CasoCargaCubiertaAislada
     valor: float
     referencia: str
     zona: ZonaPresionCubiertaAislada | None = None
 
 
 @dataclass(frozen=True, slots=True)
+class EntradaCpnComponentes:
+    """Un coeficiente de presión neta de componentes de cubierta aislada.
+
+    Las Figuras 5.5-1 a 5.5-3 dan, para cada zona, un coeficiente positivo y
+    uno negativo; ambos viajan en filas propias. Las presiones son netas
+    (superficie superior e inferior), así que no hay presión interna.
+    """
+
+    componente: str
+    zona_componente: ZonaComponenteCubiertaAislada
+    tipo_presion: TipoPresionComponentesParedesCubierta
+    valor: float
+    referencia: str
+    distancia_a: float
+
+
+@dataclass(frozen=True, slots=True)
 class FilaCartel:
-    """Una línea de resultado de cartel: una altura del cartel."""
+    """Una línea de resultado de cartel.
+
+    Los Casos A y B producen una fila cada uno con toda la superficie del
+    cartel; el Caso C produce una fila por región. La excentricidad sólo la
+    trae la fila del Caso B, y la región sólo las filas del Caso C.
+    """
 
     q: PresionVelocidad
+    caso: CasoCartel
     cf: float
     factor_rafaga: float
     presion: float
     referencia: str
-    area_parcial: float | None = None
-    fuerza: float | None = None
+    area: float
+    fuerza: float
+    region: RegionCartel | None = None
+    excentricidad: float | None = None
 
     @property
     def presiones(self) -> tuple[float, ...]:
@@ -223,10 +277,15 @@ class FilaCartel:
 
 @dataclass(frozen=True, slots=True)
 class FilaCubiertaAislada:
-    """Una línea de resultado de cubierta aislada."""
+    """Una línea de resultado de cubierta aislada.
 
-    tipo: TipoPresionCubiertaAislada
-    extremo: ExtremoPresion
+    Hay una fila por cada combinación de dirección de viento, caso de carga y
+    zona de las Figuras 2.4-4 a 2.4-7. La fricción actúa sobre la superficie
+    superior e inferior con flujo libre, o sólo sobre la superior con bloqueo.
+    """
+
+    direccion: DireccionVientoCubiertaAislada
+    caso: CasoCargaCubiertaAislada
     q: PresionVelocidad
     cpn: float
     factor_rafaga: float
@@ -234,6 +293,31 @@ class FilaCubiertaAislada:
     presion_friccion: float
     referencia: str
     zona: ZonaPresionCubiertaAislada | None = None
+
+    @property
+    def presiones(self) -> tuple[float, ...]:
+        return (self.presion,)
+
+
+@dataclass(frozen=True, slots=True)
+class FilaComponentesCubiertaAislada:
+    """Una línea de resultado de componentes y revestimientos de cubierta aislada.
+
+    Hay una fila por cada combinación de componente, zona y signo del
+    coeficiente de las Figuras 5.5-1 a 5.5-3. Los coeficientes son presiones
+    netas (contribuciones de las superficies superior e inferior), así que no
+    hay presión interna ni fricción.
+    """
+
+    componente: str
+    zona_componente: ZonaComponenteCubiertaAislada
+    tipo_presion: TipoPresionComponentesParedesCubierta
+    q: PresionVelocidad
+    cpn: float
+    factor_rafaga: float
+    presion: float
+    referencia: str
+    distancia_a: float
 
     @property
     def presiones(self) -> tuple[float, ...]:

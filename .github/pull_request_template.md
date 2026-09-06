@@ -21,7 +21,7 @@ OBLIGATORIO. Marcá una:
 - [ ] No cambia ningún número: los .tsv de referencia quedan intactos.
 - [ ] Cambia números, deliberadamente. Detallá abajo qué casos se mueven y por
       qué, con la referencia reglamentaria (artículo / tabla / figura del
-      CIRSOC 102-2005) que respalda el valor nuevo, y confirmá que revisaste el
+      CIRSOC 102-2025) que respalda el valor nuevo, y confirmá que revisaste el
       diff de tests/referencia/*.tsv línea por línea.
 -->
 

@@ -465,7 +465,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         edificio = Edificio(
             **self._widget_estructura.parametros(),
@@ -475,9 +475,11 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         )
         return WidgetResultadosEdificio(edificio)
 
-    @staticmethod
-    def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada(componentes=True)
+    def _generar_widget_panel_entrada(self):
+        return WidgetPanelEntrada(
+            componentes=True,
+            hay_parapeto=self._widget_estructura.hay_parapeto_plana,
+        )
 
     @staticmethod
     def _generar_widget_estructura():
@@ -490,7 +492,7 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
 
     @staticmethod
     def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada()
+        return WidgetPanelEntrada(componentes=True, solo_cubierta=True)
 
     @staticmethod
     def _generar_widget_estructura():
@@ -500,12 +502,13 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad", "factor_g_simplificado")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         cubierta_aislada = CubiertaAislada(
             **self._widget_estructura.parametros(),
             **parametros_viento,
             **self._widget_panel_entrada.parametros_topografia,
+            componentes=self._widget_panel_entrada.componentes["componentes_cubierta"],
         )
         return WidgetResultadosCubiertaAislada(cubierta_aislada)
 
@@ -515,6 +518,10 @@ class WidgetModuloCartel(WidgetModuloCubiertaAislada):
     estructura = Estructura.CARTEL
 
     @staticmethod
+    def _generar_widget_panel_entrada():
+        return WidgetPanelEntrada()
+
+    @staticmethod
     def _generar_widget_estructura():
         return WidgetEstructuraCartel()
 
@@ -522,7 +529,7 @@ class WidgetModuloCartel(WidgetModuloCubiertaAislada):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         cartel = Cartel(
             **self._widget_estructura.parametros(),

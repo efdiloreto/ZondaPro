@@ -21,6 +21,7 @@ import shutil
 
 import pytest
 
+from zonda import enums
 from zonda.enums import Unidad
 from zonda.reportes import Reporte, env, render_plantilla
 
@@ -48,9 +49,121 @@ def test_reporte_edificio(edificio):
     assert reporte._texto_md.strip()
 
 
+def test_reporte_edificio_angulo_menor_diez_muestra_el_caso_positivo(
+    edificio_angulo_pequeno,
+):
+    """El reporte lista el caso de presión positiva de la cubierta < 10°."""
+    texto = Reporte("edificio.md", edificio_angulo_pequeno, UNIDADES)._texto_md
+    assert "PRESIÓN POSITIVA" in texto
+
+
+def test_reporte_edificio_con_parapeto_distingue_el_positivo_por_zona(
+    edificio_con_parapeto,
+):
+    """Con parapeto, las Zonas 2 y 3 llevan dos filas y hay que diferenciarlas.
+
+    La Nota 5 de la Figura 5.3-2A les da un positivo propio, así que la tabla
+    de la zona deja de tener una sola fila.
+    """
+    texto = Reporte("edificio.md", edificio_con_parapeto, UNIDADES)._texto_md
+    assert "2 (positiva)" in texto
+    assert "3 (positiva)" in texto
+
+
+def test_reporte_edificio_plana_con_parapeto(edificio_plana_con_parapeto):
+    """El reporte de cubierta plana con parapeto agrega las tablas del parapeto.
+
+    El SPRFV trae la tabla del Art. 2.4.5 con el coeficiente de presión neta
+    combinada, y componentes la del Art. 5.6 con el desglose de las caras
+    exterior y posterior y el área efectiva de viento.
+    """
+    texto = Reporte("edificio.md", edificio_plana_con_parapeto, UNIDADES)._texto_md
+    assert "#### PARAPETO" in texto
+    assert "Art. 2.4.5" in texto
+    assert "GC~pn~" in texto
+    assert "Art. 5.6" in texto
+    assert "GC~p~ frontal" in texto
+    assert "área efectiva: 2 m^2^" in texto
+    assert "Barlovento | Borde" in texto
+
+
+def test_reporte_edificio_sin_parapeto_no_muestra_las_tablas_del_parapeto(edificio):
+    """Sin parapeto no hay secciones de parapeto en el reporte."""
+    texto = Reporte("edificio.md", edificio, UNIDADES)._texto_md
+    assert "Art. 2.4.5" not in texto
+    assert "Art. 5.6" not in texto
+
+
+def test_reporte_edificio_gran_altura_resuelve_las_paredes_por_altura():
+    """Con h > 20 m la Figura 5.4-1 evalúa las paredes con qz a cada altura
+    (Nota 4), tanto las positivas como las negativas.
+
+    Las Zonas 4, 5 y "todas" de pared viajan con varias alturas y entran al
+    bloque por altura del reporte; la cubierta queda con un valor único qh.
+    """
+    from zonda.cirsoc import Edificio
+
+    edificio = Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=22,
+        altura_cumbrera=23,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+    texto = Reporte("edificio.md", edificio, UNIDADES)._texto_md
+    assert "Figura 5.4-1" in texto
+    assert "q~z~" in texto
+    assert "Viga" in texto
+
+
 def test_reporte_cartel(cartel):
-    reporte = Reporte("cartel.md", cartel, UNIDADES)
-    assert reporte._texto_md.strip()
+    texto = Reporte("cartel.md", cartel, UNIDADES)._texto_md
+    assert texto.strip()
+
+    # Referencias del reglamento actualizadas.
+    assert "Artículo 4.4.1 - Figura 4.4-1" in texto
+    assert "artículo 1.9" in texto
+    assert "Tabla 11" not in texto
+    assert "Capítulo 5.13" not in texto
+
+    # Parámetros de la figura y tablas por caso. La fixture tiene B/s = 2,
+    # así que el Caso C trae sus dos regiones.
+    assert "s/h: 0.50" in texto
+    assert "B/s: 2.00" in texto
+    assert "Caso A" in texto
+    assert "Caso B" in texto
+    assert "Caso C" in texto
+    assert "0.00 a 5.00 m" in texto
+    assert "5.00 a 10.00 m" in texto
+    assert "La fuerza de diseño es la del Caso C." in texto
+
+
+def test_reporte_cartel_sin_caso_c():
+    """Con B/s < 2 el Caso C no se considera y el reporte lo dice."""
+    from zonda import enums
+    from zonda.cirsoc import Cartel
+
+    cartel = Cartel(
+        profundidad=1,
+        ancho=8,
+        altura_inferior=5,
+        altura_superior=10,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    texto = Reporte("cartel.md", cartel, UNIDADES)._texto_md
+    assert "no corresponde considerar el Caso C" in texto
+    assert "La fuerza de diseño es la de los Casos A y B." in texto
 
 
 def test_reporte_cartel_con_topografia(cartel_con_topografia):
@@ -70,6 +183,47 @@ def test_reporte_cartel_con_topografia(cartel_con_topografia):
 def test_reporte_cubierta_aislada(cubierta_aislada):
     reporte = Reporte("cubierta-aislada.md", cubierta_aislada, UNIDADES)
     assert reporte._texto_md.strip()
+
+
+def test_reporte_cubierta_aislada_componentes():
+    """El reporte de componentes lista cada componente con sus zonas y signos."""
+    from zonda.cirsoc import CubiertaAislada
+
+    cubierta = CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5, "Correa": 2.0},
+    )
+    texto = Reporte("cubierta-aislada.md", cubierta, UNIDADES)._texto_md
+    assert "COMPONENTES Y REVESTIMIENTOS" in texto
+    assert "Figura 5.5-2" in texto
+    assert "Chapa" in texto
+    assert "Correa" in texto
+    # Cada zona con su positivo y su negativo, y la distancia "a" en el pie.
+    assert "1 (positiva)" in texto
+    assert "1 (negativa)" in texto
+    assert "3 (positiva)" in texto
+    assert "3 (negativa)" in texto
+    assert "a: 1.00 m" in texto
+    # La expresión del artículo y el alcance de las figuras.
+    assert "expresión 5.5-1" in texto
+    assert "0,25 ≤ h/L ≤ 1,0" in texto
+
+
+def test_reporte_cubierta_aislada_sin_componentes_no_tiene_la_seccion(
+    cubierta_aislada,
+):
+    """Sin componentes cargados, la sección de C&R no aparece."""
+    texto = Reporte("cubierta-aislada.md", cubierta_aislada, UNIDADES)._texto_md
+    assert "COMPONENTES Y REVESTIMIENTOS" not in texto
 
 
 def test_el_reporte_no_deja_marcas_de_jinja_sin_renderizar(cartel):

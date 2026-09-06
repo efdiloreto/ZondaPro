@@ -188,6 +188,20 @@ class Edificio:
         return self._area_frontal() * self.longitud
 
     @cached_property
+    def altura_parapeto(self) -> float:
+        """La altura de la coronación del parapeto, medida desde el nivel de suelo.
+
+        Es la altura donde el Reglamento pide evaluar la presión dinámica q_p
+        del parapeto (Arts. 2.4.5 y 5.6). No suma a la altura del edificio: el
+        resto de las superficies sigue calculando con las alturas de la
+        cubierta.
+
+        Returns:
+            La altura de coronación del parapeto.
+        """
+        return self.altura_cumbrera + self.parapeto
+
+    @cached_property
     def alturas(self) -> np.ndarray:
         """Crea un array de alturas desde la elevación del edificio hasta la altura de cumbrera.
 

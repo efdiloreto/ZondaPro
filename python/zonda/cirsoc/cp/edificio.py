@@ -32,10 +32,12 @@ from zonda.enums import (
     PosicionCubiertaAleroSprfv,
     SistemaResistente,
     TipoCubierta,
+    TipoPresionComponentesParedesCubierta,
     TipoPresionCubiertaBarloventoSprfv,
     ZonaComponenteCubiertaEdificio,
     ZonaComponenteParedEdificio,
     ZonaEdificio,
+    ZonaParapeto,
 )
 from zonda.tipos import ParNumerico
 
@@ -48,9 +50,11 @@ def seleccionar_cp_area(
 ) -> ParNumerico | tuple[ParNumerico, ...]:
     """Selecciona las areas y cps para luego interpolar el valor de area tributaria del componente.
 
-    Es util, por ejemplo cuando hay mas de dos valores de area para interpolar, como el en Reglamento CIRSOC 102-2005
-    Figura 5B - Cubierta a dos Aguas <= 10° - Aleros. En este caso se detecta entre que valores de area se encuentra el
-    area del componente y se retorna esos valores de area con sus respectivos cps para luego usarse en la interpolación.
+    Es util, por ejemplo cuando hay mas de dos valores de area para interpolar, como el alero con
+    voladizo de la Tabla C 5.3-2 del CIRSOC 102-2025, donde las Zonas 1 y 1' tienen dos tramos.
+    En este caso se detecta entre que valores de area se encuentra el
+    area del componente y se retorna esos valores de area con sus respectivos cps para luego usarse
+    en la interpolación.
 
     Args:
         cps: Valores de cp.
@@ -100,6 +104,44 @@ def calcular_cp_componente(
     return primer_cp + g * log10(area_componente / primer_area)
 
 
+# CIRSOC 102-2025 - Tabla C 5.3-1: el GCp positivo de las paredes de C&R, que
+# la Tabla no distingue por zona -es el mismo para las Zonas 4 y 5-, con su
+# rango de áreas.
+CP_POSITIVO_PAREDES = (1.0, 0.7)
+AREAS_COMPONENTES_PAREDES = (1.0, 50.0)
+
+# CIRSOC 102-2025 - Figura 5.4-1 (h > 20 m): el GCp positivo de las paredes de
+# C&R de edificios de gran altura, con su rango de áreas. Con los valores
+# positivos se debe usar qz y con los negativos qh (Nota 4), así que la
+# presión resuelve el positivo altura por altura.
+CP_POSITIVO_PAREDES_GRAN_ALTURA = (0.9, 0.6)
+AREAS_COMPONENTES_PAREDES_GRAN_ALTURA = (2.0, 50.0)
+
+
+def cp_positivo_paredes(area_componente: float, angulo_cubierta: float) -> float:
+    """El GCp positivo de las Zonas de pared 4 y 5 de la Tabla C 5.3-1.
+
+    La Nota 5 de la Figura 5.3-2A se lo presta a las Zonas 2 y 3 de la cubierta
+    cuando hay un parapeto de 1 m o más alrededor del perímetro. Se presta el
+    valor tal como queda para el edificio, o sea con el descuento por cubierta
+    de pendiente baja, que con esa Figura siempre aplica.
+
+    Args:
+        area_componente: Area tributaria del componente.
+        angulo_cubierta: El ángulo de cubierta del edificio.
+
+    Returns:
+        El valor de GCp positivo.
+    """
+    factor_reduccion = 0.9 if angulo_cubierta <= 10 else 1
+    return (
+        calcular_cp_componente(
+            CP_POSITIVO_PAREDES, AREAS_COMPONENTES_PAREDES, area_componente
+        )
+        * factor_reduccion
+    )
+
+
 def distancia_a(ancho: float, longitud: float, altura_media: float) -> float:
     """Calcula la distancia "a" provista en las figuras para componentes y revestimientos.
 
@@ -115,6 +157,244 @@ def distancia_a(ancho: float, longitud: float, altura_media: float) -> float:
     valor_propuesto = min(0.1 * menor_dimension_horizontal, 0.4 * altura_media)
     limite_minimo = max(0.04 * menor_dimension_horizontal, 1)
     return max(valor_propuesto, limite_minimo)
+
+
+def distancia_a_tabla_c_5_3_1(
+    ancho: float, longitud: float, altura_media: float, angulo_cubierta: float
+) -> float:
+    """La distancia "a" de la Tabla C 5.3-1, con su excepción para edificios bajos y planos.
+
+    Excepción del Reglamento (Tabla C 5.3-1): para ángulo de cubierta de 0° a
+    7° y dimensión horizontal mínima mayor que 90 m, la distancia "a" se limita
+    a un máximo de 0,8 veces la altura media.
+
+    Args:
+        ancho: El ancho del edificio.
+        longitud: La longitud del edificio.
+        altura_media: La altura media de cubierta del edificio.
+        angulo_cubierta: El ángulo de cubierta del edificio.
+
+    Returns:
+        El valor de distancia "a" del edificio.
+    """
+    a = distancia_a(ancho, longitud, altura_media)
+    if 0 <= angulo_cubierta <= 7 and min(ancho, longitud) > 90:
+        return min(a, 0.8 * altura_media)
+    return a
+
+
+# Un coeficiente con el rango de áreas de su tramo logarítmico. Cuando la
+# curva tiene más de un tramo, "cp" y "area" traen una tupla de tramos.
+ValoresZonaCubierta = dict[str, ParNumerico | tuple[ParNumerico, ...]]
+
+
+# CIRSOC 102-2025 - Valores de GCp de las paredes de C&R, por referencia: el
+# coeficiente de cada Zona (4, 5 y el positivo único "todas") con su rango de
+# áreas, y una bandera que indica si el valor se reduce un 10 % cuando el
+# ángulo de cubierta no llega a 10°. La comparten ParedesComponentes y el
+# parapeto del Art. 5.6, que usa el positivo en su cara exterior y los
+# negativos de las Zonas 4 y 5 en la posterior (Caso de carga B).
+VALORES_PAREDES_COMPONENTES: dict[
+    str, tuple[dict[ZonaComponenteParedEdificio, ParNumerico], ParNumerico, bool]
+] = {
+    "Tabla C 5.3-1": (
+        {
+            ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
+            ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
+            ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES,
+        },
+        AREAS_COMPONENTES_PAREDES,
+        True,
+    ),
+    "Figura 5.4-1": (
+        {
+            ZonaComponenteParedEdificio.CUATRO: (-0.9, -0.7),
+            ZonaComponenteParedEdificio.CINCO: (-1.8, -1.0),
+            ZonaComponenteParedEdificio.TODAS: CP_POSITIVO_PAREDES_GRAN_ALTURA,
+        },
+        AREAS_COMPONENTES_PAREDES_GRAN_ALTURA,
+        False,
+    ),
+}
+
+# CIRSOC 102-2025 - Valores de GCp de cubierta de C&R, por referencia: el
+# coeficiente de cada zona con el rango de áreas de su tramo logarítmico. La
+# comparten CubiertaComponentes y el parapeto del Art. 5.6, que usa los
+# negativos de las Zonas 2 y 3 en su cara posterior (Caso de carga A).
+VALORES_CUBIERTA_COMPONENTES: dict[
+    str, dict[ZonaComponenteCubiertaEdificio, ValoresZonaCubierta]
+] = {
+    # Tabla C 5.3-2 (Figura 5.3-2A), cubierta sin voladizo.
+    "Tabla C 5.3-2": {
+        ZonaComponenteCubiertaEdificio.UNO_PRIMA: {
+            "cp": (-0.9, -0.4),
+            "area": (10, 100),
+        },
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.7, -1),
+            "area": (1, 50),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-2.3, -1.4),
+            "area": (1, 50),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-3.2, -1.4),
+            "area": (1, 50),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.3, 0.2),
+            "area": (1, 10),
+        },
+    },
+    # Tabla C 5.3-3 (Figura 5.3-2B).
+    "Tabla C 5.3-3": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-2.0, -0.5),
+            "area": (2, 30),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-2.7, -1.0),
+            "area": (1, 20),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-3.6, -1.8),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.6, 0.3),
+            "area": (1, 20),
+        },
+    },
+    # Tabla C 5.3-4 (Figura 5.3-2C).
+    "Tabla C 5.3-4": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.5, -0.8),
+            "area": (1, 20),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-2.5, -1.2),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-3.0, -1.4),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.6, 0.3),
+            "area": (1, 20),
+        },
+    },
+    # Tabla C 5.3-5 (Figura 5.3-2D).
+    "Tabla C 5.3-5": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.8, -0.8),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-2.0, -1.0),
+            "area": (1, 20),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-2.5, -1.0),
+            "area": (1, 20),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.9, 0.5),
+            "area": (1, 20),
+        },
+    },
+    # Figura 5.3-5A (cubierta a un agua, 3° < ángulo <= 10° y altura media
+    # <= 20 m).
+    "Figura 5.3-5A": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.1, -1.1),
+            "area": (0.1, 100),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-1.3, -1.2),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.DOS_PRIMA: {
+            "cp": (-1.6, -1.5),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-1.8, -1.2),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TRES_PRIMA: {
+            "cp": (-2.6, -1.6),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.3, 0.2),
+            "area": (1, 10),
+        },
+    },
+    # Figura 5.3-5B (cubierta a un agua, 10° < ángulo <= 30° y altura media
+    # <= 20 m).
+    "Figura 5.3-5B": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.3, -1.1),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-1.6, -1.2),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-2.9, -2.0),
+            "area": (1, 10),
+        },
+        ZonaComponenteCubiertaEdificio.TODAS: {
+            "cp": (0.4, 0.3),
+            "area": (1, 10),
+        },
+    },
+    # Figura 5.4-1 (h > 20 m y ángulo <= 7°): los GCp de cubierta de C&R de
+    # edificios de gran altura. La cubierta no lleva positivo. El rango de
+    # áreas es el de la Figura, (1, 50).
+    "Figura 5.4-1": {
+        ZonaComponenteCubiertaEdificio.UNO: {
+            "cp": (-1.4, -0.9),
+            "area": (1, 50),
+        },
+        ZonaComponenteCubiertaEdificio.DOS: {
+            "cp": (-2.3, -1.6),
+            "area": (1, 50),
+        },
+        ZonaComponenteCubiertaEdificio.TRES: {
+            "cp": (-3.2, -2.3),
+            "area": (1, 50),
+        },
+    },
+}
+
+# CIRSOC 102-2025 - Tabla C 5.3-2, bloque "Negativo con voladizo": los
+# coeficientes del alero con voladizo reemplazan a los de la cubierta. Las
+# Zonas 1 y 1' comparten curva y los valores ya incluyen las presiones de las
+# superficies superior e inferior del voladizo (Nota 6).
+VALORES_ALERO_TABLA_C_5_3_2: dict[
+    ZonaComponenteCubiertaEdificio, ValoresZonaCubierta
+] = {
+    ZonaComponenteCubiertaEdificio.UNO_PRIMA: {
+        "cp": ((-1.7, -1.6), (-1.6, -1)),
+        "area": ((1, 10), (10, 50)),
+    },
+    ZonaComponenteCubiertaEdificio.UNO: {
+        "cp": ((-1.7, -1.6), (-1.6, -1)),
+        "area": ((1, 10), (10, 50)),
+    },
+    ZonaComponenteCubiertaEdificio.DOS: {
+        "cp": (-2.3, -1.1),
+        "area": (1, 50),
+    },
+    ZonaComponenteCubiertaEdificio.TRES: {
+        "cp": (-3.2, -1.1),
+        "area": (1, 50),
+    },
+}
 
 
 class ParedesSprfvMetodoDireccional:
@@ -171,7 +451,7 @@ class ParedesSprfvMetodoDireccional:
         Returns:
             La referencia de la figura en el código.
         """
-        return "Figura 3 (cont.)"
+        return "Figura 2.4-1 (cont.)"
 
     @staticmethod
     def _cp_pared_sotavento(
@@ -195,10 +475,40 @@ class ParedesSprfvMetodoDireccional:
         )
 
 
+def tipo_presion_componente(
+    zona: ZonaComponenteParedEdificio | ZonaComponenteCubiertaEdificio,
+) -> TipoPresionComponentesParedesCubierta:
+    """El signo del coeficiente externo de una zona de componentes.
+
+    Las tablas dan un único valor positivo para todas las zonas, que viaja en
+    la zona "todas"; el resto de las zonas son las negativas.
+
+    Args:
+        zona: La zona del componente.
+
+    Returns:
+        El tipo de presión de la zona.
+    """
+    if zona in (
+        ZonaComponenteParedEdificio.TODAS,
+        ZonaComponenteCubiertaEdificio.TODAS,
+    ):
+        return TipoPresionComponentesParedesCubierta.POSITIVA
+    return TipoPresionComponentesParedesCubierta.NEGATIVA
+
+
 class ParedesComponentes:
     """ParedesComponentes.
 
     Determina los coeficientes de presión de paredes de edificio para Componentes y Revestimientos.
+
+    La Tabla C 5.3-1 cubre hasta 20 m de altura media y la Figura 5.4-1 desde
+    ahí en adelante.
+
+    TODO (#9): falta la zona 4+ de la superficie inferior de los edificios
+    separados del suelo (Figura 5.4-1A). El dato de entrada existe -la
+    elevación del edificio-, y el valor es el positivo de la zona 4, que ya
+    devuelve ``cp_positivo_paredes``.
     """
 
     def __init__(
@@ -225,70 +535,60 @@ class ParedesComponentes:
         self.angulo_cubierta = angulo_cubierta
         self.componentes = componentes
         if self.altura_media <= 20:
-            self.referencia = "Figura 5A"
+            self.referencia = "Tabla C 5.3-1"
         else:
-            self.referencia = "Figura 8"
+            self.referencia = "Figura 5.4-1"
 
     @cached_property
     def entradas(self) -> tuple[EntradaCp, ...]:
         """Determina los coeficientes de presión para componentes y revestimientos.
 
-        Con la Figura 8 el resultado se discrimina además por pared, porque la
-        de barlovento se resuelve con la presión de velocidad de cada altura.
+        La Figura 5.4-1 (h > 20 m) da un solo valor positivo para todas las
+        paredes, que se evalúa con qz altura por altura (Nota 4); los negativos
+        se evalúan con qh. La rama baja no cambia de tabla por pared. Los
+        valores de cada zona salen de ``VALORES_PAREDES_COMPONENTES``.
 
         Returns:
-            Un coeficiente por cada componente y zona, y por pared si la figura
-            del Reglamento lo requiere. Ninguno si no se cargaron componentes.
+            Un coeficiente por cada componente y zona. Ninguno si no se
+            cargaron componentes.
         """
         if self.componentes is None:
             return ()
-        valores_zonas_cp = {
-            "Figura 5A": {
-                ZonaComponenteParedEdificio.CUATRO: (-1.1, -0.8),
-                ZonaComponenteParedEdificio.CINCO: (-1.4, -0.8),
-                ZonaComponenteParedEdificio.TODAS: (1, 0.7),
-            },
-            "Figura 8": {
-                ZonaComponenteParedEdificio.CUATRO: (-0.9, -0.7),
-                ZonaComponenteParedEdificio.CINCO: (-1.8, -1),
-                ZonaComponenteParedEdificio.TODAS: (0.9, 0.6),
-            },
-        }
-        factor_reduccion = 1
-        if self.referencia == "Figura 8":
-            area = (2, 50)
-        else:
-            area = (1, 50)
-            if self.angulo_cubierta <= 10:
-                factor_reduccion = 0.9
-        caso_cp = valores_zonas_cp[self.referencia]
-        paredes = (
-            tuple(ParedEdificioSprfv) if self.referencia == "Figura 8" else (None,)
+        zonas, areas, reduce_pendiente_baja = VALORES_PAREDES_COMPONENTES[
+            self.referencia
+        ]
+        factor_reduccion = (
+            0.9 if reduce_pendiente_baja and self.angulo_cubierta <= 10 else 1
         )
         return tuple(
             EntradaCp(
                 zona=ZonaEdificio.PAREDES,
                 sistema=SistemaResistente.COMPONENTES,
                 valor=float(
-                    calcular_cp_componente(cp, area, area_componente) * factor_reduccion
+                    calcular_cp_componente(cp, areas, area_componente)
+                    * factor_reduccion
                 ),
                 referencia=self.referencia,
-                pared=pared,
                 componente=nombre,
                 zona_componente=zona,
                 distancia_a=self.distancia_a,
+                tipo_presion=tipo_presion_componente(zona),
             )
-            for pared in paredes
             for nombre, area_componente in self.componentes.items()
-            for zona, cp in caso_cp.items()
+            for zona, cp in zonas.items()
         )
 
     @cached_property
     def distancia_a(self) -> float:
-        """
+        """La distancia "a", con la excepción para edificios bajos y planos.
+
         Returns:
             El valor de distancia "a" del edificio.
         """
+        if self.referencia == "Tabla C 5.3-1":
+            return distancia_a_tabla_c_5_3_1(
+                self.ancho, self.longitud, self.altura_media, self.angulo_cubierta
+            )
         return distancia_a(self.ancho, self.longitud, self.altura_media)
 
 
@@ -391,11 +691,15 @@ class CubiertaSprfvMetodoDireccional:
             entradas += self._entradas_por_posicion()
         return tuple(entradas)
 
-    def _entrada(self, valor: float, **claves) -> EntradaCp:
+    def _entrada(
+        self, valor: float, referencia: str | None = None, **claves
+    ) -> EntradaCp:
         """Arma una entrada con las claves comunes de la superficie.
 
         Args:
             valor: El coeficiente de presión.
+            referencia: La referencia que reemplaza a la de la superficie.
+                Ninguna si la entrada sale de la figura de la clase.
             **claves: Las claves que identifican a la entrada.
 
         Returns:
@@ -405,7 +709,7 @@ class CubiertaSprfvMetodoDireccional:
             zona=self.zona,
             sistema=SistemaResistente.SPRFV,
             valor=float(valor),
-            referencia=self.referencia,
+            referencia=referencia or self.referencia,
             **claves,
         )
 
@@ -448,10 +752,23 @@ class CubiertaSprfvMetodoDireccional:
         )
         if indice_repetido is not None:
             cps.insert(indice_repetido + 1, cps[indice_repetido])
-        return [
+        entradas = [
             self._entrada(cp, direccion=direccion, rango=(float(inicio), float(fin)))
             for (inicio, fin), cp in zip(zonas, cps, strict=True)
         ]
+        if direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL:
+            # El nuevo Reglamento especifica además un caso de presión positiva
+            # de -0.18 en todas las zonas, con viento normal a la cumbrera y
+            # ángulo menor que 10°.
+            entradas += [
+                replace(
+                    entrada,
+                    valor=-0.18,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+                )
+                for entrada in entradas
+            ]
+        return entradas
 
     def _entradas_por_posicion(self) -> list[EntradaCp]:
         """Calcula los coeficientes con viento normal a la cumbrera y ángulo ≥ 10°.
@@ -484,7 +801,7 @@ class CubiertaSprfvMetodoDireccional:
         Returns:
             La referencia de la figura en el código.
         """
-        return "Figura 3 (cont.)"
+        return "Figura 2.4-1 (cont.)"
 
     def _cp_cubierta_angulo_menor_diez(
         self, dimension_paralela: float, dimension_normal: float, numero_de_zonas: int
@@ -557,9 +874,9 @@ class CubiertaSprfvMetodoDireccional:
             (0, 0, 0),
         )
         valores_cp_presion_positiva = (
-            (0, 0, 0),
-            (0, 0, 0),
-            (0.2, 0, 0),
+            (-0.18, -0.18, -0.18),
+            (0, -0.18, -0.18),
+            (0.2, 0, -0.18),
             (0.3, 0.2, 0),
             (0.3, 0.2, 0.2),
             (0.4, 0.3, 0.2),
@@ -681,7 +998,11 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
 
         Con el viento paralelo a la cumbrera el alero toma los coeficientes de
         la cubierta. Con el viento normal no se divide en zonas: a barlovento el
-        coeficiente se reduce en 0.8 y a sotavento se mantiene.
+        coeficiente de la superficie superior, de la Figura 2.4-1, se combina
+        con la presión externa positiva de la superficie inferior, Cp = +0.8
+        (Art. 2.4.4), lo que equivale a restarle 0.8, y a sotavento se mantiene.
+        Con el viento normal y ángulo menor que 10° se repite el caso de
+        presión positiva de la cubierta.
 
         Returns:
             Un coeficiente por cada zona o posición y dirección del viento.
@@ -698,32 +1019,78 @@ class AleroSprfvMetodoDireccional(CubiertaSprfvMetodoDireccional):
             if entrada.direccion == DireccionVientoMetodoDireccionalSprfv.NORMAL
         ]
         if self.normal_como_paralelo:
+            negativa = [entrada for entrada in normal if entrada.caso is None]
+            positiva = [entrada for entrada in normal if entrada.caso is not None]
             normal = [
                 self._entrada(
-                    normal[0].valor - 0.8,
+                    negativa[0].valor - 0.8,
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                    referencia=self._referencia_barlovento,
                 ),
                 self._entrada(
-                    normal[-1].valor,
+                    negativa[-1].valor,
                     direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
                     posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+                ),
+                self._entrada(
+                    positiva[0].valor - 0.8,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.BARLOVENTO,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
+                    referencia=self._referencia_barlovento,
+                ),
+                self._entrada(
+                    positiva[-1].valor,
+                    direccion=DireccionVientoMetodoDireccionalSprfv.NORMAL,
+                    posicion=PosicionCubiertaAleroSprfv.SOTAVENTO,
+                    caso=TipoPresionCubiertaBarloventoSprfv.POSITIVA,
                 ),
             ]
         else:
             normal = [
-                replace(entrada, valor=entrada.valor - 0.8)
+                replace(
+                    entrada,
+                    valor=entrada.valor - 0.8,
+                    referencia=self._referencia_barlovento,
+                )
                 if entrada.posicion == PosicionCubiertaAleroSprfv.BARLOVENTO
                 else entrada
                 for entrada in normal
             ]
         return (*paralelo, *normal)
 
+    @property
+    def _referencia_barlovento(self) -> str:
+        """La referencia del coeficiente neto del alero a barlovento.
+
+        La superficie superior sale de la Figura 2.4-1 y la inferior lleva la
+        presión externa positiva con Cp = +0.8 (Art. 2.4.4).
+        """
+        return f"{self.referencia} y Art. 2.4.4"
+
 
 class CubiertaComponentes:
     """CubiertaComponentes.
 
     Determina los coeficientes de presión de cubierta de edificio para Componentes y Revestimientos.
+
+    Sólo se proveen las tablas del CIRSOC 102-2025: la Tabla C 5.3-2 (Fig. 5.3-2A,
+    cubierta a dos aguas con ángulo <= 7° y altura media <= 20 m), la Tabla C
+    5.3-3 (Fig. 5.3-2B, 7° < ángulo <= 20° y altura media <= 20 m), la Tabla C
+    5.3-4 (Fig. 5.3-2C, 20° < ángulo <= 27° y altura media <= 20 m), la Tabla C
+    5.3-5 (Fig. 5.3-2D, 27° < ángulo <= 45° y altura media <= 20 m), para
+    cubiertas a un agua, las Figuras 5.3-5A y 5.3-5B (3° < ángulo <= 10° y
+    10° < ángulo <= 30°, ambas con altura media <= 20 m) y, para edificios con
+    altura media mayor que 20 m y ángulo <= 7°, la Figura 5.4-1 (paredes y
+    cubierta, Nota 6 del Art. 5.4.2). El resto de la geometría (cubiertas a un
+    agua con ángulo > 30°, otros ángulos o alturas) todavía no tiene
+    lineamientos 2025 migrados y lanza ErrorLineamientos.
+
+    TODO: el alero de las Tablas C 5.3-3, C 5.3-4, C 5.3-5 y de las Figuras
+    5.3-5A y 5.3-5B debería resolverse por el Art. 5.7 del reglamento
+    (superficie superior + inferior de pared); hoy usa sólo la superficie
+    superior (ver issue). El alero de gran altura (Art. 5.7) sigue pendiente.
     """
 
     def __init__(
@@ -769,6 +1136,25 @@ class CubiertaComponentes:
         return distancia_a(self.ancho, self.longitud, self.altura_media)
 
     @cached_property
+    def distancias_zonas(self) -> tuple[float, float, float] | None:
+        """Las distancias al borde que delimitan las zonas de la Figura 5.3-2A.
+
+        Se miden desde el borde de la cubierta -desde el borde exterior del
+        voladizo si existe, Nota 7- y no dependen de la distancia "a": la
+        Figura las define en función de la altura del alero "h", que para
+        ángulo <= 10° es la altura media de cubierta.
+
+        Returns:
+            El espesor de la "L" de la Zona 3 (0,2h), el ancho de la franja
+            perimetral que comparten la Zona 3 -es el largo de sus brazos- y la
+            Zona 2 (0,6h), y la distancia al borde donde termina la Zona 1
+            (1,2h). Ninguno si la referencia no es la Tabla C 5.3-2.
+        """
+        if self.referencia != "Tabla C 5.3-2":
+            return None
+        return 0.2 * self.altura_media, 0.6 * self.altura_media, 1.2 * self.altura_media
+
+    @cached_property
     def entradas(self) -> tuple[EntradaCp, ...]:
         """Determina los coeficientes de presión para componentes y revestimientos.
 
@@ -778,172 +1164,222 @@ class CubiertaComponentes:
         """
         if self.componentes is None:
             return ()
-        casos = {
-            "Figura 5B": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1, -0.9)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-1.8, -1.1)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.8, -1.1)},
-                ZonaComponenteCubiertaEdificio.TODAS: {"cp": (0.3, 0.2)},
-            },
-            "Figura 5B (cont.) 1": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-0.9, -0.8)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.1, -1.4)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.1, -1.4)},
-                ZonaComponenteCubiertaEdificio.TODAS: {"cp": (0.5, 0.3)},
-            },
-            "Figura 5B (cont.) 2": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1, -0.8)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-1.2, -1)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-1.2, -1)},
-                ZonaComponenteCubiertaEdificio.TODAS: {"cp": (0.9, 0.8)},
-            },
-            "Figura 7A": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1.1, -1.1)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-1.3, -1.2)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-1.8, -1.2)},
-                ZonaComponenteCubiertaEdificio.DOS_PRIMA: {"cp": (-1.6, -1.5)},
-                ZonaComponenteCubiertaEdificio.TRES_PRIMA: {"cp": (-2.6, -1.6)},
-                ZonaComponenteCubiertaEdificio.TODAS: {"cp": (0.3, 0.2)},
-            },
-            "Figura 7A (cont.)": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1.3, -1.1)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-1.6, -1.2)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.9, -2)},
-                ZonaComponenteCubiertaEdificio.TODAS: {"cp": (0.4, 0.3)},
-            },
-            "Figura 8": {
-                ZonaComponenteCubiertaEdificio.UNO: {"cp": (-1.4, -0.9)},
-                ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.3, -1.6)},
-                ZonaComponenteCubiertaEdificio.TRES: {"cp": (-3.2, -2.3)},
-            },
+        # Copia por llamada: abajo se reemplazan y se sacan entradas según el
+        # alero y la nota de parapeto, y la constante es compartida.
+        caso_cp = {
+            zona: dict(valores)
+            for zona, valores in VALORES_CUBIERTA_COMPONENTES[self.referencia].items()
         }
         if self.es_alero:
-            casos_alero = {
-                "Figura 5B": {
-                    ZonaComponenteCubiertaEdificio.UNO: {
-                        "cp": ((-1.7, -1.6), (-1.6, -1.1)),
-                        "area": ((1, 10), (10, 50)),
-                    },
-                    ZonaComponenteCubiertaEdificio.DOS: {
-                        "cp": ((-1.7, -1.6), (-1.6, -1.1)),
-                        "area": ((1, 10), (10, 50)),
-                    },
-                    ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.8, -0.8)},
-                },
-                "Figura 5B (cont.) 1": {
-                    ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.2, -2.2)},
-                    ZonaComponenteCubiertaEdificio.TRES: {"cp": (-3.7, -2.5)},
-                },
-                "Figura 5B (cont.) 2": {
-                    ZonaComponenteCubiertaEdificio.DOS: {"cp": (-2.0, -1.8)},
-                    ZonaComponenteCubiertaEdificio.TRES: {"cp": (-2.0, -1.8)},
-                },
-            }
-            for caso_alero, diccionario in casos_alero.items():
-                casos[caso_alero].update(diccionario)
-
-        caso_cp = casos[self.referencia]
-        if self.es_alero:
+            # Tabla C 5.3-2, bloque "Negativo con voladizo". Los valores ya
+            # incluyen las presiones de las superficies superior e inferior
+            # del voladizo (Nota 6). Las Tablas C 5.3-3, 5.3-4, 5.3-5 y la
+            # Figura 5.3-5A resuelven el voladizo por el Art. 5.7 (aún
+            # pendiente, ver issue): por ahora el alero usa la superficie
+            # superior, o sea el bloque de la cubierta.
+            if self.referencia == "Tabla C 5.3-2":
+                caso_cp.update(VALORES_ALERO_TABLA_C_5_3_2)
             caso_cp.pop(ZonaComponenteCubiertaEdificio.TODAS, None)
 
-        if self.referencia in ("Figura 5B", "Figura 8") and self.parapeto > 1:
-            # CIRSOC 102 - 2005 (Fig. 5B -Nota de pie 5 y Fig. 8 Nota de pie 7)
+        # CIRSOC 102-2025 - Nota de parapeto: la Fig. 5.3-2A (Nota 5) y la
+        # Fig. 5.4-1 (Nota 7) igualan la Zona 3 negativa a la Zona 2; la
+        # primera pide parapeto de 1 m o más y la segunda, además, ángulo
+        # <= 10°. El positivo propio de las Zonas 2 y 3 lo agrega
+        # _entradas_positivas_nota_parapeto y es de la Fig. 5.3-2A
+        # solamente: la 5.4-1 no lleva positivo de cubierta. La Tabla C 5.3-3
+        # no trae nota de parapeto.
+        if self.referencia == "Tabla C 5.3-2":
+            aplica_nota_parapeto = self.parapeto >= 1
+        else:
+            aplica_nota_parapeto = (
+                self.referencia == "Figura 5.4-1"
+                and self.parapeto >= 1
+                and self.angulo <= 10
+            )
+        if aplica_nota_parapeto:
             caso_cp[ZonaComponenteCubiertaEdificio.TRES] = caso_cp[
                 ZonaComponenteCubiertaEdificio.DOS
             ]
-        # Se mantiene el if/else para poder citar la figura de cada rama.
-        if self.referencia == "Figura 8":  # noqa: SIM108
-            # Areas techo grandes alturas -CIRSOC 102 (2005) Fig. 8
-            area = (1, 50)
-        else:
-            # Areas techo pequeñas alturas -CIRSOC 102 (2005) Fig. 5B)
-            area = (1, 10)
         entradas = []
         for nombre, area_componente in self.componentes.items():
             for zona, cps in caso_cp.items():
                 cp_filtrado, area_filtrada = seleccionar_cp_area(
-                    cps["cp"], cps.get("area", area), area_componente
+                    cps["cp"], cps["area"], area_componente
                 )
                 entradas.append(
-                    EntradaCp(
-                        zona=self.zona,
-                        sistema=SistemaResistente.COMPONENTES,
-                        valor=float(
+                    self._entrada(
+                        nombre,
+                        zona,
+                        float(
                             calcular_cp_componente(
                                 cp_filtrado, area_filtrada, area_componente
                             )
                         ),
-                        referencia=self.referencia,
-                        componente=nombre,
-                        zona_componente=zona,
-                        distancia_a=self.distancia_a,
+                        tipo_presion_componente(zona),
                     )
                 )
+            entradas += self._entradas_positivas_nota_parapeto(
+                nombre, area_componente, aplica_nota_parapeto
+            )
         return tuple(entradas)
+
+    def _entrada(
+        self,
+        componente: str,
+        zona: ZonaComponenteCubiertaEdificio,
+        valor: float,
+        tipo_presion: TipoPresionComponentesParedesCubierta,
+    ) -> EntradaCp:
+        """Arma la entrada de una zona.
+
+        Args:
+            componente: El nombre del componente.
+            zona: La zona del Reglamento.
+            valor: El valor de cp.
+            tipo_presion: El signo del coeficiente externo.
+
+        Returns:
+            La entrada de cp.
+        """
+        return EntradaCp(
+            zona=self.zona,
+            sistema=SistemaResistente.COMPONENTES,
+            valor=valor,
+            referencia=self.referencia,
+            componente=componente,
+            zona_componente=zona,
+            distancia_a=self.distancia_a,
+            tipo_presion=tipo_presion,
+        )
+
+    def _entradas_positivas_nota_parapeto(
+        self, componente: str, area_componente: float, aplica_nota_parapeto: bool
+    ) -> list[EntradaCp]:
+        """Los positivos propios de las Zonas 2 y 3 cuando hay parapeto.
+
+        La Nota 5 de la Figura 5.3-2A los iguala a los de las Zonas de pared 4
+        y 5, con lo que el positivo deja de ser único: las Zonas 1' y 1 siguen
+        con el de la zona "todas". La Nota es de la Figura de cubierta y no
+        aplica al alero, que no lleva positivo.
+
+        Args:
+            componente: El nombre del componente.
+            area_componente: Area tributaria del componente.
+            aplica_nota_parapeto: Indica si el parapeto llega a la dimensión
+                que pide la Nota.
+
+        Returns:
+            Una entrada por zona, o ninguna si la Nota no aplica.
+        """
+        if (
+            not aplica_nota_parapeto
+            or self.referencia != "Tabla C 5.3-2"
+            or self.es_alero
+        ):
+            return []
+        valor = cp_positivo_paredes(area_componente, self.angulo)
+        return [
+            self._entrada(
+                componente,
+                zona,
+                valor,
+                TipoPresionComponentesParedesCubierta.POSITIVA,
+            )
+            for zona in (
+                ZonaComponenteCubiertaEdificio.DOS,
+                ZonaComponenteCubiertaEdificio.TRES,
+            )
+        ]
 
     @cached_property
     def referencia(self) -> str:
-        """Determina referencia de la figura en el código.
+        """Determina la tabla de C&R del CIRSOC 102-2025 que corresponde.
 
         Returns:
-            La referencia de la figura en el código.
-        """
-        if self.tipo_cubierta != TipoCubierta.UN_AGUA or self.es_alero:
-            return self._referencia_dos_aguas()
-        return self._referencia_un_agua()
-
-    def _referencia_dos_aguas(self) -> str:
-        """Determina referencia de la figura en el código para cubiertas a dos aguas o planas.
-
-        Returns:
-            La referencia de la figura en el código.
+            La referencia de la figura o tabla en el código.
 
         Raises:
-            ErrorLineamientos cuando la cubierta tiene un angulo > 45°.
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                reglamento 2025 para componentes y revestimientos de cubierta.
         """
-        if self.angulo <= 10 and self.altura_media > 20 and not self.es_alero:
-            return "Figura 8"
-        elif self.angulo <= 10:
-            return "Figura 5B"
-        elif 10 < self.angulo <= 30:
-            return "Figura 5B (cont.) 1"
-        elif 30 < self.angulo <= 45:
-            return "Figura 5B (cont.) 2"
+        if self.tipo_cubierta == TipoCubierta.UN_AGUA:
+            return self._referencia_un_agua()
+        if self.altura_media > 20:
+            return self._referencia_gran_altura()
+        if self.angulo <= 7:
+            return "Tabla C 5.3-2"
+        if self.angulo <= 20:
+            return "Tabla C 5.3-3"
+        if self.angulo <= 27:
+            return "Tabla C 5.3-4"
+        if self.angulo <= 45:
+            return "Tabla C 5.3-5"
         raise excepciones.ErrorLineamientos(
-            "El Reglamento CIRSOC 102-2005 no provee lineamientos para calcular los coeficientes de presión para"
-            " Componentes y Revestimientos de cubiertas a dos aguas con ángulo > 45°."
+            "El CIRSOC 102-2025 no provee lineamientos para calcular "
+            "los coeficientes de presión para Componentes y Revestimientos "
+            "de cubiertas a dos aguas con ángulo mayor que 45°."
         )
 
-    def _referencia_un_agua(self) -> str:
-        """
+    def _referencia_gran_altura(self) -> str:
+        """Determina la referencia de la figura para edificios de gran altura.
+
+        Con h > 20 m la Nota 6 de la Figura 5.4-1 y el Art. 5.4.2 resuelven
+        las cubiertas con ángulo <= 7° con esa misma Figura. En el resto de
+        los casos el reglamento 2025 no provee lineamientos de C&R (issue
+        #21).
+
         Returns:
-            La referencia de la figura en el código para cubiertas a un agua.
+            La referencia de la figura o tabla en el código.
 
         Raises:
-            ErrorLineamientos cuando la cubierta tiene un ángulo > 30° o cuando el edificio es de gran altura con y el
-            ángulo de cubierta es > 10°.
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                reglamento 2025 para componentes y revestimientos de cubierta.
+        """
+        if not self.es_alero and self.angulo <= 7:
+            return "Figura 5.4-1"
+        if self.es_alero:
+            mensaje = (
+                "El CIRSOC 102-2025 no provee lineamientos para calcular "
+                "los coeficientes de presión para Componentes y Revestimientos "
+                "de aleros de edificios con altura media mayor que 20 m."
+            )
+        else:
+            mensaje = (
+                "El CIRSOC 102-2025 no provee lineamientos para calcular "
+                "los coeficientes de presión para Componentes y Revestimientos "
+                "de cubiertas de edificios con altura media mayor que 20 m y "
+                "ángulo mayor que 7°."
+            )
+        raise excepciones.ErrorLineamientos(mensaje)
+
+    def _referencia_un_agua(self) -> str:
+        """Determina la referencia de la figura para cubiertas a un agua.
+
+        La Nota 5 de la Figura 5.3-5A envía los ángulos <= 3° a la Figura
+        5.3-2A (Tabla C 5.3-2). La altura media de cubierta coincide con la
+        altura de alero para ángulo <= 10° (ver geometría), así que la "a" de
+        las Figuras 5.3-5A y 5.3-5B, que miden con la altura de alero, se
+        calcula bien con la altura media.
+
+        Returns:
+            La referencia de la figura o tabla en el código.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                reglamento 2025 para componentes y revestimientos de cubierta.
         """
         if self.altura_media > 20:
-            if self.angulo <= 10:
-                return "Figura 8"
-            elif 10 < self.angulo <= 30:
-                return "Figura 5B (cont.) 1"
-            elif 30 < self.angulo <= 45:
-                return "Figura 5B (cont.) 2"
-            else:
-                raise excepciones.ErrorLineamientos(
-                    "El Reglamento CIRSOC 102-2005 no provee lineamientos para calcular los coeficientes de presión para"
-                    " Componentes y Revestimientos de cubiertas a un agua con ángulo > 45° y edificios de gran altura."
-                )
+            return self._referencia_gran_altura()
         if self.angulo <= 3:
-            return "Figura 5B"
-        elif 3 < self.angulo <= 10:
-            return "Figura 7A"
-        elif 10 < self.angulo <= 30:
-            return "Figura 7A (cont.)"
+            return "Tabla C 5.3-2"
+        if self.angulo <= 10:
+            return "Figura 5.3-5A"
+        if self.angulo <= 30:
+            return "Figura 5.3-5B"
         raise excepciones.ErrorLineamientos(
-            "El Reglamento CIRSOC 102-2005 no provee lineamientos para calcular los coeficientes de presión para"
-            " Componentes y Revestimientos de cubiertas a un agua con ángulo > 30°."
+            "El CIRSOC 102-2025 no provee lineamientos para calcular "
+            "los coeficientes de presión para Componentes y Revestimientos "
+            "de cubiertas a un agua con ángulo mayor que 30°."
         )
 
 
@@ -1096,6 +1532,288 @@ class Alero:
         return (*self.sprfv.entradas, *self.componentes.entradas)
 
 
+class ParapetoSprfv:
+    """ParapetoSprfv.
+
+    Determina los coeficientes de presión neta del parapeto de un edificio con
+    cubierta plana para SPRFV (CIRSOC 102-2025, Art. 2.4.5).
+
+    La presión neta combinada de las dos caras del parapeto es p = q_p (GC_pn),
+    con q_p evaluada en la coronación del parapeto. El coeficiente ya incluye
+    el efecto de ráfaga y no interviene la presión interna: el positivo
+    (+1,5) empuja hacia el lado frontal (exterior) del parapeto a barlovento y
+    el negativo (-1,0) se aleja de él en el de sotavento.
+    """
+
+    @cached_property
+    def referencia(self) -> str:
+        """
+        Returns:
+            La referencia del artículo en el reglamento.
+        """
+        return "Art. 2.4.5"
+
+    @cached_property
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión neta del parapeto.
+
+        Returns:
+            Un coeficiente por cada posición del parapeto respecto del viento.
+        """
+        return tuple(
+            EntradaCp(
+                zona=ZonaEdificio.PARAPETO,
+                sistema=SistemaResistente.SPRFV,
+                valor=valor,
+                referencia=self.referencia,
+                pared=pared,
+            )
+            for pared, valor in (
+                (ParedEdificioSprfv.BARLOVENTO, 1.5),
+                (ParedEdificioSprfv.SOTAVENTO, -1.0),
+            )
+        )
+
+
+class ParapetoComponentes:
+    """ParapetoComponentes.
+
+    Determina los coeficientes de presión del parapeto de un edificio con
+    cubierta plana para componentes y revestimientos (CIRSOC 102-2025, Art. 5.6).
+
+    La presión es p = q_p [(GC_p) - (GC_pi)], con q_p evaluada en la coronación
+    del parapeto y (GC_pi) de la Tabla 1.11-1 para la envolvente no porosa del
+    parapeto. Los dos casos de carga de la Figura 5.6-1 combinan la presión
+    positiva de pared de la cara exterior con una presión negativa en la
+    posterior, que es la que suma succión al empuje:
+
+    - Caso de carga A, parapeto a barlovento: la negativa posterior es la de la
+      Zona 2 (borde) o la Zona 3 (esquina) de la Tabla C 5.3-2 o de la
+      Figura 5.4-1.
+    - Caso de carga B, parapeto a sotavento: la negativa posterior es la de la
+      Zona 4 (borde) o la Zona 5 (esquina) de la Tabla C 5.3-1 o de la
+      Figura 5.4-1.
+
+    Los valores salen de las mismas constantes que usan las clases de paredes
+    y cubierta, evaluados con el área efectiva de viento del parapeto. Con un
+    parapeto de 1 m o más, la Nota 5 de la Figura 5.3-2A (y la Nota 7 de la
+    Figura 5.4-1, con ángulo <= 10°) iguala la Zona 3 negativa a la Zona 2: el
+    parapeto hereda ese valor con la cubierta que tiene detrás.
+    """
+
+    def __init__(
+        self,
+        ancho: float,
+        longitud: float,
+        altura_media: float,
+        parapeto: float,
+        area: float | None,
+    ) -> None:
+        """
+        Args:
+            ancho: El ancho del edificio.
+            longitud: La longitud del edificio.
+            altura_media: La altura media de cubierta del edificio.
+            parapeto: La dimensión del parapeto.
+            area: El área efectiva de viento del parapeto, en m². Es
+                requerida: sin ella no hay coeficientes.
+        """
+        self.ancho = ancho
+        self.longitud = longitud
+        self.altura_media = altura_media
+        self.parapeto = parapeto
+        self.area = area
+        self.referencia_paredes = (
+            "Tabla C 5.3-1" if altura_media <= 20 else "Figura 5.4-1"
+        )
+        self.referencia_cubierta = (
+            "Tabla C 5.3-2" if altura_media <= 20 else "Figura 5.4-1"
+        )
+
+    @cached_property
+    def referencia(self) -> str:
+        """
+        Returns:
+            La referencia del artículo en el reglamento.
+        """
+        return "Art. 5.6"
+
+    @cached_property
+    def _area_efectiva(self) -> float:
+        """El área efectiva de viento del parapeto.
+
+        Returns:
+            El área efectiva, en m².
+
+        Raises:
+            ErrorLineamientos: Cuando falta el área efectiva de viento del
+                parapeto.
+        """
+        if self.area is None:
+            raise excepciones.ErrorLineamientos(
+                "Falta el área efectiva de viento del parapeto para calcular "
+                "sus presiones de componentes y revestimientos (Art. 5.6)."
+            )
+        return self.area
+
+    @cached_property
+    def _gc_paredes(self) -> dict[ZonaComponenteParedEdificio, float]:
+        """Los GCp de pared interpolados con el área efectiva del parapeto.
+
+        Returns:
+            El coeficiente de cada Zona de pared.
+        """
+        zonas, areas, reduce_pendiente_baja = VALORES_PAREDES_COMPONENTES[
+            self.referencia_paredes
+        ]
+        # Cubierta plana: el ángulo es 0° y la reducción por pendiente baja
+        # siempre que la referencia la pida.
+        factor_reduccion = 0.9 if reduce_pendiente_baja else 1
+        return {
+            zona: calcular_cp_componente(cp, areas, self._area_efectiva)
+            * factor_reduccion
+            for zona, cp in zonas.items()
+        }
+
+    @cached_property
+    def _gc_cubierta(self) -> dict[ZonaComponenteCubiertaEdificio, float]:
+        """Los GCp de cubierta interpolados con el área efectiva del parapeto.
+
+        Returns:
+            El coeficiente de cada Zona de cubierta, con la igualdad de la
+            Zona 3 aplicada cuando la nota de parapeto corresponde.
+        """
+        gc = {}
+        for zona, valores in VALORES_CUBIERTA_COMPONENTES[
+            self.referencia_cubierta
+        ].items():
+            cp_filtrado, area_filtrada = seleccionar_cp_area(
+                valores["cp"], valores["area"], self._area_efectiva
+            )
+            # Las Zonas que consume el parapeto (2 y 3) son siempre curvas de
+            # un solo tramo, así que los tramos devueltos son pares simples.
+            gc[zona] = calcular_cp_componente(
+                cp_filtrado,  # type: ignore[arg-type]
+                area_filtrada,  # type: ignore[arg-type]
+                self._area_efectiva,
+            )
+        if self.parapeto >= 1:
+            gc[ZonaComponenteCubiertaEdificio.TRES] = gc[
+                ZonaComponenteCubiertaEdificio.DOS
+            ]
+        return gc
+
+    @cached_property
+    def distancias_esquina(self) -> tuple[float, float]:
+        """El largo de los tramos de esquina del parapeto en cada caso de carga.
+
+        Returns:
+            El largo del tramo de esquina del Caso de carga A -el brazo de la
+            Zona 3 de la cubierta, que con la Figura 5.4-1 es la distancia
+            "a"- y el del Caso de carga B -la distancia "a" de las paredes,
+            con la excepción de edificios bajos y planos de la Tabla C 5.3-1-.
+        """
+        if self.referencia_cubierta == "Tabla C 5.3-2":
+            esquina_cubierta = 0.6 * self.altura_media
+        else:
+            esquina_cubierta = distancia_a(self.ancho, self.longitud, self.altura_media)
+        if self.referencia_paredes == "Tabla C 5.3-1":
+            esquina_paredes = distancia_a_tabla_c_5_3_1(
+                self.ancho, self.longitud, self.altura_media, 0
+            )
+        else:
+            esquina_paredes = distancia_a(self.ancho, self.longitud, self.altura_media)
+        return esquina_cubierta, esquina_paredes
+
+    @cached_property
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Determina los coeficientes de presión del parapeto.
+
+        El valor de cada entrada es el coeficiente combinado de las dos caras:
+        la positiva de la pared en la cara exterior menos la negativa de la
+        zona que tiene detrás, que al ser succión suma al empuje.
+
+        Returns:
+            Una entrada por cada caso de carga y segmento del parapeto.
+
+        Raises:
+            ErrorLineamientos: Cuando falta el área efectiva de viento del
+                parapeto.
+        """
+        positivo = self._gc_paredes[ZonaComponenteParedEdificio.TODAS]
+        casos = (
+            (
+                ParedEdificioSprfv.BARLOVENTO,
+                self._gc_cubierta[ZonaComponenteCubiertaEdificio.DOS],
+                self._gc_cubierta[ZonaComponenteCubiertaEdificio.TRES],
+            ),
+            (
+                ParedEdificioSprfv.SOTAVENTO,
+                self._gc_paredes[ZonaComponenteParedEdificio.CUATRO],
+                self._gc_paredes[ZonaComponenteParedEdificio.CINCO],
+            ),
+        )
+        entradas = []
+        for pared, gc_borde, gc_esquina in casos:
+            for zona_parapeto, posterior in (
+                (ZonaParapeto.BORDE, gc_borde),
+                (ZonaParapeto.ESQUINA, gc_esquina),
+            ):
+                entradas.append(
+                    EntradaCp(
+                        zona=ZonaEdificio.PARAPETO,
+                        sistema=SistemaResistente.COMPONENTES,
+                        valor=float(positivo - posterior),
+                        referencia=self.referencia,
+                        pared=pared,
+                        componente="Parapeto",
+                        zona_parapeto=zona_parapeto,
+                        cp_frontal=float(positivo),
+                        cp_posterior=float(posterior),
+                    )
+                )
+        return tuple(entradas)
+
+
+class Parapeto:
+    """Parapeto.
+
+    Determina los coeficientes de presión del parapeto de un edificio con
+    cubierta plana, para SPRFV y para componentes y revestimientos.
+    """
+
+    def __init__(
+        self,
+        ancho: float,
+        longitud: float,
+        altura_media: float,
+        parapeto: float,
+        area: float | None = None,
+    ) -> None:
+        """
+        Args:
+            ancho: El ancho del edificio.
+            longitud: La longitud del edificio.
+            altura_media: La altura media de cubierta del edificio.
+            parapeto: La dimensión del parapeto.
+            area: El área efectiva de viento del parapeto, en m². Requerida
+                para los componentes y revestimientos.
+        """
+        self.sprfv = ParapetoSprfv()
+        self.componentes = ParapetoComponentes(
+            ancho, longitud, altura_media, parapeto, area
+        )
+
+    @cached_property
+    def entradas(self) -> tuple[EntradaCp, ...]:
+        """Los coeficientes de presión para el SPRFV y para componentes.
+
+        Returns:
+            Las entradas de ambos sistemas resistentes.
+        """
+        return (*self.sprfv.entradas, *self.componentes.entradas)
+
+
 class Edificio:
     """Edificio.
 
@@ -1114,6 +1832,7 @@ class Edificio:
         parapeto: float = 0,
         componentes_paredes: dict[str, float] | None = None,
         componentes_cubierta: dict[str, float] | None = None,
+        area_parapeto: float | None = None,
     ):
         """
         Args:
@@ -1130,6 +1849,9 @@ class Edificio:
             componentes_cubierta: Los componentes de cubierta para calcular los valores de cp, donde "key" es el nombre del componente
                 y "value" es el area del mismo. Requerido para calcular las presiones sobre los componentes y
                 revestimientos.
+            area_parapeto: El área efectiva de viento del parapeto, en m².
+                Requerida para sus componentes y revestimientos cuando el
+                edificio tiene cubierta plana y parapeto.
         """
         self.paredes = Paredes(
             ancho,
@@ -1159,18 +1881,25 @@ class Edificio:
                 componentes_cubierta,
                 metodo_sprfv,
             )
+        if parapeto and tipo_cubierta == TipoCubierta.PLANA:
+            self.parapeto = Parapeto(
+                ancho, longitud, altura_media, parapeto, area_parapeto
+            )
 
     @cached_property
     def entradas(self) -> tuple[EntradaCp, ...]:
         """Los coeficientes de presión de todo el edificio.
 
         Returns:
-            Las entradas de paredes, cubierta y alero.
+            Las entradas de paredes, cubierta, alero y parapeto.
         """
         entradas = (*self.paredes.entradas, *self.cubierta.entradas)
         alero: Alero | None = getattr(self, "alero", None)
         if alero is not None:
             entradas += alero.entradas
+        parapeto: Parapeto | None = getattr(self, "parapeto", None)
+        if parapeto is not None:
+            entradas += parapeto.entradas
         return entradas
 
     @classmethod
@@ -1180,6 +1909,7 @@ class Edificio:
         metodo_sprfv: MetodoSprfv = MetodoSprfv.DIRECCIONAL,
         componentes_paredes: dict[str, float] | None = None,
         componentes_cubierta: dict[str, float] | None = None,
+        area_parapeto: float | None = None,
     ):
         """Crea una instancia desde la geometria de una cubierta.
 
@@ -1192,6 +1922,9 @@ class Edificio:
             componentes_cubierta: Los componentes de cubierta para calcular los valores de cp, donde "key" es el nombre del componente
                 y "value" es el area del mismo. Requerido para calcular las presiones sobre los componentes y
                 revestimientos.
+            area_parapeto: El área efectiva de viento del parapeto, en m².
+                Requerida para sus componentes y revestimientos cuando el
+                edificio tiene cubierta plana y parapeto.
         """
         return cls(
             edificio.ancho,
@@ -1204,4 +1937,5 @@ class Edificio:
             edificio.parapeto,
             componentes_paredes,
             componentes_cubierta,
+            area_parapeto,
         )

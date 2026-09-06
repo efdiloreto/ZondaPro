@@ -47,7 +47,10 @@ from zonda.excepciones import ErrorArchivo
 EXTENSION = ".zda"
 FILTRO = f"Proyecto Zonda (*{EXTENSION})"
 
-VERSION_FORMATO = 1
+# 4: agrega el bloque "componentes" al panel de la cubierta aislada.
+# 5: agrega el área efectiva de viento del parapeto al bloque "componentes"
+# del panel de entrada del edificio.
+VERSION_FORMATO = 5
 
 _CLAVE_ENUM = "__enum__"
 

@@ -3,7 +3,7 @@ linestretch: 1
 lang: es
 table-numbers: false
 title: {% block titulo_encabezado -%}{%- endblock %}
-subtitle: CIRSOC 102-2005
+subtitle: CIRSOC 102-2025
 header-includes:
     - \usepackage[labelformat=empty]{caption}
     - \pagenumbering{gobble}
@@ -22,6 +22,14 @@ header-includes:
 Velocidad básica: {{ '%.2f'|format(estructura.velocidad) }} m/s
 
 Categoría de exposición: {{ estructura.categoria_exp.value }}
+
+{% if estructura.altitud -%}
+Altitud sobre el nivel del mar: {{ '%.2f'|format(estructura.altitud) }} m
+
+Factor de altitud, K~e~: {{ '%.3f'|format(estructura.factor_altitud) }}
+{% else -%}
+Factor de altitud, K~e~: {{ '%.2f'|format(estructura.factor_altitud) }}
+{% endif %}
 
 ### FACTOR DE RÁFAGA
 {% block datos_rafaga -%}
@@ -64,7 +72,7 @@ Topografía no considerada.
 {% else -%}
 Factor topográfico, K~zt~: {{'%.2f'|format(1)}}
 {% if estructura.considerar_topografia %}
-No se considera la topografía debido a que no se cumplen todas las condiciones del artículo 5.7.1.
+No se considera la topografía debido a que no se cumplen todas las condiciones del artículo 1.8.1.
 {% endif -%}
 {% endif %}
 

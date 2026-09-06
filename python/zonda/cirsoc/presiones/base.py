@@ -25,19 +25,37 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from zonda.cirsoc.resultados import PresionVelocidad
-from zonda.enums import CategoriaEstructura, CategoriaExposicion
+from zonda.enums import CategoriaExposicion
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from zonda.cirsoc.factores import Rafaga
 
-FACTORES_IMPORTANCIA = {
-    CategoriaEstructura.I: 0.87,
-    CategoriaEstructura.II: 1.0,
-    CategoriaEstructura.III: 1.15,
-    CategoriaEstructura.IV: 1.15,
-}
+
+#: Presión neta mínima de diseño para componentes y revestimientos, en N/m²
+#: (CIRSOC 102-2025, Art. 5.2.2).
+PRESION_MINIMA_COMPONENTES = 800
+
+
+def presion_minima(presion: float) -> float:
+    """Asigna el valor de presión mínima según CIRSOC 102-2025 Art. 5.2.2.
+
+    El Artículo pide que la presión neta de componentes y revestimientos, de
+    edificios y otras estructuras, no sea menor que 0,80 kN/m² actuando en
+    cualquier dirección normal a la superficie, así que se recorta el módulo de
+    cada signo del valor neto y se le devuelve su signo.
+
+    TODO (#10): Las cargas de viento de diseño mínimas del SPRFV (Art. 2.1.5)
+    siguen siendo sólo una nota del reporte.
+
+    Args:
+        presion: El valor de presión a comparar.
+
+    Returns:
+        Maximo entre valor de presión minima y el valor de presión.
+    """
+    return np.sign(presion) * max(PRESION_MINIMA_COMPONENTES, abs(presion))
 
 
 class PresionesBase:
@@ -53,43 +71,34 @@ class PresionesBase:
     def __init__(
         self,
         alturas: float | Sequence[float] | np.ndarray,
-        categoria: CategoriaEstructura,
         velocidad: float,
         rafaga: Rafaga,
         factor_topografico: float | Sequence[float] | np.ndarray,
         factor_direccionalidad: float,
         categoria_exp: CategoriaExposicion,
+        factor_altitud: float = 1.0,
     ) -> None:
         """
 
         Args:
             alturas: La altura o las alturas de la estructura donde calcular las presiones.
-            categoria: La categoría de la estructura.
             velocidad: La velocidad del viento en m/s.
             rafaga: Una instancia de la clase Ráfaga.
             factor_topografico: El factor o factores topográficos correspondientes a la altura o alturas de la estructura.
             factor_direccionalidad: El factor de direccionalidad correspondiente para el tipo de estructura.
             categoria_exp: La categoría de exposición al viento de la estructura.
+            factor_altitud: El factor de altitud del terreno Ke.
         """
         self.alturas = tuple(float(altura) for altura in np.atleast_1d(alturas))
         self.factores_topograficos = tuple(
             float(factor)
             for factor in np.broadcast_to(factor_topografico, len(self.alturas))
         )
-        self.categoria = categoria
         self.velocidad = velocidad
         self.rafaga = rafaga
         self.factor_direccionalidad = factor_direccionalidad
         self.categoria_exp = categoria_exp
-
-    @cached_property
-    def factor_importancia(self) -> float:
-        """Obtiene el factor de importancia de acuerdo a la categoría de la estructura.
-
-        Returns:
-            El factor de importancia.
-        """
-        return FACTORES_IMPORTANCIA[self.categoria]
+        self.factor_altitud = factor_altitud
 
     @cached_property
     def presiones_velocidad(self) -> tuple[PresionVelocidad, ...]:
@@ -140,11 +149,15 @@ class PresionesBase:
             * self.factor_direccionalidad
             * coeficiente_exposicion
             * factor_topografico
-            * self.factor_importancia
+            * self.factor_altitud
             * self.velocidad**2
         )
         return PresionVelocidad(
-            altura, coeficiente_exposicion, factor_topografico, valor
+            altura,
+            coeficiente_exposicion,
+            factor_topografico,
+            valor,
+            self.factor_altitud,
         )
 
     def _coeficiente_exposicion(self, altura: float) -> float:
@@ -157,19 +170,5 @@ class PresionesBase:
             El coeficiente de exposición para la presión dinámica.
         """
         constantes = self.rafaga.constantes_exp_terreno
-        return 2.01 * (max(altura, self._altura_limite) / constantes.zg) ** (
-            2 / constantes.alfa
-        )
-
-    @cached_property
-    def _altura_limite(self) -> int:
-        return self._calcular_altura_limite(2)
-
-    def _calcular_altura_limite(self, caso: int) -> int:
-        """Calcula la altura limite inferior para el "Caso 1" en Kz" """
-        if caso == 1:
-            if self.categoria_exp == CategoriaExposicion.A:
-                return 30
-            elif self.categoria_exp == CategoriaExposicion.B:
-                return 10
-        return 5
+        z = min(max(altura, 5.0), constantes.zg)
+        return float(2.41 * (z / constantes.zg) ** (2 / constantes.alfa))

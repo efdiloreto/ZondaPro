@@ -44,8 +44,8 @@ def anios_copyright() -> str:
     )
 
 
-__descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2005"
-__reglamento__ = "CIRSOC 102-2005"
+__descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2025"
+__reglamento__ = "CIRSOC 102-2025"
 __autor__ = "Eduardo Di Loreto, Natalia Alvarado"
 # Nombre y perfil de cada uno, para que la interfaz pueda enlazarlos. El de
 # arriba se conserva porque el aviso de copyright los nombra en una sola línea.

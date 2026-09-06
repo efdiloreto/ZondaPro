@@ -30,8 +30,6 @@ Parapeto: {{ '%.2f'|format(estructura.parapeto) }} m
 {% endif %}
 Tipo de cubierta: {{ estructura.geometria.tipo_cubierta.value|capitalize }}
 
-Categoría: {{ estructura.categoria.value }}
-
 Clasificación de cerramiento: {{ estructura.cerramiento.value|capitalize }}
 {%- endblock %}
 
@@ -112,6 +110,18 @@ Notas:
 {{ ma.presiones(filas, ma.titulo_superficie("ALERO", clave, "ALEROS")) }}
 {%- endfor -%}
 {% endfor %}
+{%- set parapeto = sprfv.filtrar(zona=enums.ZonaEdificio.PARAPETO) -%}
+{%- if parapeto %}
+#### PARAPETO
+{{ ma.presiones_parapeto_sprfv(parapeto, "Parapeto") }}
+{%- endif %}
+
+Notas:
+
+- **Cargas de viento de diseño mínimas (Art. 2.1.5):** La carga de viento que se debe usar en el diseño del SPRFV para un edificio cerrado o parcialmente cerrado, no debe ser menor que 0,75 kN/m^2^ multiplicado por el área de la pared del edificio proyectada sobre un plano vertical normal a la dirección supuesta del viento, y 0,4 kN/m^2^ multiplicado por el área de la cubierta proyectada sobre un plano horizontal. Las cargas de paredes y cubiertas se deben aplicar simultáneamente. La fuerza del viento de diseño para edificios abiertos no debe ser menor que 0,75 kN/m^2^ multiplicado por el área A~f~.
+{%- if parapeto %}
+- La presión neta combinada del parapeto (Art. 2.4.5) no depende de la dirección del viento: el coeficiente GC~pn~ de +1,5 corresponde al parapeto a barlovento y el de −1,0 al de sotavento, en cada dirección considerada. El signo positivo empuja hacia el lado frontal (exterior) del parapeto y el negativo se aleja de él.
+{%- endif %}
 {%- endblock -%}
 
 {%- block presiones_componentes -%}
@@ -119,6 +129,10 @@ Notas:
 {%- if componentes %}
 ### PRESIONES - COMPONENTES Y REVESTIMIENTOS
 {% for zona, filas_zona in componentes.agrupar('zona') -%}
+{%- if zona == enums.ZonaEdificio.PARAPETO %}
+#### PARAPETO
+{{ ma.presiones_parapeto_componentes(filas_zona, "Parapeto (área efectiva: %s m^2^)"|format(estructura.area_parapeto)) }}
+{%- else %}
 #### {{ zona.value|upper }}
 {% set areas = estructura.componentes_paredes if zona == enums.ZonaEdificio.PAREDES else estructura.componentes_cubierta -%}
 {% for clave, filas in filas_zona.agrupar('pared', 'componente') -%}
@@ -132,6 +146,13 @@ Notas:
 {{ ma.presiones(filas, "%sComponente: %s (%s m^2^)"|format(titulo_pared, nombre, areas[nombre])) }}
 {%- endif -%}
 {%- endfor -%}
+{%- endif %}
 {% endfor %}
+Notas:
+
+- **Presiones de viento de diseño mínimas (Art. 5.2.2):** La presión de viento de diseño para componentes y revestimientos de edificios y otras estructuras no debe ser menor que una presión neta de 0,80 kN/m^2^ actuando en cualquier dirección normal a la superficie. Los valores de las tablas ya la tienen aplicada.
+{%- if componentes.filtrar(zona=enums.ZonaEdificio.PARAPETO) %}
+- La presión del parapeto (Art. 5.6) es la combinación de las presiones externas de sus dos caras: en el Caso de carga A (parapeto a barlovento) la cara posterior toma la presión negativa de la Zona de borde o esquina de cubierta, y en el Caso de carga B (parapeto a sotavento), la de la Zona de pared. El coeficiente interno es el de la envolvente no porosa del parapeto.
+{%- endif %}
 {%- endif -%}
 {%- endblock %}

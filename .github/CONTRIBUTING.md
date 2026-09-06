@@ -10,7 +10,7 @@ no es un pixel corrido: es una decisión de diseño equivocada en la oficina de
 alguien. Por eso las contribuciones que tocan el motor de cálculo se revisan con
 la lupa puesta en el Reglamento, y los cambios de comportamiento numérico tienen
 que venir justificados con el artículo, la tabla o la figura del **CIRSOC
-102-2005** que los respalda.
+102-2025** que los respalda.
 
 Este proyecto se rige por el [Código de Conducta](CODE_OF_CONDUCT.md).
 Participando, aceptás sostenerlo.
@@ -47,8 +47,8 @@ Cosas que conviene acordar antes de escribir código:
   dónde salen los coeficientes y cómo se van a testear.
 - Si implica **cambiar la interfaz**, mejor charlar el flujo antes: la ventana
   está pensada alrededor de una secuencia (geometría → viento → resultados).
-- Si es **soporte para otro reglamento** (por ejemplo el CIRSOC 102-2025), es un
-  cambio grande que necesita un plan; no lo arranques sin discutirlo.
+- Si es **soporte para otro reglamento**, es un cambio grande que necesita un
+  plan; no lo arranques sin discutirlo.
 
 ## Cambios cosméticos ✨
 
@@ -154,7 +154,8 @@ feat/lo-que-sea  →  dev  →  master
   cambio de estilo, la revisión se vuelve imposible.
 - Completá la [plantilla de pull request](pull_request_template.md): en
   particular, **el efecto sobre los resultados numéricos**. Si los cambia, hay
-  que decirlo explícitamente.
+  que decirlo explícitamente. La descripción se escribe **concisa**: lo que
+  cambia, por qué y el efecto, sin rodeos.
 
 ### Releases
 

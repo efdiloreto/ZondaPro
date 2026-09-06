@@ -26,13 +26,14 @@ from typing import TYPE_CHECKING
 from PyQt6 import QtCore, QtWidgets
 
 from zonda.enums import (
+    CasoCargaCubiertaAislada,
+    CasoCartel,
+    DireccionVientoCubiertaAislada,
     DireccionVientoMetodoDireccionalSprfv,
-    ExtremoPresion,
     PosicionCubiertaAleroSprfv,
     SistemaResistente,
     TipoCubierta,
     TipoPresionComponentesParedesCubierta,
-    TipoPresionCubiertaAislada,
     TipoPresionCubiertaBarloventoSprfv,
     ZonaEdificio,
 )
@@ -142,61 +143,67 @@ class WidgetResultadosEdificioSprfvMetodoDireccional(QtWidgets.QWidget):
         )
         self._layout_parametros.addWidget(self._combobox_direccion, 1, 1)
 
-        if edificio.geometria.tipo_cubierta in (
-            TipoCubierta.DOS_AGUAS,
-            TipoCubierta.UN_AGUA,
-        ):
-            # La cubierta a barlovento tiene dos casos de presión sólo cuando
-            # el ángulo llega a 10°: las filas lo dicen con su clave de caso.
-            casos_cubierta = edificio.resultados_sprfv.filtrar(
-                zona=ZonaEdificio.CUBIERTA
-            ).valores("caso")
-            if any(casos_cubierta):
-                self._combobox_presion_cubierta_inclinada = QtWidgets.QComboBox()
-                for enum in TipoPresionCubiertaBarloventoSprfv:
-                    self._combobox_presion_cubierta_inclinada.addItem(
-                        enum.value.capitalize(), enum
-                    )
-                self._combobox_presion_cubierta_inclinada.currentTextChanged.connect(
-                    lambda: self.grafico.escena.actualizar_presion_cubierta_inclinada(
-                        self._combobox_presion_cubierta_inclinada.currentData()
-                    )
+        # La cubierta a barlovento tiene dos casos de presión con el viento
+        # normal a la cumbrera: cuando el ángulo llega a 10° y, según el
+        # nuevo Reglamento, también cuando es menor que 10°. Las filas lo
+        # dicen con su clave de caso. Aplica a dos aguas, un agua y plana.
+        casos_cubierta = edificio.resultados_sprfv.filtrar(
+            zona=ZonaEdificio.CUBIERTA
+        ).valores("caso")
+        if any(casos_cubierta):
+            # Con ángulo menor que 10° el caso positivo de la cubierta se
+            # aplica a todo el faldón, sin distinguir posición.
+            self._cubierta_casos_por_zona = any(
+                fila.caso is not None and fila.posicion is None
+                for fila in edificio.resultados_sprfv.filtrar(
+                    zona=ZonaEdificio.CUBIERTA
                 )
-                numero_filas = self._layout_parametros.rowCount()
-                self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Presión Cubierta Barlovento"), numero_filas, 0
+            )
+            self._combobox_presion_cubierta_inclinada = QtWidgets.QComboBox()
+            for enum in TipoPresionCubiertaBarloventoSprfv:
+                self._combobox_presion_cubierta_inclinada.addItem(
+                    enum.value.capitalize(), enum
                 )
-                self._layout_parametros.addWidget(
-                    self._combobox_presion_cubierta_inclinada, numero_filas, 1
+            self._combobox_presion_cubierta_inclinada.currentTextChanged.connect(
+                lambda: self.grafico.escena.actualizar_presion_cubierta_inclinada(
+                    self._combobox_presion_cubierta_inclinada.currentData()
                 )
+            )
+            numero_filas = self._layout_parametros.rowCount()
+            self._layout_parametros.addWidget(
+                QtWidgets.QLabel("Presión Cubierta Barlovento"), numero_filas, 0
+            )
+            self._layout_parametros.addWidget(
+                self._combobox_presion_cubierta_inclinada, numero_filas, 1
+            )
 
-            if edificio.geometria.tipo_cubierta == TipoCubierta.UN_AGUA:
-                self._combobox_posicion_cubierta_un_agua = QtWidgets.QComboBox()
-                for enum in PosicionCubiertaAleroSprfv:
-                    self._combobox_posicion_cubierta_un_agua.addItem(
-                        enum.value.capitalize(), enum
-                    )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    lambda: self.grafico.escena.actualizar_posicion_cubierta_un_agua(
-                        self._combobox_posicion_cubierta_un_agua.currentData()
-                    )
+        if edificio.geometria.tipo_cubierta == TipoCubierta.UN_AGUA:
+            self._combobox_posicion_cubierta_un_agua = QtWidgets.QComboBox()
+            for enum in PosicionCubiertaAleroSprfv:
+                self._combobox_posicion_cubierta_un_agua.addItem(
+                    enum.value.capitalize(), enum
                 )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    self._actualizar_combobox_alturas
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                lambda: self.grafico.escena.actualizar_posicion_cubierta_un_agua(
+                    self._combobox_posicion_cubierta_un_agua.currentData()
                 )
-                self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
-                    self._actualizar_direccion_viento
-                )
-                numero_filas = self._layout_parametros.rowCount()
-                self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Posición Cubierta"),
-                    numero_filas,
-                    0,
-                    QtCore.Qt.AlignmentFlag.AlignRight,
-                )
-                self._layout_parametros.addWidget(
-                    self._combobox_posicion_cubierta_un_agua, numero_filas, 1
-                )
+            )
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                self._actualizar_combobox_alturas
+            )
+            self._combobox_posicion_cubierta_un_agua.currentIndexChanged.connect(
+                self._actualizar_direccion_viento
+            )
+            numero_filas = self._layout_parametros.rowCount()
+            self._layout_parametros.addWidget(
+                QtWidgets.QLabel("Posición Cubierta"),
+                numero_filas,
+                0,
+                QtCore.Qt.AlignmentFlag.AlignRight,
+            )
+            self._layout_parametros.addWidget(
+                self._combobox_posicion_cubierta_un_agua, numero_filas, 1
+            )
 
         self._combobox_alturas_barlovento = QtWidgets.QComboBox()
         self._combobox_alturas_barlovento.currentIndexChanged.connect(
@@ -302,13 +309,16 @@ class WidgetResultadosEdificioSprfvMetodoDireccional(QtWidgets.QWidget):
                     and combobox_posicion_cubierta_un_agua is not None
                     and bool_direccion
                 ):
-                    posicion_cubierta_un_agua = (
-                        combobox_posicion_cubierta_un_agua.currentData()
-                    )
-                    bool_visualizar = (
-                        posicion_cubierta_un_agua
-                        == PosicionCubiertaAleroSprfv.BARLOVENTO
-                    )
+                    if not getattr(self, "_cubierta_casos_por_zona", False):
+                        posicion_cubierta_un_agua = (
+                            combobox_posicion_cubierta_un_agua.currentData()
+                        )
+                        bool_visualizar = (
+                            posicion_cubierta_un_agua
+                            == PosicionCubiertaAleroSprfv.BARLOVENTO
+                        )
+                    else:
+                        bool_visualizar = True
                 else:
                     bool_visualizar = bool_direccion
                 widget.setEnabled(bool_visualizar)
@@ -404,42 +414,28 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
                 self._combobox_componentes_paredes, numero_filas, 1
             )
 
-            # Con la Figura 8 los valores dependen de la pared y varían con la
-            # altura en la pared a barlovento.
-            if any(
-                fila.pared
-                for fila in edificio.resultados_componentes.filtrar(
-                    zona=ZonaEdificio.PAREDES
+            # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a
+            # la altura elegida (Nota 4), en los dos modos del signo.
+            if self.grafico.escena.por_altura_paredes:
+                self._combobox_alturas_paredes = QtWidgets.QComboBox()
+                for altura in self.grafico.escena.alturas_presiones_paredes:
+                    self._combobox_alturas_paredes.addItem(f"{altura:.2f} m", altura)
+                self._combobox_alturas_paredes.setCurrentIndex(
+                    self._combobox_alturas_paredes.count() - 1
                 )
-            ):
-                self._combobox_alturas_barlovento = QtWidgets.QComboBox()
-                for altura in edificio.geometria.alturas:
-                    self._combobox_alturas_barlovento.addItem(f"{altura} m", altura)
-                self._combobox_alturas_barlovento.setCurrentIndex(
-                    self._combobox_alturas_barlovento.count() - 1
-                )
-                self._combobox_alturas_barlovento.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
+                self._combobox_alturas_paredes.currentTextChanged.connect(
+                    self._actualizar_altura_paredes
                 )
 
+                numero_filas += 1
                 self._layout_parametros.addWidget(
-                    QtWidgets.QLabel("Altura Pared Barlovento"),
-                    numero_filas + 1,
+                    QtWidgets.QLabel("Altura Presión Paredes"),
+                    numero_filas,
                     0,
                     QtCore.Qt.AlignmentFlag.AlignRight,
                 )
                 self._layout_parametros.addWidget(
-                    self._combobox_alturas_barlovento, numero_filas + 1, 1
-                )
-
-                self._combobox_presion_componentes.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-                self._combobox_gcpi.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
-                )
-                self._combobox_componentes_paredes.currentTextChanged.connect(
-                    self._actualizar_altura_pared_barlovento
+                    self._combobox_alturas_paredes, numero_filas, 1
                 )
 
         numero_filas = self._layout_parametros.rowCount()
@@ -459,8 +455,8 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
             self.grafico.escena.actualizar_componente_pared(
                 self._combobox_componentes_paredes.currentText()
             )
-            if hasattr(self, "_combobox_alturas_barlovento"):
-                self._actualizar_altura_pared_barlovento()
+            if hasattr(self, "_combobox_alturas_paredes"):
+                self._actualizar_altura_paredes()
 
         if hasattr(self, "_combobox_componentes_cubierta"):
             self.grafico.escena.actualizar_componente_cubierta(
@@ -469,12 +465,15 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
 
         self.setLayout(layout_principal)
 
-    def _actualizar_altura_pared_barlovento(self) -> None:
-        """Actualiza la altura a la que se calcula la presion de la pared barlovento. Solo es válido para la Figura 8 del
-        Reglamento.
+    def _actualizar_altura_paredes(self) -> None:
+        """Actualiza la altura a la que se evalúan las paredes.
+
+        Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan con qz a la
+        altura elegida (Nota 4), tanto en la presión positiva como en la
+        negativa.
         """
-        self.grafico.escena.actualizar_altura_pared_barlovento(
-            self._combobox_alturas_barlovento.currentData()
+        self.grafico.escena.actualizar_altura_paredes(
+            self._combobox_alturas_paredes.currentData()
         )
 
 
@@ -493,7 +492,7 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         )
         self._stacked_widget.addWidget(widget_resultados_sprfv)
 
-        widget_panel_resultados = WidgetPanelResultados(edificio=True)
+        widget_panel_resultados = WidgetPanelResultados(sistemas=True)
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
         widget_panel_resultados.boton_sprfv.clicked.connect(
@@ -501,7 +500,15 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         )
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        if any((edificio.componentes_paredes, edificio.componentes_cubierta)):
+        if any(
+            (
+                edificio.componentes_paredes,
+                edificio.componentes_cubierta,
+                # El parapeto de un edificio de cubierta plana trae filas
+                # propias de componentes (Art. 5.6), aunque no haya otros.
+                edificio.parapeto and edificio.tipo_cubierta == TipoCubierta.PLANA,
+            )
+        ):
             try:
                 # Se verifica que la referencia del código exista
                 widget_resultados_componentes = WidgetResultadosEdificioComponentes(
@@ -536,11 +543,151 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
             widget.grafico.finalizar()
 
 
+class _VistaCubiertaAislada(QtWidgets.QWidget):
+    """Una vista interna del stacked de resultados de la cubierta aislada."""
+
+    grafico: WidgetGraficoCubiertaAisladaPresiones
+
+
+class WidgetResultadosCubiertaAisladaSprfv(_VistaCubiertaAislada):
+    """WidgetResultadosCubiertaAisladaSprfv.
+
+    Representa el widget que visualiza los resultados de las presiones
+    normales de una cubierta aislada. Presenta el gráfico junto con otros
+    widgets que interactuan con este para cambiar la dirección del viento y
+    el caso de carga, entre otras opciones.
+    """
+
+    def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
+        """
+
+        Args:
+            cubierta_aislada: Una instancia de CubiertaAislada.
+        """
+        super().__init__()
+
+        self.grafico = WidgetGraficoCubiertaAisladaPresiones(
+            cubierta_aislada, SistemaResistente.SPRFV
+        )
+
+        combobox_direccion = QtWidgets.QComboBox()
+        for direccion in DireccionVientoCubiertaAislada:
+            combobox_direccion.addItem(direccion.value, direccion)
+        combobox_direccion.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_direccion(
+                combobox_direccion.currentData()
+            )
+        )
+
+        combobox_caso = QtWidgets.QComboBox()
+        for caso in CasoCargaCubiertaAislada:
+            combobox_caso.addItem(caso.value, caso)
+        combobox_caso.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_caso(combobox_caso.currentData())
+        )
+
+        layout_parametros = QtWidgets.QGridLayout()
+
+        layout_parametros.addWidget(QtWidgets.QLabel("Dirección del viento"), 0, 0)
+        layout_parametros.addWidget(combobox_direccion, 0, 1)
+        layout_parametros.addWidget(QtWidgets.QLabel("Caso de carga"), 1, 0)
+        layout_parametros.addWidget(combobox_caso, 1, 1)
+        layout_parametros.setRowStretch(2, 1)
+
+        box_parametros = QtWidgets.QGroupBox("Parámetros")
+        box_parametros.setLayout(layout_parametros)
+
+        layout_resultados = QtWidgets.QHBoxLayout()
+        layout_resultados.setContentsMargins(11, 11, 11, 11)
+        layout_resultados.addWidget(box_parametros)
+        layout_resultados.addStretch()
+        layout_resultados.addWidget(self.grafico, 1)
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.setContentsMargins(0, 0, 0, 0)
+        layout_principal.addLayout(layout_resultados, 1)
+
+        self.grafico.escena.actualizar_direccion(combobox_direccion.currentData())
+
+        self.setLayout(layout_principal)
+
+
+class WidgetResultadosCubiertaAisladaComponentes(_VistaCubiertaAislada):
+    """WidgetResultadosCubiertaAisladaComponentes.
+
+    Representa el widget que visualiza los resultados de componentes y
+    revestimientos de una cubierta aislada, Figuras 5.5-1 a 5.5-3 del
+    Reglamento. Presenta el gráfico junto con los widgets que cambian el
+    componente y el signo de la presión.
+    """
+
+    def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
+        """
+
+        Args:
+            cubierta_aislada: Una instancia de CubiertaAislada con
+                componentes cargados.
+        """
+        super().__init__()
+
+        self.grafico = WidgetGraficoCubiertaAisladaPresiones(
+            cubierta_aislada, SistemaResistente.COMPONENTES
+        )
+
+        layout_parametros = QtWidgets.QGridLayout()
+
+        combobox_componentes = QtWidgets.QComboBox()
+        if cubierta_aislada.componentes is not None:
+            combobox_componentes.addItems(cubierta_aislada.componentes.keys())
+        combobox_componentes.currentTextChanged.connect(
+            self.grafico.escena.actualizar_componente
+        )
+        layout_parametros.addWidget(
+            QtWidgets.QLabel("Componente"),
+            0,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignRight,
+        )
+        layout_parametros.addWidget(combobox_componentes, 0, 1)
+
+        combobox_presion = QtWidgets.QComboBox()
+        for enum in TipoPresionComponentesParedesCubierta:
+            combobox_presion.addItem(enum.value.capitalize(), enum)
+        combobox_presion.currentTextChanged.connect(
+            lambda: self.grafico.escena.actualizar_tipo_presion(
+                combobox_presion.currentData()
+            )
+        )
+        layout_parametros.addWidget(
+            QtWidgets.QLabel("Presión"), 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        layout_parametros.addWidget(combobox_presion, 1, 1)
+        layout_parametros.setRowStretch(2, 1)
+
+        box_parametros = QtWidgets.QGroupBox("Parámetros")
+        box_parametros.setLayout(layout_parametros)
+
+        layout_resultados = QtWidgets.QHBoxLayout()
+        layout_resultados.setContentsMargins(11, 11, 11, 11)
+        layout_resultados.addWidget(box_parametros)
+        layout_resultados.addStretch()
+        layout_resultados.addWidget(self.grafico, 1)
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.setContentsMargins(0, 0, 0, 0)
+        layout_principal.addLayout(layout_resultados, 1)
+
+        self.grafico.escena.actualizar_componente(combobox_componentes.currentText())
+
+        self.setLayout(layout_principal)
+
+
 class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
     """WidgetResultadosCubiertaAislada.
 
-    Representa el widget que visualiza los resultados para cubiertas aisladas. Presenta el gráfico junto con otros
-    widgets que interactuan con este para cambiar el tipo de presión, entre otras opciones.
+    Representa el widget que visualiza los resultados para cubiertas
+    aisladas. Alterna entre las presiones normales (SPRFV) y las de
+    componentes y revestimientos con los botones del panel.
     """
 
     plantilla_reporte = "cubierta-aislada.md"
@@ -555,62 +702,60 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
 
         self._estructura = cubierta_aislada
 
-        self.grafico = WidgetGraficoCubiertaAisladaPresiones(cubierta_aislada)
+        self._stacked_widget = QtWidgets.QStackedWidget()
 
-        widget_panel_resultados = WidgetPanelResultados()
+        widget_resultados_sprfv = WidgetResultadosCubiertaAisladaSprfv(cubierta_aislada)
+        self._stacked_widget.addWidget(widget_resultados_sprfv)
+
+        widget_panel_resultados = WidgetPanelResultados(sistemas=True)
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
+        widget_panel_resultados.boton_sprfv.clicked.connect(
+            lambda: self._stacked_widget.setCurrentIndex(0)
+        )
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        combobox_tipo_presion = QtWidgets.QComboBox()
-        for enum in TipoPresionCubiertaAislada:
-            combobox_tipo_presion.addItem(enum.value.title(), enum)
-        combobox_tipo_presion.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_tipo_presion(
-                combobox_tipo_presion.currentData()
-            )
-        )
-
-        combobox_extremo_presion = QtWidgets.QComboBox()
-        for enum in ExtremoPresion:
-            combobox_extremo_presion.addItem(enum.value.title(), enum)
-        combobox_extremo_presion.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_extremo_presion(
-                combobox_extremo_presion.currentData()
-            )
-        )
-
-        layout_parametros = QtWidgets.QGridLayout()
-
-        layout_parametros.addWidget(QtWidgets.QLabel("Presión"), 0, 0)
-        layout_parametros.addWidget(combobox_tipo_presion, 0, 1)
-        layout_parametros.addWidget(combobox_extremo_presion, 0, 2)
-        layout_parametros.setRowStretch(1, 1)
-
-        box_parametros = QtWidgets.QGroupBox("Parámetros")
-        box_parametros.setLayout(layout_parametros)
-
-        layout_resultados = QtWidgets.QHBoxLayout()
-        layout_resultados.setContentsMargins(11, 11, 11, 11)
-        layout_resultados.addWidget(box_parametros)
-        layout_resultados.addStretch()
-        layout_resultados.addWidget(self.grafico, 1)
+        if cubierta_aislada.componentes:
+            try:
+                widget_resultados_componentes = (
+                    WidgetResultadosCubiertaAisladaComponentes(cubierta_aislada)
+                )
+                self._stacked_widget.addWidget(widget_resultados_componentes)
+                widget_panel_resultados.boton_componentes.setEnabled(True)
+                widget_panel_resultados.boton_componentes.clicked.connect(
+                    lambda: self._stacked_widget.setCurrentIndex(1)
+                )
+            except ErrorLineamientos as error:
+                mensaje = (
+                    str(error)
+                    + " No se pudieron determinar las presiones sobre los componentes y revestimientos.\n\n Verifique"
+                    " la geometría o elimine los componentes necesarios."
+                )
+                msg = QtWidgets.QMessageBox()
+                msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+                msg.setWindowTitle("Advertencia Lineamientos")
+                msg.setText(mensaje)
+                msg.exec()
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.addWidget(widget_panel_resultados)
-        layout_principal.addLayout(layout_resultados, 1)
-
-        self.grafico.escena.actualizar_tipo_presion(combobox_tipo_presion.currentData())
+        layout_principal.addWidget(self._stacked_widget, 1)
 
         self.setLayout(layout_principal)
+
+    def finalizar(self) -> None:
+        for i in range(self._stacked_widget.count()):
+            widget = self._stacked_widget.widget(i)
+            if isinstance(widget, _VistaCubiertaAislada):
+                widget.grafico.finalizar()
 
 
 class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
     """WidgetResultadosCartel.
 
     Representa el widget que visualiza los resultados para carteles. Presenta el gráfico junto con otros
-    widgets que interactuan con este para la altura de presión.
+    widgets que interactuan con este para el caso de la Figura 4.4-1 considerado.
     """
 
     plantilla_reporte = "cartel.md"
@@ -619,7 +764,7 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         """
 
         Args:
-            cartel: Una instancia de CubiertaAislada.
+            cartel: Una instancia de Cartel.
         """
         super().__init__()
 
@@ -632,17 +777,23 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
         widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
 
-        combobox_altura = QtWidgets.QComboBox()
-        for altura in cartel.geometria.alturas:
-            combobox_altura.addItem(f"{altura:.2f} m", altura)
-        combobox_altura.currentIndexChanged.connect(
-            lambda: self.grafico.escena.actualizar_altura(combobox_altura.currentData())
+        casos = [
+            CasoCartel.CASO_A,
+            CasoCartel.CASO_B,
+            *(caso for caso in (CasoCartel.CASO_C,) if cartel.cf.aplica_caso_c),
+        ]
+
+        combobox_caso = QtWidgets.QComboBox()
+        for caso in casos:
+            combobox_caso.addItem(caso.value, caso)
+        combobox_caso.currentIndexChanged.connect(
+            lambda: self.grafico.escena.actualizar_caso(combobox_caso.currentData())
         )
 
         layout_parametros = QtWidgets.QGridLayout()
 
-        layout_parametros.addWidget(QtWidgets.QLabel("Altura"), 0, 0)
-        layout_parametros.addWidget(combobox_altura, 0, 1)
+        layout_parametros.addWidget(QtWidgets.QLabel("Caso"), 0, 0)
+        layout_parametros.addWidget(combobox_caso, 0, 1)
         layout_parametros.setRowStretch(1, 1)
 
         box_parametros = QtWidgets.QGroupBox("Parámetros")
@@ -659,6 +810,6 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         layout_principal.addWidget(widget_panel_resultados)
         layout_principal.addLayout(layout_resultados, 1)
 
-        self.grafico.escena.actualizar_altura(combobox_altura.currentData())
+        self.grafico.escena.actualizar_caso(combobox_caso.currentData())
 
         self.setLayout(layout_principal)
