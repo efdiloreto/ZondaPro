@@ -40,11 +40,9 @@ _POSICION = QQuick3DGeometry.Attribute.Semantic.PositionSemantic
 _NORMAL = QQuick3DGeometry.Attribute.Semantic.NormalSemantic
 _INDICE = QQuick3DGeometry.Attribute.Semantic.IndexSemantic
 # Qt Quick 3D expone un juego fijo de semánticas y COLOR es el único vec4 que
-# sobra, así que por ahí viajan los dos datos que ningún atributo estándar
-# contempla: el otro extremo de la arista con su lado en las líneas gruesas, y la
-# normal suavizada en la flecha.
+# sobra: por ahí viaja el dato que ningún atributo estándar contempla en las
+# líneas gruesas, el otro extremo de la arista con el lado por el que abrirse.
 _EXTREMO = QQuick3DGeometry.Attribute.Semantic.ColorSemantic
-_NORMAL_SUAVE = _EXTREMO
 
 
 def normal(puntos: ArrayLike) -> np.ndarray:
@@ -250,89 +248,166 @@ class MallaLineas(_LineaGruesa):
         self._armar(np.asarray(puntos, dtype=float).reshape(-1, 2, 3))
 
 
-class MallaFlecha(QQuick3DGeometry):
-    """Una flecha de largo 1 con la base en el origen y la punta en +Y.
+RADIO_VASTAGO_FLECHA = 0.35
+"""Distancia del eje a la esquina de la sección del vastago, en metros."""
 
-    La orientación no va acá: la resuelve con un cuaternión el ``Node`` que la
-    contiene, así una sola malla sirve para todas las flechas de la escena.
+RADIO_PUNTA_FLECHA = 0.75
+"""Distancia del eje a la esquina de la base de la punta, en metros."""
 
-    Cada vértice lleva dos normales: la de su cara, que es la que ilumina —la
-    flecha se ve facetada—, y la suavizada, que es el promedio de las caras que
-    tocan esa posición. La suavizada es sobre la que ``silueta.vert`` hincha la
-    flecha para dibujarle el borde: con la de cara el borde se abriría en cada
-    arista y quedaría con muescas.
+LARGO_PUNTA_FLECHA = 2.25
+"""El largo de la punta, en metros: es fijo, no escala con la presión."""
+
+
+def _seccion_flecha(radio: float, y: float = 0.0) -> np.ndarray:
+    """Las cuatro esquinas de un cuadrado de circunradio ``radio``.
+
+    Los cuadrados de la flecha comparten centro y orientación —sus esquinas
+    caen a 45° de los ejes— para que las caras del vastago queden paralelas a
+    las de la pirámide.
+    """
+    angulos = np.pi / 4 + np.linspace(0, 2 * np.pi, 4, endpoint=False)
+    return np.column_stack(
+        (np.cos(angulos) * radio, np.full(4, y), np.sin(angulos) * radio)
+    )
+
+
+class MallaVastagoFlecha(QQuick3DGeometry):
+    """El vastago de la flecha: un prisma de largo 1 con la base en el origen.
+
+    La punta lo completa más arriba y la orientación la resuelve con un
+    cuaternión el ``Node`` que los contiene, así unas pocas mallas sirven para
+    todas las flechas de la escena. La vista lo estira sólo en Y: la sección
+    queda constante y con ella el grosor, sin importar el largo que le pida la
+    presión.
+
+    Cada vértice lleva la normal de su cara, que es la que ilumina: el prisma
+    se ve facetado.
     """
 
-    def __init__(
-        self,
-        radio_vastago: float = 0.03,
-        radio_punta: float = 0.1,
-        largo_punta: float = 0.3,
-        segmentos: int = 30,
-    ) -> None:
+    def __init__(self, radio: float = RADIO_VASTAGO_FLECHA) -> None:
         super().__init__()
-
-        angulos = np.linspace(0, 2 * np.pi, segmentos, endpoint=False)
-        cos, sen = np.cos(angulos), np.sin(angulos)
-        y_union = 1 - largo_punta
-
-        def anillo(radio: float, y: float) -> np.ndarray:
-            return np.column_stack((cos * radio, np.full(segmentos, y), sen * radio))
-
-        base_vastago = anillo(radio_vastago, 0.0)
-        tope_vastago = anillo(radio_vastago, y_union)
-        base_punta = anillo(radio_punta, y_union)
-        punta = np.array((0.0, 1.0, 0.0))
+        base = _seccion_flecha(radio, 0.0)
+        tope = _seccion_flecha(radio, 1.0)
+        origen = np.array((0.0, 0.0, 0.0))
 
         caras: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-        for i in range(segmentos):
-            j = (i + 1) % segmentos
-            caras.append((base_vastago[i], tope_vastago[i], tope_vastago[j]))
-            caras.append((base_vastago[i], tope_vastago[j], base_vastago[j]))
-            caras.append((base_punta[i], punta, base_punta[j]))
-            caras.append((base_punta[j], np.array((0.0, y_union, 0.0)), base_punta[i]))
-            caras.append((base_vastago[j], np.array((0.0, 0.0, 0.0)), base_vastago[i]))
+        for i in range(4):
+            j = (i + 1) % 4
+            caras.append((base[i], tope[i], tope[j]))
+            caras.append((base[i], tope[j], base[j]))
+            caras.append((base[j], origen, base[i]))
 
-        normales = []
-        acumuladas: dict[tuple[float, ...], np.ndarray] = {}
+        vertices = bytearray()
         for a, b, c in caras:
             n = np.cross(b - a, c - a)
             norma = np.linalg.norm(n)
             n = n / norma if norma else np.array((0.0, 1.0, 0.0))
-            normales.append(n)
-            # Las caras vienen sueltas, sin índice, así que las que comparten un
-            # vértice se juntan por su posición. Se redondea porque los anillos
-            # se calculan con senos y cosenos.
             for v in (a, b, c):
-                clave = tuple(np.round(v, 6))
-                acumuladas[clave] = acumuladas.get(clave, np.zeros(3)) + n
+                vertices += struct.pack("<6f", *v, *n)
 
-        suavizadas = {}
-        for clave, suma in acumuladas.items():
-            norma = np.linalg.norm(suma)
-            # El promedio sólo se anula si dos caras opuestas se cancelan, que en
-            # esta malla no pasa. Igual no puede salir un vector nulo: el shader
-            # lo normaliza y quedaría en NaN.
-            suavizadas[clave] = suma / norma if norma else np.array((0.0, 1.0, 0.0))
-
-        vertices = bytearray()
-        for (a, b, c), n in zip(caras, normales):
-            for v in (a, b, c):
-                # El cuarto float de la normal suavizada no se usa: COLOR es un
-                # vec4 y va completo.
-                vertices += struct.pack(
-                    "<10f", *v, *n, *suavizadas[tuple(np.round(v, 6))], 0.0
-                )
-
-        self.setStride(40)  # posición + normal de cara + normal suavizada (vec4)
+        self.setStride(24)  # 3 floats de posición + 3 de normal
         self.setVertexData(bytes(vertices))
         self.addAttribute(_POSICION, 0, _F32)
         self.addAttribute(_NORMAL, 12, _F32)
-        self.addAttribute(_NORMAL_SUAVE, 24, _F32)
         self.setPrimitiveType(QQuick3DGeometry.PrimitiveType.Triangles)
-        r = max(radio_punta, radio_vastago)
-        self.setBounds(QVector3D(-r, 0, -r), QVector3D(r, 1, r))
+        self.setBounds(QVector3D(-radio, 0, -radio), QVector3D(radio, 1, radio))
         self.update()  # type: ignore[attr-defined]
+
+
+class MallaPuntaFlecha(QQuick3DGeometry):
+    """La punta de la flecha: el marco de la base más la pirámide.
+
+    Es de tamaño fijo —la vista no la escala— y la base queda en el origen, en
+    el plano donde empalma con el vastago, con el ápice sobre +Y. El marco son
+    los trapecios entre el cuadrado del vastago y el de la pirámide, que
+    comparten orientación y quedan al hilo.
+
+    Cada vértice lleva la normal de su cara, que es la que ilumina: la punta se
+    ve facetada.
+    """
+
+    def __init__(
+        self,
+        radio_vastago: float = RADIO_VASTAGO_FLECHA,
+        radio_punta: float = RADIO_PUNTA_FLECHA,
+        largo: float = LARGO_PUNTA_FLECHA,
+    ) -> None:
+        super().__init__()
+        interior = _seccion_flecha(radio_vastago)
+        exterior = _seccion_flecha(radio_punta)
+        apice = np.array((0.0, largo, 0.0))
+
+        caras: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+        for i in range(4):
+            j = (i + 1) % 4
+            # El marco mira hacia abajo, como el pie del vastago.
+            caras.append((exterior[i], exterior[j], interior[j]))
+            caras.append((exterior[i], interior[j], interior[i]))
+            caras.append((exterior[i], apice, exterior[j]))
+
+        vertices = bytearray()
+        for a, b, c in caras:
+            n = np.cross(b - a, c - a)
+            norma = np.linalg.norm(n)
+            n = n / norma if norma else np.array((0.0, 1.0, 0.0))
+            for v in (a, b, c):
+                vertices += struct.pack("<6f", *v, *n)
+
+        self.setStride(24)  # 3 floats de posición + 3 de normal
+        self.setVertexData(bytes(vertices))
+        self.addAttribute(_POSICION, 0, _F32)
+        self.addAttribute(_NORMAL, 12, _F32)
+        self.setPrimitiveType(QQuick3DGeometry.PrimitiveType.Triangles)
+        self.setBounds(
+            QVector3D(-radio_punta, 0, -radio_punta),
+            QVector3D(radio_punta, largo, radio_punta),
+        )
+        self.update()  # type: ignore[attr-defined]
+
+
+class MallaAristasVastagoFlecha(_LineaGruesa):
+    """Las aristas del vastago, listas para el shader de líneas gruesas.
+
+    La vista la escala igual que el vastago: los cuatro cantos verticales y
+    los cuadrados del pie y del tope, sobre un prisma de largo 1. El cuadrado
+    del tope es también el borde interior del marco de la punta.
+    """
+
+    def __init__(self, radio: float = RADIO_VASTAGO_FLECHA) -> None:
+        super().__init__()
+        base = _seccion_flecha(radio, 0.0)
+        tope = _seccion_flecha(radio, 1.0)
+        aristas: list[tuple[np.ndarray, np.ndarray]] = []
+        for i in range(4):
+            j = (i + 1) % 4
+            aristas.append((base[i], tope[i]))
+            aristas.append((base[i], base[j]))
+            aristas.append((tope[i], tope[j]))
+        self._armar(np.array(aristas))
+
+
+class MallaAristasPuntaFlecha(_LineaGruesa):
+    """Las aristas de la punta, listas para el shader de líneas gruesas.
+
+    Es de tamaño fijo, igual que la punta: los cuatro cantos de la pirámide y
+    el perímetro de su base. El borde interior del marco lo dibuja el cuadrado
+    del tope del vastago.
+    """
+
+    def __init__(
+        self,
+        radio: float = RADIO_PUNTA_FLECHA,
+        largo: float = LARGO_PUNTA_FLECHA,
+    ) -> None:
+        super().__init__()
+        base = _seccion_flecha(radio)
+        apice = np.array((0.0, largo, 0.0))
+        aristas: list[tuple[np.ndarray, np.ndarray]] = []
+        for i in range(4):
+            j = (i + 1) % 4
+            aristas.append((base[i], apice))
+            aristas.append((base[i], base[j]))
+        self._armar(np.array(aristas))
 
 
 class MallaCilindro(QQuick3DGeometry):

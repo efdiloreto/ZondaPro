@@ -44,9 +44,9 @@ Item {
     // dispositivo, así que abajo va multiplicado por el devicePixelRatio, y por
     // eso el viewport se calcula en las mismas unidades.
     readonly property real grosorContorno: 2
-    // El borde de las flechas va más fino que los contornos: la flecha es un
-    // cuerpo chico y ahí una línea de dos píxeles se la come.
-    readonly property real grosorSilueta: 1
+    // Las aristas de las flechas van más finas que los contornos: la flecha es
+    // un cuerpo chico y ahí una línea de dos píxeles se la come.
+    readonly property real grosorAristasFlecha: 1
     readonly property vector2d viewportEnPixeles: Qt.vector2d(
         vista.width * Screen.devicePixelRatio, vista.height * Screen.devicePixelRatio)
     // Cuánto se acerca cada línea a la cámara, como fracción de su distancia,
@@ -233,7 +233,10 @@ Item {
             }
         }
 
-        // Flechas de presión
+        // Flechas de presión. La flecha son dos cuerpos: el vastago, un prisma
+        // de largo 1 que se estira sólo en Y —la sección queda constante—, y
+        // la punta, de tamaño fijo, apoyada donde el vastago termina. Así la
+        // presión le cambia el largo a la flecha sin agrandarle punta ni grosor.
         Repeater3D {
             model: raiz.escena ? raiz.escena.presiones : []
             Node {
@@ -242,48 +245,68 @@ Item {
                 rotation: modelData.rotacion
                 visible: modelData.visible && modelData.largo > 0
 
-                // La malla mide 1 y el largo es el valor de la presión.
-                readonly property vector3d escala: Qt.vector3d(
-                    modelData.largo, modelData.largo, modelData.largo)
+                // El vastago mide 1 y su largo es el valor de la presión.
+                readonly property vector3d escalaVastago: Qt.vector3d(
+                    1, modelData.largo, 1)
+                // La punta arranca donde termina el vastago.
+                readonly property vector3d posicionPunta: Qt.vector3d(
+                    0, modelData.largo, 0)
 
-                Model {
-                    geometry: raiz.escena.mallaFlecha
-                    scale: nodoFlecha.escala
-                    materials: PrincipledMaterial {
-                        baseColor: "#fafafa"
-                        roughness: 0.5
-                        emissiveFactor: Qt.vector3d(0.35, 0.35, 0.35)
-                        // La malla usa COLOR para llevarle la normal suavizada al
-                        // shader del borde, y los colores de vértice vienen
-                        // prendidos: sin esto el material multiplicaría el blanco
-                        // por una normal y la flecha saldría de cualquier color.
-                        vertexColorsEnabled: false
-                    }
+                // Un material por cuerpo y otro por las aristas, compartidos
+                // por los cuatro Model: la flecha se muestra y se oculta entera,
+                // junto con su nodo.
+                PrincipledMaterial {
+                    id: materialFlecha
+                    baseColor: "#fafafa"
+                    roughness: 0.5
+                    emissiveFactor: Qt.vector3d(0.35, 0.35, 0.35)
                 }
 
-                // El borde. Casi blanca contra un fondo claro, la flecha se
-                // pierde: lo que la separa del fondo es este contorno y no su
-                // sombreado. Es la misma malla hinchada unos píxeles y dibujada
-                // del revés, así asoma sólo por el canto (ver silueta.vert).
+                CustomMaterial {
+                    id: materialAristasFlecha
+                    shadingMode: CustomMaterial.Unshaded
+                    cullMode: Material.NoCulling
+                    vertexShader: "contorno.vert"
+                    fragmentShader: "contorno.frag"
+                    property vector2d viewport: raiz.viewportEnPixeles
+                    property real grosor: raiz.grosorAristasFlecha * Screen.devicePixelRatio
+                    property real acercamiento: raiz.acercamientoContorno
+                    // Va como vector y no como color a propósito: Qt convierte
+                    // los uniformes de tipo color a espacio lineal, y en modo
+                    // Unshaded lo que escribe el shader va derecho al
+                    // framebuffer, que guarda sRGB. Así el gris sale gris.
+                    property vector3d colorLinea: Qt.vector3d(raiz.colorContorno.r,
+                                                              raiz.colorContorno.g,
+                                                              raiz.colorContorno.b)
+                }
+
                 Model {
-                    geometry: raiz.escena.mallaFlecha
-                    scale: nodoFlecha.escala
-                    materials: CustomMaterial {
-                        shadingMode: CustomMaterial.Unshaded
-                        // Descartar las caras de frente deja la cara interna, que
-                        // es la que la flecha de adelante tapa en todas partes
-                        // menos en el borde que sobresale.
-                        cullMode: Material.FrontFaceCulling
-                        vertexShader: "silueta.vert"
-                        // El fragmento es el mismo que el de las líneas: un color
-                        // plano, sin iluminación (ver contorno.frag).
-                        fragmentShader: "contorno.frag"
-                        property vector2d viewport: raiz.viewportEnPixeles
-                        property real grosor: raiz.grosorSilueta * Screen.devicePixelRatio
-                        property vector3d colorLinea: Qt.vector3d(raiz.colorContorno.r,
-                                                                  raiz.colorContorno.g,
-                                                                  raiz.colorContorno.b)
-                    }
+                    geometry: raiz.escena.mallaVastagoFlecha
+                    scale: nodoFlecha.escalaVastago
+                    materials: materialFlecha
+                }
+
+                Model {
+                    geometry: raiz.escena.mallaPuntaFlecha
+                    position: nodoFlecha.posicionPunta
+                    materials: materialFlecha
+                }
+
+                // Las aristas, con el mismo shader de líneas gruesas de los
+                // contornos de las caras. Todas las caras de la flecha son
+                // planas, así que van todas: los cantos del vastago y de la
+                // pirámide y los cuadrados que los unen. Con el perfil hecho
+                // de aristas alcanza para separar la flecha del fondo.
+                Model {
+                    geometry: raiz.escena.aristasVastagoFlecha
+                    scale: nodoFlecha.escalaVastago
+                    materials: materialAristasFlecha
+                }
+
+                Model {
+                    geometry: raiz.escena.aristasPuntaFlecha
+                    position: nodoFlecha.posicionPunta
+                    materials: materialAristasFlecha
                 }
             }
         }

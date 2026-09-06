@@ -86,7 +86,7 @@ def test_los_archivos_de_la_vista_estan_en_el_paquete():
     from zonda.widgets.graficos import RUTA_VISOR
 
     assert RUTA_VISOR.is_file()
-    for shader in ("contorno.vert", "contorno.frag", "silueta.vert"):
+    for shader in ("contorno.vert", "contorno.frag"):
         assert (RUTA_VISOR.parent / shader).is_file(), shader
 
 
