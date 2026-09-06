@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 
 COLOR_POR_DEFECTO = "Gainsboro"
 ESCALA_BASE_FLECHA = 7.0
-"""Largo de la flecha, en metros, para la presión de mayor valor absoluto."""
+"""Largo del vastago, en metros, para la presión de mayor valor absoluto."""
 
 TAMANIO_TEXTO_BASE = 9.0
 """Tamaño en puntos de las etiquetas de presión."""
@@ -299,7 +299,8 @@ class ActorFlechaPresion(QObject):
     """La flecha normal a una cara, con la etiqueta del valor de presión.
 
     El sentido lo da el signo: con presión positiva la flecha empuja contra la
-    cara, con succión sale de ella. El largo es proporcional al valor.
+    cara, con succión sale de ella. El largo del vastago es proporcional al
+    valor; la punta, de tamaño fijo, se apoya donde el vastago termina.
     """
 
     cambiado = pyqtSignal()
@@ -316,9 +317,18 @@ class ActorFlechaPresion(QObject):
 
     @pyqtProperty(QVector3D, notify=cambiado)
     def posicion(self) -> QVector3D:
-        """El origen de la flecha, que es su base."""
+        """El origen de la flecha, que es su base.
+
+        Con empuje la punta —de tamaño fijo— termina en la cara, así que la
+        base se corre afuera todo el largo de la flecha, vastago más punta.
+        """
         if self._empuje:
-            return QVector3D(*(self._actor.centro + self._actor.normal * self._largo))
+            return QVector3D(
+                *(
+                    self._actor.centro
+                    + self._actor.normal * (self._largo + mallas.LARGO_PUNTA_FLECHA)
+                )
+            )
         return QVector3D(*self._actor.centro)
 
     @pyqtProperty(QQuaternion, notify=cambiado)
@@ -334,7 +344,10 @@ class ActorFlechaPresion(QObject):
     def posicionEtiqueta(self) -> QVector3D:
         """Donde va la etiqueta: en el extremo de la flecha alejado de la cara."""
         return QVector3D(
-            *(self._actor.centro + self._actor.normal * self._largo * 1.05)
+            *(
+                self._actor.centro
+                + self._actor.normal * (self._largo + mallas.LARGO_PUNTA_FLECHA) * 1.05
+            )
         )
 
     @pyqtProperty(str, notify=cambiado)

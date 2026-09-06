@@ -16,7 +16,7 @@
 // along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
 // El contorno es un color plano: no participa de la iluminación de la escena.
-// Lo comparte el borde de las flechas, que es igual de plano (ver silueta.vert).
+// Lo comparten las aristas de las flechas, que son igual de planas.
 //
 // `colorLinea` llega como vec3 en sRGB, no como uniforme de tipo color, porque
 // esos Qt los pasa a espacio lineal y acá lo que se escribe va derecho al

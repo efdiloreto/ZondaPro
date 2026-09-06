@@ -27,6 +27,7 @@ import pytest
 from zonda import enums
 from zonda.graficos import camara, mallas
 from zonda.graficos.actores import (
+    ESCALA_BASE_FLECHA,
     ActorPresion,
     Poligono,
     crear_poligono,
@@ -81,7 +82,16 @@ def test_las_mallas_se_construyen(qapp):
     assert len(contorno.vertexData()) == 4 * 4 * 7 * 4
     assert len(contorno.indexData()) == 4 * 2 * 3 * 4
 
-    assert mallas.MallaFlecha().vertexData()
+    vastago = mallas.MallaVastagoFlecha()
+    # 12 triángulos sueltos (8 laterales + 4 del pie), sin índice.
+    assert len(vastago.vertexData()) == 12 * 3 * 6 * 4
+
+    punta = mallas.MallaPuntaFlecha()
+    # 12 triángulos sueltos (8 del marco + 4 laterales), sin índice.
+    assert len(punta.vertexData()) == 12 * 3 * 6 * 4
+
+    assert mallas.MallaAristasVastagoFlecha().vertexData()
+    assert mallas.MallaAristasPuntaFlecha().vertexData()
     assert mallas.MallaCilindro(1.0, 4.0, (0.0, 0.0)).vertexData()
     assert mallas.MallaLineas(((0, 0, 0), (0, 5, 0))).vertexData()
 
@@ -107,27 +117,73 @@ def test_el_contorno_le_pasa_al_shader_el_otro_extremo_de_la_arista(qapp):
         assert len(np.unique(arista[:, :3], axis=0)) == 2
 
 
-def test_la_flecha_lleva_la_normal_suavizada_para_su_borde(qapp):
-    """El borde se hincha sobre esta normal, y tiene que ser continua.
+def test_la_punta_de_la_flecha_es_una_piramide(qapp):
+    """La punta es una pirámide de base cuadrada sobre un marco.
 
-    Con la normal de cara —la que ilumina— el casco se abriría en cada arista y
-    el borde saldría con muescas, así que cada vértice lleva además el promedio
-    de las caras que tocan su posición: dos vértices en el mismo lugar tienen que
-    traer la misma.
+    En el ápice confluyen las 4 caras laterales —el cono viejo juntaba ahí los
+    30 triángulos de su anillo— y la base queda en el origen, en el plano donde
+    empalma con el vastago, con el ápice a LARGO_PUNTA_FLECHA.
     """
-    v = np.frombuffer(mallas.MallaFlecha().vertexData().data(), dtype="<f4")
-    v = v.reshape(-1, 10)
+    v = np.frombuffer(mallas.MallaPuntaFlecha().vertexData().data(), dtype="<f4")
+    v = v.reshape(-1, 6)
 
-    suavizadas = v[:, 6:9]
-    assert np.allclose(np.linalg.norm(suavizadas, axis=1), 1.0, atol=1e-6)
+    apice = v[np.all(np.isclose(v[:, :3], (0, mallas.LARGO_PUNTA_FLECHA, 0)), axis=1)]
+    # Una entrada por cara lateral: las 4 de la pirámide.
+    assert len(apice) == 4
 
-    posiciones = np.round(v[:, :3], 4)
-    for posicion in np.unique(posiciones, axis=0):
-        juntos = suavizadas[np.all(posiciones == posicion, axis=1)]
-        assert np.allclose(juntos, juntos[0], atol=1e-6)
+    # Sobre el plano de la base, las esquinas exteriores quedan a radio_punta
+    # y las del vastago —el agujero del marco— a radio_vastago.
+    sobre_base = v[np.isclose(v[:, 1], 0)]
+    radios = np.linalg.norm(sobre_base[:, [0, 2]], axis=1)
+    exteriores = sobre_base[np.isclose(radios, mallas.RADIO_PUNTA_FLECHA)][:, :3]
+    assert len(np.unique(np.round(exteriores, 4), axis=0)) == 4
+    for esquina in exteriores:
+        # Dos caras laterales y tres triángulos del marco: los dos de su
+        # trapecio y uno del contiguo.
+        assert np.count_nonzero(np.all(np.isclose(v[:, :3], esquina), axis=1)) == 5
+    interiores = sobre_base[np.isclose(radios, mallas.RADIO_VASTAGO_FLECHA)][:, :3]
+    assert len(np.unique(np.round(interiores, 4), axis=0)) == 4
+    for esquina in interiores:
+        # Los dos triángulos de su trapecio y uno del contiguo.
+        assert np.count_nonzero(np.all(np.isclose(v[:, :3], esquina), axis=1)) == 3
 
-    # La normal de cara, en cambio, no se promedia: la flecha se ve facetada.
-    assert len(np.unique(np.round(v[:, 3:6], 4), axis=0)) > 1
+
+def test_las_aristas_de_la_flecha(qapp):
+    """Con todas las caras planas van todas las aristas, por cuerpo.
+
+    El vastago aporta sus cuatro cantos verticales y los cuadrados del pie y
+    del tope —12 segmentos sobre un prisma de largo 1— y la punta sus cuatro
+    cantos y el perímetro de su base —8 segmentos de tamaño fijo—. El borde
+    interior del marco lo dibuja el cuadrado del tope del vastago.
+    """
+    vastago = mallas.MallaAristasVastagoFlecha()
+    # 12 aristas; cada una son 4 vértices de 7 floats y 2 triángulos de 3 índices.
+    assert len(vastago.vertexData()) == 12 * 4 * 7 * 4
+    assert len(vastago.indexData()) == 12 * 2 * 3 * 4
+    v = np.frombuffer(vastago.vertexData().data(), dtype="<f4").reshape(-1, 7)
+    extremos = np.unique(np.round(v[:, :3], 4), axis=0)
+    alturas = extremos[:, 1]
+    # Dos cuadrados de 4 esquinas: el pie en y=0 y el tope en y=1.
+    assert len(extremos) == 8
+    for altura, cantidad in ((0, 4), (1, 4)):
+        assert np.count_nonzero(np.isclose(alturas, altura)) == cantidad
+    # Todas las esquinas del vastago quedan a radio_vastago del eje.
+    radios = np.linalg.norm(v[:, [0, 2]], axis=1)
+    assert np.allclose(radios, mallas.RADIO_VASTAGO_FLECHA)
+
+    punta = mallas.MallaAristasPuntaFlecha()
+    assert len(punta.vertexData()) == 8 * 4 * 7 * 4
+    assert len(punta.indexData()) == 8 * 2 * 3 * 4
+    v = np.frombuffer(punta.vertexData().data(), dtype="<f4").reshape(-1, 7)
+    extremos = np.unique(np.round(v[:, :3], 4), axis=0)
+    alturas = extremos[:, 1]
+    # Las 4 esquinas de la base y el ápice.
+    assert len(extremos) == 5
+    for altura, cantidad in ((0, 4), (mallas.LARGO_PUNTA_FLECHA, 1)):
+        assert np.count_nonzero(np.isclose(alturas, altura)) == cantidad
+    radios = np.linalg.norm(v[:, [0, 2]], axis=1)
+    assert np.allclose(radios[radios > 0.1], mallas.RADIO_PUNTA_FLECHA)
+    assert np.allclose(radios[radios <= 0.1], 0.0)
 
 
 def test_el_contorno_queda_sobre_la_cara_sin_desplazarse(qapp):
@@ -279,7 +335,7 @@ def test_asignar_presion_cambia_color_flecha_y_etiqueta(qapp):
 
     actor.asignar_presion(500, enums.Unidad.N)
     assert actor.color.hueF() == pytest.approx(0.0, abs=1e-3)
-    assert actor.flecha.largo == pytest.approx(7.0)
+    assert actor.flecha.largo == pytest.approx(ESCALA_BASE_FLECHA)
     assert "500.00 N/m²" in actor.flecha.texto
 
     largo_maximo = actor.flecha.largo
@@ -298,9 +354,11 @@ def test_el_sentido_de_la_flecha_sigue_el_signo(qapp):
     succion = actor.flecha.posicion
 
     # Con empuje la flecha arranca afuera y termina en la cara; con succión
-    # arranca en la cara.
+    # arranca en la cara. La punta, de tamaño fijo, le suma su largo a la base.
     assert empuje.z() > succion.z()
     assert np.allclose((succion.x(), succion.y(), succion.z()), actor.centro)
+    distancia = empuje.z() - actor.centro[2]
+    assert distancia == pytest.approx(actor.flecha.largo + mallas.LARGO_PUNTA_FLECHA)
 
 
 def test_ocultar_un_actor_oculta_su_flecha(qapp):
