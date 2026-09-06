@@ -154,7 +154,8 @@ feat/lo-que-sea  →  dev  →  master
   cambio de estilo, la revisión se vuelve imposible.
 - Completá la [plantilla de pull request](pull_request_template.md): en
   particular, **el efecto sobre los resultados numéricos**. Si los cambia, hay
-  que decirlo explícitamente.
+  que decirlo explícitamente. La descripción se escribe **concisa**: lo que
+  cambia, por qué y el efecto, sin rodeos.
 
 ### Releases
 
