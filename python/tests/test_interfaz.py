@@ -258,13 +258,17 @@ def test_el_dialogo_de_componentes_pide_el_area_del_parapeto(qapp):
 
 
 @necesita_opengl
-def test_hay_parapeto_plana(qapp):
+def test_hay_parapeto_plana(qapp, monkeypatch):
     """El área del parapeto se pide sólo con parapeto cargado y cubierta plana."""
     from zonda import enums
     from zonda.widgets.entrada import WidgetEstructuraEdificio
 
     widget = WidgetEstructuraEdificio()
     widget.finalizar()
+
+    # Al marcar el parapeto el widget abre el aviso con exec(), que es modal:
+    # traba la corrida esperando un OK que nadie va a dar.
+    monkeypatch.setattr(widget._mensaje_parapeto, "exec", lambda: 0)
 
     # El valor por defecto es cubierta a dos aguas y parapeto deshabilitado.
     assert not widget.hay_parapeto_plana()
