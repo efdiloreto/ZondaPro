@@ -51,7 +51,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import __acercade__, proyecto, recientes, recursos
+from zonda import __acercade__, carpetas, proyecto, recientes, recursos
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 from zonda.enums import Estructura
 from zonda.excepciones import ErrorArchivo, ErrorEstructura, ErrorLineamientos
@@ -333,6 +333,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         # Abrir y guardar son los dos momentos en que alguien eligió este
         # archivo, así que son los dos que lo anotan como reciente.
         recientes.registrar(self._ruta_archivo)
+        carpetas.recordar(self._ruta_archivo)
         self._estado_guardado = self._estado()
         self._actualizar_titulo()
 
@@ -389,20 +390,25 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             return False
         self._ruta_archivo = ruta
         recientes.registrar(ruta)
+        carpetas.recordar(ruta)
         self._estado_guardado = estado
         self._actualizar_titulo()
         return True
 
     def _carpeta_inicial(self) -> str:
-        """Vacío deja que Qt use la última carpeta visitada."""
-        if self._ruta_archivo is None:
-            return ""
-        return str(self._ruta_archivo.parent)
+        """La carpeta donde se abre el diálogo de abrir.
+
+        Si el módulo ya tiene un archivo, su carpeta; si no, la última carpeta
+        usada, que es la de Documentos la primera vez.
+        """
+        if self._ruta_archivo is not None:
+            return str(self._ruta_archivo.parent)
+        return carpetas.ultima()
 
     def _ruta_sugerida(self) -> str:
         if self._ruta_archivo is not None:
             return str(self._ruta_archivo)
-        return str(Path.home() / f"{self.titulo}{proyecto.EXTENSION}")
+        return str(Path(carpetas.ultima()) / f"{self.titulo}{proyecto.EXTENSION}")
 
     def _actualizar_titulo(self) -> None:
         nombre = "Sin título" if self._ruta_archivo is None else self._ruta_archivo.name

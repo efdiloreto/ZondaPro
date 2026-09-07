@@ -38,6 +38,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from zonda import (
     __acercade__,
     actualizaciones,
+    carpetas,
     patrocinadores,
     proyecto,
     recientes,
@@ -395,7 +396,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
     def _pedir_abrir_proyecto(self) -> None:
         """Pide un archivo y lo abre en el módulo que corresponda."""
         nombre, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Abrir Proyecto", "", proyecto.FILTRO
+            self, "Abrir Proyecto", carpetas.ultima(), proyecto.FILTRO
         )
         if nombre:
             self.abrir_proyecto(nombre)
