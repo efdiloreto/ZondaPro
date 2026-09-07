@@ -39,6 +39,12 @@ Item {
     readonly property color colorFondo: "#ededed"
     readonly property color colorMedicion: "#e800e8"
     readonly property color colorContorno: "#404040"
+    readonly property color colorGlow: "#e800e8"
+
+    // La zona de presión que se tocó. La selección es estado puro de la
+    // vista: la escena no sabe nada de esto. El glow rodea a la zona y a su
+    // flecha, y el panel fijo de la esquina muestra el detalle del cálculo.
+    property var zonaSeleccionada: null
 
     // Ancho de las líneas en píxeles lógicos. El shader las mide en píxeles de
     // dispositivo, así que abajo va multiplicado por el devicePixelRatio, y por
@@ -52,6 +58,9 @@ Item {
     // Cuánto se acerca cada línea a la cámara, como fracción de su distancia,
     // para no pelear en Z con la cara a la que pertenece.
     readonly property real acercamientoContorno: 0.008
+    // Las capas del glow van un poco más cerca de la cámara todavía: el halo
+    // tiene que quedar delante de la línea nítida del contorno, no detrás.
+    readonly property real acercamientoGlow: 0.018
 
     readonly property real radioEscena: escena ? escena.radio : 1
 
@@ -144,10 +153,14 @@ Item {
             Model {
                 geometry: modelData.malla
                 visible: modelData.visible
-                // Los Model no son pickable por omisión, y sin esto no anda el
-                // rayo que decide si una etiqueta de presión quedó tapada. La
-                // medición no usa pick: ver candidatoEn().
+                // Los Model no son pickable por omisión, y sin esto no anda
+                // ni el rayo que decide si una etiqueta de presión quedó tapada
+                // ni la selección de zonas al tocarlas. La medición no usa
+                // pick: ver candidatoEn().
                 pickable: true
+                // La zona que este Model representa: el pick del toque la
+                // consulta para saber qué seleccionar.
+                property var zona: modelData
                 materials: PrincipledMaterial {
                     baseColor: modelData.color
                     roughness: 0.8
@@ -184,6 +197,7 @@ Item {
                     property vector2d viewport: raiz.viewportEnPixeles
                     property real grosor: raiz.grosorContorno * Screen.devicePixelRatio
                     property real acercamiento: raiz.acercamientoContorno
+                    property real opacidad: 1.0
                     // Va como vector y no como color a propósito: Qt convierte
                     // los uniformes de tipo color a espacio lineal, y en modo
                     // Unshaded lo que escribe el shader va derecho al
@@ -192,6 +206,27 @@ Item {
                                                               raiz.colorContorno.g,
                                                               raiz.colorContorno.b)
                 }
+            }
+        }
+
+        // El glow de la zona seleccionada: el trazo a inglete de su contorno,
+        // en dos capas translúcidas de distinto ancho. Es sólo una decisión de
+        // la vista: la escena no sabe que hay una selección.
+        Repeater3D {
+            model: raiz.escena ? raiz.escena.caras : []
+            Model {
+                geometry: modelData.trazo
+                visible: modelData.visible && raiz.zonaSeleccionada === modelData
+                materials: materialGlowCercano
+            }
+        }
+
+        Repeater3D {
+            model: raiz.escena ? raiz.escena.caras : []
+            Model {
+                geometry: modelData.trazo
+                visible: modelData.visible && raiz.zonaSeleccionada === modelData
+                materials: materialGlowLejano
             }
         }
 
@@ -211,6 +246,7 @@ Item {
                     property vector2d viewport: raiz.viewportEnPixeles
                     property real grosor: raiz.grosorContorno * Screen.devicePixelRatio
                     property real acercamiento: raiz.acercamientoContorno
+                    property real opacidad: 1.0
                     property vector3d colorLinea: Qt.vector3d(modelData.color.r,
                                                               modelData.color.g,
                                                               modelData.color.b)
@@ -271,6 +307,7 @@ Item {
                     property vector2d viewport: raiz.viewportEnPixeles
                     property real grosor: raiz.grosorAristasFlecha * Screen.devicePixelRatio
                     property real acercamiento: raiz.acercamientoContorno
+                    property real opacidad: 1.0
                     // Va como vector y no como color a propósito: Qt convierte
                     // los uniformes de tipo color a espacio lineal, y en modo
                     // Unshaded lo que escribe el shader va derecho al
@@ -284,12 +321,51 @@ Item {
                     geometry: raiz.escena.mallaVastagoFlecha
                     scale: nodoFlecha.escalaVastago
                     materials: materialFlecha
+                    // Pickable para poder seleccionar la zona tocando la
+                    // flecha, no sólo su cara. `zona` apunta al actor dueño.
+                    pickable: true
+                    property var zona: modelData.actor
+                    property bool esFlecha: true
                 }
 
                 Model {
                     geometry: raiz.escena.mallaPuntaFlecha
                     position: nodoFlecha.posicionPunta
                     materials: materialFlecha
+                    pickable: true
+                    property var zona: modelData.actor
+                    property bool esFlecha: true
+                }
+
+                // El glow de la flecha seleccionada: la silueta del conjunto
+                // (cantos del vastago, base y cantos de la punta), en dos
+                // capas translúcidas que acompañan la escala y la orientación.
+                Model {
+                    geometry: raiz.escena.trazoVastagoFlecha
+                    scale: nodoFlecha.escalaVastago
+                    visible: raiz.zonaSeleccionada === modelData.actor
+                    materials: materialGlowCercano
+                }
+
+                Model {
+                    geometry: raiz.escena.trazoVastagoFlecha
+                    scale: nodoFlecha.escalaVastago
+                    visible: raiz.zonaSeleccionada === modelData.actor
+                    materials: materialGlowLejano
+                }
+
+                Model {
+                    geometry: raiz.escena.trazoPuntaFlecha
+                    position: nodoFlecha.posicionPunta
+                    visible: raiz.zonaSeleccionada === modelData.actor
+                    materials: materialGlowCercano
+                }
+
+                Model {
+                    geometry: raiz.escena.trazoPuntaFlecha
+                    position: nodoFlecha.posicionPunta
+                    visible: raiz.zonaSeleccionada === modelData.actor
+                    materials: materialGlowLejano
                 }
 
                 // Las aristas, con el mismo shader de líneas gruesas de los
@@ -328,6 +404,48 @@ Item {
                 }
             }
         }
+    }
+
+    // --- Materiales del glow ------------------------------------------------
+
+    // El halo de selección: dos pasadas del mismo shader de líneas gruesas de
+    // los contornos, con más ancho y transparencia. Con el blending en alpha
+    // el material va al pase transparente, así que cada capa se suma sobre lo
+    // que ya está dibujado y el borde externo se difumina como un glow.
+    CustomMaterial {
+        id: materialGlowCercano
+        shadingMode: CustomMaterial.Unshaded
+        cullMode: Material.NoCulling
+        vertexShader: "glow.vert"
+        fragmentShader: "contorno.frag"
+        property vector2d viewport: raiz.viewportEnPixeles
+        property real grosor: raiz.grosorContorno * 1.8 * Screen.devicePixelRatio
+        property real acercamiento: raiz.acercamientoGlow
+        property real opacidad: 0.55
+        sourceBlend: CustomMaterial.SrcAlpha
+        destinationBlend: CustomMaterial.OneMinusSrcAlpha
+        // Mismo criterio que los contornos: color como vector para que no lo
+        // muevan a espacio lineal.
+        property vector3d colorLinea: Qt.vector3d(raiz.colorGlow.r,
+                                                  raiz.colorGlow.g,
+                                                  raiz.colorGlow.b)
+    }
+
+    CustomMaterial {
+        id: materialGlowLejano
+        shadingMode: CustomMaterial.Unshaded
+        cullMode: Material.NoCulling
+        vertexShader: "glow.vert"
+        fragmentShader: "contorno.frag"
+        property vector2d viewport: raiz.viewportEnPixeles
+        property real grosor: raiz.grosorContorno * 3.0 * Screen.devicePixelRatio
+        property real acercamiento: raiz.acercamientoGlow * 1.8
+        property real opacidad: 0.15
+        sourceBlend: CustomMaterial.SrcAlpha
+        destinationBlend: CustomMaterial.OneMinusSrcAlpha
+        property vector3d colorLinea: Qt.vector3d(raiz.colorGlow.r,
+                                                  raiz.colorGlow.g,
+                                                  raiz.colorGlow.b)
     }
 
     // --- Interacción --------------------------------------------------------
@@ -396,6 +514,23 @@ Item {
         }
     }
 
+    // La selección de zonas de presión: un toque sobre una cara o sobre su
+    // flecha la selecciona; un toque afuera, o sobre la misma zona, la
+    // suelta. Con DragThreshold un arrastre para orbitar no cuenta como
+    // toque: sólo se selecciona cuando el dedo (o el mouse) no se movió.
+    TapHandler {
+        enabled: !medicion.activa
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.DragThreshold
+        onTapped: (punto) => raiz.seleccionarEn(punto.position.x, punto.position.y)
+    }
+
+    Shortcut {
+        sequences: ["Esc"]
+        enabled: raiz.zonaSeleccionada !== null
+        onActivated: raiz.deseleccionar()
+    }
+
     // --- Superposición 2D ---------------------------------------------------
 
     // Etiquetas de presión. Se proyecta la posición 3D a la pantalla y se dibuja
@@ -425,13 +560,17 @@ Item {
             // profundidad no las esconde: sin esto, la de una cara trasera flota
             // sobre la pared que la tapa y se lee como si fuera de esa pared. El
             // test es el mismo rayo que usa la medición: si antes de llegar a la
-            // punta de la flecha pega contra algo, la etiqueta está atrás. Sólo
-            // las caras son pickable, que es justo lo que tapa.
+            // punta de la flecha pega contra algo, la etiqueta está atrás. Las
+            // flechas son pickable para la selección, pero no cuentan: la
+            // etiqueta vive junto a la punta de su propia flecha y el rayo la
+            // encuentra antes que a la cara que pueda taparla de verdad.
             readonly property bool tapada: {
                 if (!enPantalla)
                     return false
                 const resultado = vista.pick(proyeccion.x, proyeccion.y)
                 if (!resultado.objectHit)
+                    return false
+                if (resultado.objectHit.esFlecha === true)
                     return false
                 return raiz.profundidad(resultado.scenePosition)
                        < raiz.profundidad(modelData.posicionEtiqueta) - raiz.toleranciaOclusion
@@ -445,6 +584,14 @@ Item {
             color: raiz.colorFondo
             border.color: raiz.colorTinta
             border.width: 1
+
+            // Tocar la etiqueta selecciona la zona, igual que tocar su cara o
+            // su flecha: es el objetivo más fácil de acertar.
+            TapHandler {
+                enabled: !medicion.activa
+                gesturePolicy: TapHandler.DragThreshold
+                onTapped: raiz.seleccionarZona(modelData.actor)
+            }
 
             Text {
                 id: texto
@@ -589,6 +736,117 @@ Item {
         }
     }
 
+    // El detalle del cálculo de la zona seleccionada, fijo arriba a la
+    // derecha como el título. Se muestra al tocar una zona (con su glow) y
+    // se cierra con Esc o tocando afuera; en modo medición se oculta para no
+    // pisar su rótulo, que va en la misma esquina.
+    //
+    // El cuerpo son dos columnas de Text posicionadas a mano: las etiquetas a
+    // la izquierda y los valores —que arrancan con el igual— en una segunda
+    // columna corrida al ancho de la etiqueta más larga. Los anchos se miden
+    // sobre los Texts mismos y no sobre el implicit de una Column: con
+    // contenido que llega tarde, el de la Column no se recalcula; el de cada
+    // Text, sí.
+    Rectangle {
+        id: panelDetalle
+
+        readonly property var contenido: raiz.zonaSeleccionada
+            ? raiz.zonaSeleccionada.detalle : null
+
+        readonly property var filas: contenido ? contenido.filas : []
+
+        // El alto de una fila: el que da la fuente de 12 puntos, que es la
+        // de las dos columnas. Lo da TextMetrics para no amarrarlo a nada.
+        readonly property real altoLinea: metricasFila.height
+
+        readonly property real anchoEtiquetas: _ancho_de(columnaEtiquetas)
+        readonly property real anchoValores: _ancho_de(columnaValores)
+        readonly property real anchoContenido:
+            8 + anchoEtiquetas + 6 + anchoValores
+
+        // El ancho que aporta un grupo de Texts: el de su texto más ancho.
+        function _ancho_de(columna) {
+            var maximo = 0
+            var hijos = columna.children
+            for (var i = 0; i < hijos.length; i++) {
+                var ancho = hijos[i].implicitWidth
+                if (ancho !== undefined && ancho > maximo)
+                    maximo = ancho
+            }
+            return maximo
+        }
+
+        visible: contenido !== null
+                 && raiz.zonaSeleccionada.visible
+                 && !medicion.activa
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 8
+        anchors.rightMargin: 12
+        // El título puede ser más ancho que las columnas ("Cubierta 0.00 a
+        // 5.00 m"); si aun así no entra en la vista, corta en dos líneas.
+        width: Math.min(
+                   Math.max(tituloDetalle.implicitWidth, anchoContenido) + 16,
+                   raiz.width - 24)
+        height: columnaEtiquetas.y + filas.length * altoLinea + 8
+        color: raiz.colorFondo
+        border.color: raiz.colorTinta
+        border.width: 2
+        radius: 3
+
+        TextMetrics {
+            id: metricasFila
+            font.pointSize: 12
+            text: "Ag"
+        }
+
+        Text {
+            id: tituloDetalle
+            x: 8
+            y: 6
+            width: parent.width - 16
+            wrapMode: Text.Wrap
+            text: panelDetalle.contenido ? panelDetalle.contenido.titulo : ""
+            color: raiz.colorTinta
+            font.pointSize: 13
+            font.bold: true
+        }
+
+        Item {
+            id: columnaEtiquetas
+            x: 8
+            y: tituloDetalle.y + tituloDetalle.implicitHeight + 4
+
+            Repeater {
+                model: panelDetalle.filas
+                Text {
+                    y: index * panelDetalle.altoLinea
+                    text: modelData[0]
+                    visible: text !== ""
+                    color: raiz.colorTinta
+                    font.pointSize: 12
+                }
+            }
+        }
+
+        Item {
+            id: columnaValores
+            x: 8 + panelDetalle.anchoEtiquetas + 6
+            y: columnaEtiquetas.y
+
+            Repeater {
+                model: panelDetalle.filas
+                Text {
+                    y: index * panelDetalle.altoLinea
+                    text: modelData[1]
+                    visible: text !== ""
+                    color: raiz.colorTinta
+                    font.pointSize: 12
+                }
+            }
+        }
+    }
+
     // --- Conexión con la escena de Python -----------------------------------
 
     Connections {
@@ -614,6 +872,10 @@ Item {
 
         function onActoresCambiados() {
             reencuadrar.restart()
+            // Si la escena se rearma, la zona que estaba tocada puede ya no
+            // existir: la selección se suelta antes de que su actor quede
+            // huérfano.
+            raiz.deseleccionar()
         }
     }
 
@@ -665,6 +927,38 @@ Item {
         if (p.z <= 0 || Math.hypot(p.x - x, p.y - y) > raiz.radioEnganchePx)
             return null
         return golpe.vertice
+    }
+
+    // --- Selección ----------------------------------------------------------
+
+    // Qué zona de presión hay bajo un toque, y qué hacer con ella: si es
+    // nueva se selecciona, si ya estaba se suelta, y si no hay ninguna se
+    // limpia.
+    //
+    // El pick de la vista alcanza para las caras y para las flechas, que son
+    // los dos cuerpos pickable de la escena. Los actores de geometría no
+    // llevan fila: su detalle es null y con eso se los descarta.
+    function seleccionarEn(x, y) {
+        const resultado = vista.pick(x, y)
+        const zona = resultado.objectHit ? resultado.objectHit.zona : null
+        if (!zona || zona.detalle === null) {
+            raiz.deseleccionar()
+            return
+        }
+        raiz.seleccionarZona(zona)
+    }
+
+    // Selecciona una zona (o la suelta si ya estaba seleccionada).
+    function seleccionarZona(zona) {
+        if (zona === raiz.zonaSeleccionada) {
+            raiz.deseleccionar()
+            return
+        }
+        raiz.zonaSeleccionada = zona
+    }
+
+    function deseleccionar() {
+        raiz.zonaSeleccionada = null
     }
 
     // El paso "redondo" —1, 2 o 5 por una potencia de diez— que deja del orden

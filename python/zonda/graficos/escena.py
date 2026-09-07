@@ -93,6 +93,11 @@ class Escena3D(QObject):
         self._malla_punta_flecha = mallas.MallaPuntaFlecha()
         self._aristas_vastago_flecha = mallas.MallaAristasVastagoFlecha()
         self._aristas_punta_flecha = mallas.MallaAristasPuntaFlecha()
+        # La silueta de la flecha para el glow: los cantos del vastago y de la
+        # punta, y el perímetro de la base de la punta. Sin los cuadrados de
+        # unión, que quedan adentro del conjunto cara + flecha.
+        self._trazo_vastago_flecha = mallas.MallaTrazoVastagoFlecha()
+        self._trazo_punta_flecha = mallas.MallaTrazoPuntaFlecha()
         self._titulo = ""
         self._tabla: TablaColores | None = None
         self._unidad = Unidad.N
@@ -208,6 +213,14 @@ class Escena3D(QObject):
     @pyqtProperty(QObject, constant=True)
     def aristasPuntaFlecha(self):
         return self._aristas_punta_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def trazoVastagoFlecha(self):
+        return self._trazo_vastago_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def trazoPuntaFlecha(self):
+        return self._trazo_punta_flecha
 
     @pyqtProperty(str, notify=tituloCambiado)
     def titulo(self) -> str:

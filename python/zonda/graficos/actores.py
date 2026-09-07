@@ -44,10 +44,14 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 # `pyqtProperty` existe en runtime pero no está declarado en los stubs.
-from PyQt6.QtCore import QObject, pyqtProperty, pyqtSignal  # type: ignore[attr-defined]
+from PyQt6.QtCore import (  # type: ignore[attr-defined]
+    QObject,
+    pyqtProperty,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QColor, QQuaternion, QVector3D
 
-from zonda.graficos import mallas
+from zonda.graficos import detalle, mallas
 from zonda.graficos.directores.utils_iter import aplicar_func_recursivamente
 from zonda.unidades import convertir_unidad
 
@@ -315,6 +319,11 @@ class ActorFlechaPresion(QObject):
         self._escala_base = ESCALA_BASE_FLECHA
         self._tamanio_texto = TAMANIO_TEXTO_BASE
 
+    @pyqtProperty(QObject, constant=True)
+    def actor(self) -> ActorPresion:
+        """El actor de presión dueño de esta flecha."""
+        return self._actor
+
     @pyqtProperty(QVector3D, notify=cambiado)
     def posicion(self) -> QVector3D:
         """El origen de la flecha, que es su base.
@@ -460,8 +469,15 @@ class ActorPresion(QObject, ActorMixin):
         self.centro = mallas.centro(puntos)
         self._malla = mallas.MallaPoligono(puntos)
         self._contorno = mallas.MallaContorno(puntos)
+        # El glow de selección usa el trazo a inglete: sin él, las tapas de
+        # las aristas contiguas se superponen y acumulan color en las esquinas.
+        self._trazo = mallas.MallaTrazo([(puntos, True)])
         self._color = self.color_base
         self._visible = mostrar
+        self._fila: Any = None
+        self._unidad: Unidad | None = None
+        self._unidad_fuerza: Unidad | None = None
+        self._presion: float | None = None
 
         if presion and tabla_colores is not None:
             self.flecha = ActorFlechaPresion(self)
@@ -478,6 +494,10 @@ class ActorPresion(QObject, ActorMixin):
     def contorno(self):
         return self._contorno
 
+    @pyqtProperty(QObject, constant=True)
+    def trazo(self):
+        return self._trazo
+
     @pyqtProperty(QColor, notify=cambiado)
     def color(self) -> QColor:
         return self._color
@@ -493,11 +513,26 @@ class ActorPresion(QObject, ActorMixin):
         return self._poligono
 
     @property
+    def fila(self) -> Any | None:
+        """La fila de resultados con la que se calculó la presión actual.
+
+        Es la que alimenta el detalle de cálculo que muestra la vista al
+        tocar la zona. Los actores sin presión (los de geometría) no la
+        tienen.
+        """
+        return self._fila
+
+    @property
     def puntos(self) -> np.ndarray:
         return self._poligono.puntos
 
     def asignar_presion(
-        self, presion: float, unidad: Unidad, str_extra: str = ""
+        self,
+        presion: float,
+        unidad: Unidad,
+        str_extra: str = "",
+        fila: Any | None = None,
+        unidad_fuerza: Unidad | None = None,
     ) -> None:
         """Asigna un valor de presión al actor.
 
@@ -508,10 +543,18 @@ class ActorPresion(QObject, ActorMixin):
             presion: El valor de presión en N/m².
             unidad: La unidad en la que se muestra.
             str_extra: Un texto a agregar en la etiqueta.
+            fila: La fila de resultados que produjo el valor. Es la que se
+                consulta para armar el detalle de cálculo.
+            unidad_fuerza: La unidad para las fuerzas del detalle. Sólo la
+                usan las filas del cartel.
         """
         # Solo tiene sentido en un actor creado con escala de colores y flecha
         # (``presion=True``); sin la escala no hay de dónde sacar el color.
         assert self.tabla_colores is not None
+        self._fila = fila
+        self._unidad = unidad
+        self._unidad_fuerza = unidad_fuerza
+        self._presion = presion
         presion = convertir_unidad(presion, unidad)
         self._asignar_color(self.tabla_colores.color(presion))
         self.flecha.asignar_presion(
@@ -520,6 +563,29 @@ class ActorPresion(QObject, ActorMixin):
             self._max_valor_presion,
         )
         self.mostrar()
+        # El detalle de cálculo puede cambiar sin que cambien color ni
+        # visibilidad (el signo de la presión interna, por ejemplo): avisa
+        # siempre para que la vista relea la propiedad.
+        self.cambiado.emit()
+
+    @pyqtProperty("QVariant", notify=cambiado)
+    def detalle(self) -> dict[str, object] | None:
+        """El detalle de cálculo de la fila asignada, listo para mostrar.
+
+        Se arma en Python, con el mismo desglose que la tabla del reporte, y
+        la vista de QML sólo lo dibuja. Es una propiedad y no un método para
+        que el binding de la vista se refresque cuando el actor avisa que
+        cambió.
+
+        Returns:
+            Un diccionario con ``titulo`` y ``lineas``, o None si el actor no
+            tiene fila asignada.
+        """
+        if self._fila is None or self._unidad is None:
+            return None
+        return detalle.texto(
+            self._fila, self._unidad, self._unidad_fuerza, self._presion
+        )
 
     def asignar_visible(self, visible: bool) -> None:
         if visible != self._visible:
