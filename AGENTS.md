@@ -53,7 +53,7 @@ El flujo de dependencias es estrictamente unidireccional:
      generales (ayuda, configuración, acerca de) y la franja que avisa de una
      versión nueva. `abrir_proyecto()` vive acá y no en `main.py` porque es la
      bienvenida la que abre los módulos.
-   - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
+   - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes/` (el reporte de resultados en pantalla con widgets nativos: `navegacion.py` arma la vista con índice y páginas, `secciones.py` y `tablas.py` los bloques compartidos, `comunes.py` las secciones de datos comunes a las tres tipologías, y `edificio.py`/`cartel.py`/`cubierta_aislada.py` las páginas de cada una; `exportacion.py` es el diálogo que exporta con pandoc).
    - `apoyo.py` (columna lateral de patrocinadores de la pantalla de inicio, el
      perfil de un patrocinador de oro y la ventana de Agradecimientos). Cada
      nivel se comporta distinto y eso es lo que compra: oro abre su perfil
@@ -93,7 +93,13 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Contrato actor ↔ fila:** Las claves con las que el director agrupa los actores tienen que ser **los mismos enums** con los que `presiones/` etiqueta las filas. Si aparece una zona en `cp/` que el director no dibuja -o al revés-, la zona queda sin presión o el actor sin valor, sin que nada falle. Los tests de `test_graficos.py` cubren justamente eso: que las áreas de las zonas cubran la superficie sin huecos ni solapes y que ningún actor quede sin presión.
 - **Migrar una figura o tabla de C&R:** El camino es siempre el mismo. 1) En `cp/`, el nuevo string de `referencia` con sus valores, y las dimensiones que definen las zonas expuestas como propiedad (por ejemplo `distancias_zonas`), nunca recalculadas en la vista. 2) En `enums.py`, la zona nueva si hace falta. 3) En el director, agregar la `referencia` al dispatch (`_seleccionar_cubierta`) **y** el método que arma las zonas: si no está en el dispatch la cubierta se queda sin zonas y no hay error. El alero reusa la geometría de la cubierta recortada con `recortar_poligono` contra el plano de la pared. 4) Los tests de valores, de áreas por zona y de escena.
 - **Proyectos (`.zda`):** Guardan el estado crudo de los widgets de entrada (`estado()` / `cargar_estado()`), no los `parametros()` de cálculo. Los `Enum` se serializan por su `name`. Si cambia el esquema, incrementar `VERSION_FORMATO`.
-- **QtWebEngine:** Requiere `AA_ShareOpenGLContexts` configurado antes de instanciar `QApplication` (definido en `main.py`). No agregar banderas de ventana nativa (`WA_NativeWindow`) a `QWebEngineView`.
+- **Reporte en pantalla y exportación:** El reporte que se ve en la interfaz
+  es nativo (Qt widgets) y la exportación es Jinja2 + pandoc. Los dos
+  comparten la misma fuente —`estructura.resultados*` filtrada y agrupada—
+  pero no el renderizador: no renderizar Markdown en pantalla ni rearmar
+  widgets para exportar. La configuración de exportación vive en
+  `widgets/reportes/exportacion.py` y las plantillas en
+  `recursos/plantillas/`.
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.

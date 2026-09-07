@@ -34,15 +34,11 @@ updates:
         patterns:
           - '*'
     ignore:
-      # PyQt6 y PyQt6-WebEngine tienen que subir juntos y con los wheels de Qt
-      # alineados, y cada salto toca la vista 3D y los tres empaquetados. Las
-      # menores y mayores se hacen a mano, cuando hay tiempo de probar los
-      # instaladores; los parches si entran solos.
+      # PyQt6 tiene que subir con los wheels de Qt alineados, y cada salto
+      # toca la vista 3D y los tres empaquetados. Las menores y mayores se
+      # hacen a mano, cuando hay tiempo de probar los instaladores; los
+      # parches si entran solos.
       - dependency-name: pyqt6
-        update-types:
-          - version-update:semver-major
-          - version-update:semver-minor
-      - dependency-name: pyqt6-webengine
         update-types:
           - version-update:semver-major
           - version-update:semver-minor

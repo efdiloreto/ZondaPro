@@ -29,7 +29,6 @@ dependencies = [
     "packaging>=25.0",
     "pypandoc>=1.17",
     "pyqt6>=6.11.0",
-    "pyqt6-webengine>=6.11.0",
 ]
 
 [project.urls]

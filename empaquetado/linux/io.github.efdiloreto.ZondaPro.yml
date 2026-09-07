@@ -24,10 +24,6 @@ finish-args:
   - --socket=fallback-x11
   # Abrir y guardar proyectos .zda y exportar las memorias de calculo.
   - --filesystem=home
-  # QtWebEngine trae el sandbox de Chromium, que no puede anidarse adentro del
-  # de Flatpak. El aislamiento lo sigue dando bubblewrap, que es la barrera de
-  # afuera y la que realmente contiene a la aplicacion.
-  - --env=QTWEBENGINE_DISABLE_SANDBOX=1
 
 modules:
   - name: zonda

@@ -189,7 +189,7 @@ def instalar_traducciones(app: QtWidgets.QApplication) -> None:
     ruta = QtCore.QLibraryInfo.path(QtCore.QLibraryInfo.LibraryPath.TranslationsPath)
     espanol = QtCore.QLocale(QtCore.QLocale.Language.Spanish)
 
-    for catalogo in ("qtbase", "qtwebengine"):
+    for catalogo in ("qtbase",):
         # Qt se queda con una referencia al traductor, no con una copia: si se
         # lo lleva el recolector de basura los textos vuelven al inglés. El
         # padre lo mantiene vivo mientras viva la aplicación.
@@ -203,13 +203,6 @@ def main():
     # escribirlo antes de que exista la QApplication.
     nombrar_la_aplicacion_en_macos(__acercade__.__nombre__)
 
-    # QtWebEngine (lo usa el visor de reportes) exige contextos OpenGL
-    # compartidos, y el atributo tiene que fijarse antes de instanciar la
-    # QApplication. Dejarlo explícito evita depender del orden de los imports.
-    QtWidgets.QApplication.setAttribute(
-        QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts
-    )
-
     app = Aplicacion(sys.argv)
     app.setOrganizationName(__acercade__.__compania__)
     app.setOrganizationDomain(__acercade__.__web_compania__)
@@ -220,9 +213,7 @@ def main():
     # Zonda se dibuja siempre en claro, siga el sistema el tema que siga: la
     # hoja de estilo y la vista 3D tienen los colores escritos a mano —fondo
     # #ededed, tinta negra— y con la paleta oscura del sistema quedaban textos
-    # claros sobre fondos claros. Fijar el esquema acá alcanza para todo,
-    # incluido el visor de reportes: es la paleta lo que ve QtWebEngine para
-    # resolver ``prefers-color-scheme``.
+    # claros sobre fondos claros. Fijar el esquema acá alcanza para todo.
     app.styleHints().setColorScheme(QtCore.Qt.ColorScheme.Light)
 
     # Antes de armar cualquier widget: los textos se resuelven al construirlos.
