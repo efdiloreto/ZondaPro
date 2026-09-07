@@ -38,42 +38,80 @@ from zonda.enums import (
     ZonaEdificio,
 )
 from zonda.excepciones import ErrorLineamientos
-from zonda.sistema import guardar_archivo_temporal
 from zonda.widgets import utils_qt
 from zonda.widgets.custom import WidgetPanelResultados
-from zonda.widgets.errores import AvisoError
 from zonda.widgets.graficos import (
     WidgetGraficoCartelPresiones,
     WidgetGraficoCubiertaAisladaPresiones,
     WidgetGraficoEdificioPresiones,
+    WidgetPresiones,
 )
-from zonda.widgets.reportes import WidgetReporte
+from zonda.widgets.reportes import (
+    cartel as reporte_cartel,
+)
+from zonda.widgets.reportes import (
+    cubierta_aislada as reporte_cubierta_aislada,
+)
+from zonda.widgets.reportes import (
+    edificio as reporte_edificio,
+)
+from zonda.widgets.reportes.secciones import unidades_desde_settings
 
 if TYPE_CHECKING:
     from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 
 
 class WidgetResultadosMixin:
-    def _reporte(self):
-        try:
-            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
-            WidgetReporte(self, self.plantilla_reporte, self._estructura)
-        except OSError:
-            AvisoError(
-                self,
-                "No se pudo visualizar el reporte. Aseguresé que Pandoc está instalado y agregado al PATH del sistema",
-                "Error Reporte",
-            )
-        except RuntimeError as e:
-            ruta_archivo_temp = guardar_archivo_temporal(str(e), ".log")
-            AvisoError(
-                self,
-                "No se pudo visualizar el reporte. Para mas información consulte el archivo de registro de errores.",
-                "Error Reporte",
-                ruta_archivo_temp,
-            )
-        finally:
-            QtWidgets.QApplication.restoreOverrideCursor()
+    """Lo que comparten las pantallas de resultados de las tres tipologías.
+
+    El reporte es una página más del apilador: la pestaña REPORTE del
+    panel la arma la primera vez que se la pide, y la reconstruye cuando
+    cambiaron las unidades en la configuración —igual que el visor web que
+    reemplazó, que se rearmaba en cada apertura—.
+    """
+
+    _id_reporte: int
+    _stacked_widget: QtWidgets.QStackedWidget
+    _widget_reporte: QtWidgets.QWidget | None
+    _unidades_reporte: dict | None
+    _indice_reporte: int | None
+    # Las tres tipologías tienen un gráfico de presiones que hay que
+    # cerrar al salir; el tipo común es el del widget base.
+    grafico: WidgetPresiones
+
+    def _vista_reporte(self) -> QtWidgets.QWidget:
+        """La vista de reporte de la tipología, ya armada.
+
+        Returns:
+            El widget que muestra el reporte nativo.
+        """
+        raise NotImplementedError
+
+    def _reporte(self) -> None:
+        """Conmuta a la página del reporte, armándola si hace falta."""
+        unidades = unidades_desde_settings()
+        if self._widget_reporte is not None and self._unidades_reporte != unidades:
+            self._stacked_widget.removeWidget(self._widget_reporte)
+            self._widget_reporte.deleteLater()
+            self._widget_reporte = None
+        if self._widget_reporte is None:
+            self._unidades_reporte = unidades
+            self._widget_reporte = self._vista_reporte()
+            indice = self._stacked_widget.addWidget(self._widget_reporte)
+            self._indice_reporte = indice
+        assert self._indice_reporte is not None
+        self._stacked_widget.setCurrentIndex(self._indice_reporte)
+
+    def _cambiar_pagina(self, id: int) -> None:
+        """Muestra la página de la pestaña elegida en el panel.
+
+        Args:
+            id: El id de la pestaña dentro del grupo del panel.
+        """
+        if id == self._id_reporte:
+            self._reporte()
+        else:
+            self._stacked_widget.setCurrentIndex(id)
 
     def _volver(self):
         self.parentWidget().setCurrentIndex(0)
@@ -484,6 +522,9 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         super().__init__()
 
         self._estructura = edificio
+        self._widget_reporte = None
+        self._unidades_reporte = None
+        self._indice_reporte = None
 
         self._stacked_widget = QtWidgets.QStackedWidget()
 
@@ -493,12 +534,10 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
         self._stacked_widget.addWidget(widget_resultados_sprfv)
 
         widget_panel_resultados = WidgetPanelResultados(sistemas=True)
+        self._id_reporte = 2
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
-        widget_panel_resultados.boton_sprfv.clicked.connect(
-            lambda: self._stacked_widget.setCurrentIndex(0)
-        )
-        widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
+        widget_panel_resultados.grupo_botones.idClicked.connect(self._cambiar_pagina)
 
         if any(
             (
@@ -516,9 +555,6 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
                 )
                 self._stacked_widget.addWidget(widget_resultados_componentes)
                 widget_panel_resultados.boton_componentes.setEnabled(True)
-                widget_panel_resultados.boton_componentes.clicked.connect(
-                    lambda: self._stacked_widget.setCurrentIndex(1)
-                )
             except ErrorLineamientos as error:
                 mensaje = (
                     str(error)
@@ -537,10 +573,17 @@ class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
 
         self.setLayout(layout_principal)
 
+    def _vista_reporte(self) -> QtWidgets.QWidget:
+        return reporte_edificio.vista(self._estructura)
+
     def finalizar(self) -> None:
         for i in range(self._stacked_widget.count()):
             widget = self._stacked_widget.widget(i)
-            widget.grafico.finalizar()
+            # La página del reporte no tiene gráfico: sólo las vistas 3D
+            # hay que cerrarlas.
+            grafico = getattr(widget, "grafico", None)
+            if grafico is not None:
+                grafico.finalizar()
 
 
 class _VistaCubiertaAislada(QtWidgets.QWidget):
@@ -701,6 +744,9 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
         super().__init__()
 
         self._estructura = cubierta_aislada
+        self._widget_reporte = None
+        self._unidades_reporte = None
+        self._indice_reporte = None
 
         self._stacked_widget = QtWidgets.QStackedWidget()
 
@@ -708,12 +754,10 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
         self._stacked_widget.addWidget(widget_resultados_sprfv)
 
         widget_panel_resultados = WidgetPanelResultados(sistemas=True)
+        self._id_reporte = 2
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
-        widget_panel_resultados.boton_sprfv.clicked.connect(
-            lambda: self._stacked_widget.setCurrentIndex(0)
-        )
-        widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
+        widget_panel_resultados.grupo_botones.idClicked.connect(self._cambiar_pagina)
 
         if cubierta_aislada.componentes:
             try:
@@ -722,9 +766,6 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
                 )
                 self._stacked_widget.addWidget(widget_resultados_componentes)
                 widget_panel_resultados.boton_componentes.setEnabled(True)
-                widget_panel_resultados.boton_componentes.clicked.connect(
-                    lambda: self._stacked_widget.setCurrentIndex(1)
-                )
             except ErrorLineamientos as error:
                 mensaje = (
                     str(error)
@@ -744,11 +785,17 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
 
         self.setLayout(layout_principal)
 
+    def _vista_reporte(self) -> QtWidgets.QWidget:
+        return reporte_cubierta_aislada.vista(self._estructura)
+
     def finalizar(self) -> None:
         for i in range(self._stacked_widget.count()):
             widget = self._stacked_widget.widget(i)
-            if isinstance(widget, _VistaCubiertaAislada):
-                widget.grafico.finalizar()
+            # La página del reporte no tiene gráfico: sólo las vistas 3D
+            # hay que cerrarlas.
+            grafico = getattr(widget, "grafico", None)
+            if grafico is not None:
+                grafico.finalizar()
 
 
 class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
@@ -769,13 +816,17 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         super().__init__()
 
         self._estructura = cartel
+        self._widget_reporte = None
+        self._unidades_reporte = None
+        self._indice_reporte = None
 
         self.grafico = WidgetGraficoCartelPresiones(cartel)
 
         widget_panel_resultados = WidgetPanelResultados()
+        self._id_reporte = 1
 
         widget_panel_resultados.boton_volver.clicked.connect(self._volver)
-        widget_panel_resultados.boton_generar_reporte.clicked.connect(self._reporte)
+        widget_panel_resultados.grupo_botones.idClicked.connect(self._cambiar_pagina)
 
         casos = [
             CasoCartel.CASO_A,
@@ -805,11 +856,22 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
         layout_resultados.addStretch()
         layout_resultados.addWidget(self.grafico, 1)
 
+        pagina_grafico = QtWidgets.QWidget()
+        layout_pagina_grafico = QtWidgets.QVBoxLayout(pagina_grafico)
+        layout_pagina_grafico.setContentsMargins(0, 0, 0, 0)
+        layout_pagina_grafico.addLayout(layout_resultados, 1)
+
+        self._stacked_widget = QtWidgets.QStackedWidget()
+        self._stacked_widget.addWidget(pagina_grafico)
+
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.addWidget(widget_panel_resultados)
-        layout_principal.addLayout(layout_resultados, 1)
+        layout_principal.addWidget(self._stacked_widget, 1)
+
+        self.setLayout(layout_principal)
 
         self.grafico.escena.actualizar_caso(combobox_caso.currentData())
 
-        self.setLayout(layout_principal)
+    def _vista_reporte(self) -> QtWidgets.QWidget:
+        return reporte_cartel.vista(self._estructura)

@@ -243,37 +243,52 @@ class WidgetPanelResultados(WidgetPanel):
 
         self.boton_volver = WidgetBotonPanel("VOLVER")
 
-        self.boton_generar_reporte = WidgetBotonPanel("REPORTE")
-        self.boton_generar_reporte.setProperty("class", "accion")
-
         layout_botones = QtWidgets.QHBoxLayout()
         layout_botones.setContentsMargins(0, 0, 0, 0)
         layout_botones.addWidget(self.boton_volver)
         layout_botones.addStretch()
 
+        # Las pestañas del panel son un grupo exclusivo: marcan qué página
+        # del apilador de resultados se muestra y hacen de índice del
+        # módulo. El reporte es una pestaña más, no una ventana aparte.
+        self.grupo_botones = QtWidgets.QButtonGroup(self)
+        self.grupo_botones.setExclusive(True)
+
         if sistemas:
-            self.boton_sprfv = WidgetBotonPanel("SPRFV")
-            self.boton_sprfv.setProperty("class", "tab")
-            self.boton_sprfv.setCheckable(True)
-            self.boton_sprfv.setChecked(True)
+            self.boton_sprfv = self._crear_pestaña("SPRFV", 0, chequeada=True)
             layout_botones.addWidget(self.boton_sprfv)
 
-            self.boton_componentes = WidgetBotonPanel("C&&R")
-            self.boton_componentes.setProperty("class", "tab")
+            self.boton_componentes = self._crear_pestaña("C&&R", 1)
             self.boton_componentes.setEnabled(False)
-            self.boton_componentes.setCheckable(True)
-
             layout_botones.addWidget(self.boton_componentes)
-            layout_botones.addStretch()
+        else:
+            self.boton_grafico = self._crear_pestaña("GRÁFICO", 0, chequeada=True)
+            layout_botones.addWidget(self.boton_grafico)
 
-            grupo_botones = QtWidgets.QButtonGroup(self)
-            grupo_botones.setExclusive(True)
-            grupo_botones.addButton(self.boton_sprfv, 0)
-            grupo_botones.addButton(self.boton_componentes, 1)
+        self.boton_reporte = self._crear_pestaña("REPORTE", 2 if sistemas else 1)
+        layout_botones.addWidget(self.boton_reporte)
 
-        layout_botones.addWidget(self.boton_generar_reporte)
+        layout_botones.addStretch()
 
         self.setLayout(layout_botones)
+
+    def _crear_pestaña(self, texto: str, id: int, chequeada: bool = False):
+        """Crea una pestaña del grupo y la agrega a él.
+
+        Args:
+            texto: El rótulo de la pestaña.
+            id: El id con el que el grupo la reporta al conmutar.
+            chequeada: Si arranca marcada.
+
+        Returns:
+            El botón creado.
+        """
+        boton = WidgetBotonPanel(texto)
+        boton.setProperty("class", "tab")
+        boton.setCheckable(True)
+        boton.setChecked(chequeada)
+        self.grupo_botones.addButton(boton, id)
+        return boton
 
 
 def enlaces_de_autores(color: str = "#606060") -> str:
