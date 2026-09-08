@@ -248,47 +248,82 @@ class WidgetPanelResultados(WidgetPanel):
         layout_botones.addWidget(self.boton_volver)
         layout_botones.addStretch()
 
-        # Las pestañas del panel son un grupo exclusivo: marcan qué página
+        # Los botones del panel son un grupo exclusivo: marcan qué página
         # del apilador de resultados se muestra y hacen de índice del
-        # módulo. El reporte es una pestaña más, no una ventana aparte.
+        # módulo. Los de la vista 3D van agrupados en una cápsula
+        # segmentada y el reporte es una cápsula aparte, no una ventana
+        # distinta.
         self.grupo_botones = QtWidgets.QButtonGroup(self)
         self.grupo_botones.setExclusive(True)
 
         if sistemas:
-            self.boton_sprfv = self._crear_pestaña("SPRFV", 0, chequeada=True)
-            layout_botones.addWidget(self.boton_sprfv)
-
-            self.boton_componentes = self._crear_pestaña("C&&R", 1)
+            self.boton_sprfv = self._crear_segmento("SPRFV", 0, chequeada=True)
+            self.boton_componentes = self._crear_segmento("C&&R", 1)
             self.boton_componentes.setEnabled(False)
-            layout_botones.addWidget(self.boton_componentes)
+            layout_botones.addWidget(
+                self._crear_cápsula(self.boton_sprfv, self.boton_componentes),
+                0,
+                QtCore.Qt.AlignmentFlag.AlignVCenter,
+            )
         else:
-            self.boton_grafico = self._crear_pestaña("GRÁFICO", 0, chequeada=True)
-            layout_botones.addWidget(self.boton_grafico)
+            self.boton_grafico = self._crear_segmento("GRÁFICO", 0, chequeada=True)
+            layout_botones.addWidget(
+                self._crear_cápsula(self.boton_grafico),
+                0,
+                QtCore.Qt.AlignmentFlag.AlignVCenter,
+            )
 
-        self.boton_reporte = self._crear_pestaña("REPORTE", 2 if sistemas else 1)
-        layout_botones.addWidget(self.boton_reporte)
+        self.boton_reporte = self._crear_segmento("REPORTE", 2 if sistemas else 1)
+        layout_botones.addWidget(
+            self._crear_cápsula(self.boton_reporte),
+            0,
+            QtCore.Qt.AlignmentFlag.AlignVCenter,
+        )
 
         layout_botones.addStretch()
 
         self.setLayout(layout_botones)
 
-    def _crear_pestaña(self, texto: str, id: int, chequeada: bool = False):
-        """Crea una pestaña del grupo y la agrega a él.
+    def _crear_segmento(self, texto: str, id: int, chequeada: bool = False):
+        """Crea un segmento del grupo y la agrega a él.
 
         Args:
-            texto: El rótulo de la pestaña.
-            id: El id con el que el grupo la reporta al conmutar.
-            chequeada: Si arranca marcada.
+            texto: El rótulo del segmento.
+            id: El id con el que el grupo lo reporta al conmutar.
+            chequeada: Si arranca marcado.
 
         Returns:
             El botón creado.
         """
         boton = WidgetBotonPanel(texto)
-        boton.setProperty("class", "tab")
+        boton.setProperty("class", "segmento")
         boton.setCheckable(True)
         boton.setChecked(chequeada)
         self.grupo_botones.addButton(boton, id)
         return boton
+
+    def _crear_cápsula(self, *botones: WidgetBotonPanel) -> QtWidgets.QWidget:
+        """Arma una cápsula con los segmentos dados.
+
+        El valor de la clase va sin acento porque los selectores del QSS
+        no lo llevan bien.
+
+        Args:
+            *botones: Los segmentos del grupo exclusivo, en orden.
+
+        Returns:
+            El contenedor de la cápsula.
+        """
+        cápsula = QtWidgets.QWidget()
+        cápsula.setProperty("class", "capsula")
+
+        layout = QtWidgets.QHBoxLayout(cápsula)
+        layout.setContentsMargins(3, 3, 3, 3)
+        layout.setSpacing(0)
+        for boton in botones:
+            layout.addWidget(boton)
+
+        return cápsula
 
 
 def enlaces_de_autores(color: str = "#606060") -> str:

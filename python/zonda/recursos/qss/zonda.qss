@@ -260,15 +260,30 @@ WidgetBotonPanel.accion:hover {
 
 }
 
-WidgetBotonPanel.tab:hover {
-    color: #c0c0c0;
-    background-color: none;
+/* La cápsula agrupa los segmentos de la vista 3D; el reporte va en otra
+   cápsula propia. El segmento marcado se destaca con fondo blanco. */
+QWidget.capsula {
+    background-color: #e0e0e0;
+    border-radius: 9px;
 }
 
-WidgetBotonPanel.tab:checked {
-    color: #1858a8;
-    border-bottom: 5px solid #1858a8;
-    padding-top: 5px;
+WidgetBotonPanel.segmento {
+    padding: 8px 20px;
+}
+
+WidgetBotonPanel.segmento:hover {
+    color: #606060;
+}
+
+WidgetBotonPanel.segmento:checked {
+    color:            #1858a8;
+    background-color: white;
+    border: 1px solid #a6a6a6;
+    border-radius: 7px;
+}
+
+WidgetBotonPanel.segmento:disabled {
+    color: #a6a6a6;
 }
 
 .verifica {
