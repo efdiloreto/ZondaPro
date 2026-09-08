@@ -101,6 +101,8 @@ class Presiones(PresionesMixin):
                     fila.presion,
                     str_extra=f" - región {region.numero}",
                     unidad=self.unidad_presion,
+                    fila=fila,
+                    unidad_fuerza=self.unidad_fuerza,
                 )
         else:
             self._ocultar_regiones()
@@ -109,7 +111,11 @@ class Presiones(PresionesMixin):
             if caso is CasoCartel.CASO_B:
                 extra += f" (e = {fila.excentricidad:.2f} m)"
             self._actor.asignar_presion(
-                fila.presion, str_extra=extra, unidad=self.unidad_presion
+                fila.presion,
+                str_extra=extra,
+                unidad=self.unidad_presion,
+                fila=fila,
+                unidad_fuerza=self.unidad_fuerza,
             )
 
         fuerza = convertir_unidad(

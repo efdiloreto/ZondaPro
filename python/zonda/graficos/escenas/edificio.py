@@ -261,6 +261,7 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             fila.presion(self._gcpi_actual),
             str_extra=f"({altura:.2f} m)",
             unidad=self.unidad,
+            fila=fila,
         )
 
     def _esta_zonificada(self, indice: dict) -> bool:
@@ -321,9 +322,9 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             presion = fila.presion(self._gcpi_actual)
             if pared == ParedEdificioSprfv.LATERAL:
                 for actor in actores:
-                    actor.asignar_presion(presion, unidad=self.unidad)
+                    actor.asignar_presion(presion, unidad=self.unidad, fila=fila)
             else:
-                actores.asignar_presion(presion, unidad=self.unidad)
+                actores.asignar_presion(presion, unidad=self.unidad, fila=fila)
 
     def _actualizar_cubierta(self, regenerar_actores=False) -> None:
         """Actualiza los actores y presiones para la cubierta.
@@ -353,10 +354,12 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
                 try:
                     # Cubierta a dos aguas: cada zona tiene barlovento y sotavento.
                     for actores in self._actores_actuales_cubierta.values():
-                        actores[i].asignar_presion(presion, unidad=self.unidad)
+                        actores[i].asignar_presion(
+                            presion, unidad=self.unidad, fila=fila
+                        )
                 except AttributeError:
                     self._actores_actuales_cubierta[i].asignar_presion(
-                        presion, unidad=self.unidad
+                        presion, unidad=self.unidad, fila=fila
                     )
             return
         if self.director.tipo_cubierta == TipoCubierta.UN_AGUA:
@@ -364,12 +367,14 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
                 self._cubierta, self._posicion_cubierta_un_agua_actual
             )
             self._actores_actuales_cubierta.asignar_presion(
-                fila.presion(self._gcpi_actual), unidad=self.unidad
+                fila.presion(self._gcpi_actual), unidad=self.unidad, fila=fila
             )
             return
         for posicion, actor in self._actores_actuales_cubierta.items():
             fila = self._fila_superficie(self._cubierta, posicion)
-            actor.asignar_presion(fila.presion(self._gcpi_actual), unidad=self.unidad)
+            actor.asignar_presion(
+                fila.presion(self._gcpi_actual), unidad=self.unidad, fila=fila
+            )
 
     def _actualizar_parapeto(self) -> None:
         """Actualiza las bandas del parapeto para la dirección actual.
@@ -389,7 +394,8 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             filas = self._parapeto.get(pared)
             if filas is None:
                 continue
-            actor.asignar_presion(filas.unica().pos, unidad=self.unidad)
+            fila = filas.unica()
+            actor.asignar_presion(fila.pos, unidad=self.unidad, fila=fila)
 
     def _actualizar_alero(self, regenerar_actores=False) -> None:
         """Actualiza los actores y presiones para los aleros.
@@ -411,17 +417,19 @@ class PresionesSprfvMetodoDireccional(PresionesMixin):
             filas = self._alero[(self._direccion_actual, None, None)]
             for i, fila in enumerate(filas):
                 for alero in self._actores_actuales_alero.values():
-                    alero[i].asignar_presion(fila.pos, unidad=self.unidad)
+                    alero[i].asignar_presion(fila.pos, unidad=self.unidad, fila=fila)
             return
         if self.director.tipo_cubierta == TipoCubierta.UN_AGUA:
             fila = self._fila_superficie(
                 self._alero, self._posicion_cubierta_un_agua_actual
             )
-            self._actores_actuales_alero.asignar_presion(fila.pos, unidad=self.unidad)
+            self._actores_actuales_alero.asignar_presion(
+                fila.pos, unidad=self.unidad, fila=fila
+            )
             return
         for posicion, actor in self._actores_actuales_alero.items():
             fila = self._fila_superficie(self._alero, posicion)
-            actor.asignar_presion(fila.pos, unidad=self.unidad)
+            actor.asignar_presion(fila.pos, unidad=self.unidad, fila=fila)
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
@@ -638,19 +646,27 @@ class PresionesComponentes(PresionesMixin):
                 )
                 if filas is None:
                     continue
-                presion = self._presion_filas_paredes(filas, por_altura)
+                presion, fila = self._presion_y_fila_paredes(filas, por_altura)
                 if zona == ZonaComponenteParedEdificio.CINCO:
                     for actor in actores:
                         actor.asignar_presion(
-                            presion=presion, unidad=self.unidad, str_extra=str_extra
+                            presion=presion,
+                            unidad=self.unidad,
+                            str_extra=str_extra,
+                            fila=fila,
                         )
                 else:
                     actores.asignar_presion(
-                        presion=presion, unidad=self.unidad, str_extra=str_extra
+                        presion=presion,
+                        unidad=self.unidad,
+                        str_extra=str_extra,
+                        fila=fila,
                     )
 
-    def _presion_filas_paredes(self, filas: Any, por_altura: bool) -> float:
-        """La presión de las filas de una zona de pared.
+    def _presion_y_fila_paredes(
+        self, filas: Any, por_altura: bool
+    ) -> tuple[float, Any]:
+        """La presión de las filas de una zona de pared, con su fila.
 
         Con la Figura 5.4-1 (h > 20 m) las paredes traen una fila por altura y
         se toma la de la altura actual; el resto de los casos tiene una única
@@ -661,12 +677,15 @@ class PresionesComponentes(PresionesMixin):
             por_altura: Si el valor depende de la altura.
 
         Returns:
-            La presión para el tipo de presión interna actual.
+            La presión y la fila que la produjo, para el tipo de presión
+            interna actual.
         """
         if not por_altura or len(filas) == 1:
-            return filas.unica().presion(self._gcpi_actual)
+            fila = filas.unica()
+            return fila.presion(self._gcpi_actual), fila
         por_altura_filas = {fila.q.altura: fila for fila in filas}
-        return por_altura_filas[self._altura_paredes_actual].presion(self._gcpi_actual)
+        fila = por_altura_filas[self._altura_paredes_actual]
+        return fila.presion(self._gcpi_actual), fila
 
     def _filas_zona(
         self,
@@ -709,12 +728,15 @@ class PresionesComponentes(PresionesMixin):
             )
             if filas is None:
                 continue
-            presion = filas.unica().presion(self._gcpi_actual)
+            fila = filas.unica()
+            presion = fila.presion(self._gcpi_actual)
             try:
                 for actor in actores:
-                    actor.asignar_presion(presion=presion, unidad=self.unidad)
+                    actor.asignar_presion(
+                        presion=presion, unidad=self.unidad, fila=fila
+                    )
             except TypeError:
-                actores.asignar_presion(presion=presion, unidad=self.unidad)
+                actores.asignar_presion(presion=presion, unidad=self.unidad, fila=fila)
 
     def _actualizar_alero(self) -> None:
         """Actualiza las presiones de los actores del alero.
@@ -726,12 +748,12 @@ class PresionesComponentes(PresionesMixin):
             filas = self._alero.get((self._componente_actual_cubierta, zona))
             if filas is None:
                 continue
-            presion = filas.unica().pos
+            fila = filas.unica()
             try:
                 for actor in actores:
-                    actor.asignar_presion(presion, unidad=self.unidad)
+                    actor.asignar_presion(fila.pos, unidad=self.unidad, fila=fila)
             except TypeError:
-                actores.asignar_presion(presion, unidad=self.unidad)
+                actores.asignar_presion(fila.pos, unidad=self.unidad, fila=fila)
 
     def _actualizar_parapeto(self) -> None:
         """Actualiza las presiones de las bandas del parapeto.
@@ -747,12 +769,17 @@ class PresionesComponentes(PresionesMixin):
                 filas = self._parapeto.get((pared, zona_parapeto))
                 if filas is None:
                     continue
-                presion = filas.unica().presion(self._gcpi_actual)
+                fila = filas.unica()
+                presion = fila.presion(self._gcpi_actual)
                 try:
                     for actor in actores:
-                        actor.asignar_presion(presion=presion, unidad=self.unidad)
+                        actor.asignar_presion(
+                            presion=presion, unidad=self.unidad, fila=fila
+                        )
                 except TypeError:
-                    actores.asignar_presion(presion=presion, unidad=self.unidad)
+                    actores.asignar_presion(
+                        presion=presion, unidad=self.unidad, fila=fila
+                    )
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""

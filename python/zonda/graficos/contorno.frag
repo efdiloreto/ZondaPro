@@ -16,7 +16,9 @@
 // along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
 // El contorno es un color plano: no participa de la iluminación de la escena.
-// Lo comparten las aristas de las flechas, que son igual de planas.
+// Lo comparten las aristas de las flechas y las capas del glow de selección,
+// que son igual de planas. La opacidad la trae cada material: los contornos
+// van a 1.0 y las capas del glow, translúcidas, se mezclan sobre lo dibujado.
 //
 // `colorLinea` llega como vec3 en sRGB, no como uniforme de tipo color, porque
 // esos Qt los pasa a espacio lineal y acá lo que se escribe va derecho al
@@ -24,5 +26,5 @@
 
 void MAIN()
 {
-    FRAGCOLOR = vec4(colorLinea, 1.0);
+    FRAGCOLOR = vec4(colorLinea, opacidad);
 }

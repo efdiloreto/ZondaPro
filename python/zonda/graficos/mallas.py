@@ -28,6 +28,7 @@ profundidad, que crece hacia atrás en negativo.
 from __future__ import annotations
 
 import struct
+from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -237,6 +238,72 @@ class MallaContorno(_LineaGruesa):
         self._armar(np.stack((p, np.roll(p, -1, axis=0)), axis=1))
 
 
+class MallaTrazo(QQuick3DGeometry):
+    """El trazo de una polilínea con esquinas a inglete, para el glow.
+
+    A diferencia de ``MallaContorno`` —un rectángulo por arista con tapas
+    cuadradas que rellenan las esquinas— acá cada esquina aporta dos vértices
+    con las direcciones de los dos tramos que la forman: el shader calcula el
+    inglete en pantalla y no hay superposiciones. Eso hace que un trazo
+    translúcido no acumule color en las esquinas, como le pasaba al glow.
+
+    Cada vértice lleva su posición, la esquina *previa* de la polilínea con el
+    lado por el que abrirse (COLOR), y la esquina *siguiente* (NORMAL): con
+    las dos direcciones proyectadas sale el inglete, sin importar por dónde
+    mire la cámara.
+
+    Args:
+        polilineas: Pares ``(puntos, cerrado)``. En un trazo abierto la
+            primera y la última esquina no tienen un tramo previo o siguiente,
+            y quedan a tope recto.
+    """
+
+    def __init__(self, polilineas) -> None:
+        super().__init__()
+        self._armar(polilineas)
+
+    def _armar(self, polilineas) -> None:
+        if not polilineas:
+            return
+        vertices = bytearray()
+        indices = bytearray()
+        base = 0
+        for puntos, cerrado in polilineas:
+            p = np.asarray(puntos, dtype=float)
+            n = len(p)
+            previa = np.roll(p, 1, axis=0)
+            siguiente = np.roll(p, -1, axis=0)
+            if not cerrado:
+                # Los extremos de un trazo abierto no tienen un tramo del otro
+                # lado: el shader cae en la perpendicular del tramo que sí hay.
+                previa[0] = p[0]
+                siguiente[-1] = p[-1]
+            for i in range(n):
+                for lado in (1.0, -1.0):
+                    vertices += struct.pack(
+                        "<10f", *p[i], *previa[i], lado, *siguiente[i]
+                    )
+            # Un quad entre cada par de esquinas contiguas; en un trazo cerrado
+            # el último vuelve contra la primera esquina.
+            for i in range(n if cerrado else n - 1):
+                j = (i + 1) % n
+                a, b = base + 2 * i, base + 2 * j
+                indices += struct.pack("<6I", a, a + 1, b + 1, a, b + 1, b)
+            base += 2 * n
+
+        self.setStride(40)  # 3 de posición + 4 de COLOR + 3 de NORMAL
+        self.setVertexData(bytes(vertices))
+        self.setIndexData(bytes(indices))
+        self.addAttribute(_POSICION, 0, _F32)
+        self.addAttribute(_EXTREMO, 12, _F32)
+        self.addAttribute(_NORMAL, 28, _F32)
+        self.addAttribute(_INDICE, 0, _U32)
+        self.setPrimitiveType(QQuick3DGeometry.PrimitiveType.Triangles)
+        puntos = np.vstack([np.asarray(p, dtype=float) for p, _ in polilineas])
+        self.setBounds(QVector3D(*puntos.min(axis=0)), QVector3D(*puntos.max(axis=0)))
+        self.update()  # type: ignore[attr-defined]
+
+
 class MallaLineas(_LineaGruesa):
     """Segmentos sueltos, tomando los puntos de a pares.
 
@@ -408,6 +475,42 @@ class MallaAristasPuntaFlecha(_LineaGruesa):
             aristas.append((base[i], apice))
             aristas.append((base[i], base[j]))
         self._armar(np.array(aristas))
+
+
+class MallaTrazoVastagoFlecha(MallaTrazo):
+    """La silueta del vastago para el glow: sólo los cuatro cantos.
+
+    Los cuadrados de la base y del tope quedan afuera a propósito: la base
+    apoya contra la cara y el tope empalma con el marco de la punta, así que
+    son uniones interiores del conjunto cara + flecha y el glow no tiene que
+    dibujarlas.
+    """
+
+    def __init__(self, radio: float = RADIO_VASTAGO_FLECHA) -> None:
+        super().__init__([])
+        base = _seccion_flecha(radio, 0.0)
+        tope = _seccion_flecha(radio, 1.0)
+        self._armar([((base[i], tope[i]), False) for i in range(4)])
+
+
+class MallaTrazoPuntaFlecha(MallaTrazo):
+    """La silueta de la punta para el glow: el perímetro de la base y los
+    cuatro cantos que suben al ápice. El borde interior del marco lo aporta
+    el vastago y queda sin glow, como toda unión interior del conjunto."""
+
+    def __init__(
+        self,
+        radio: float = RADIO_PUNTA_FLECHA,
+        largo: float = LARGO_PUNTA_FLECHA,
+    ) -> None:
+        super().__init__([])
+        seccion = _seccion_flecha(radio)
+        apice = np.array((0.0, largo, 0.0))
+        polilineas: list[tuple[Any, bool]] = [
+            ((seccion[i], apice), False) for i in range(4)
+        ]
+        polilineas.append((seccion, True))
+        self._armar(polilineas)
 
 
 class MallaCilindro(QQuick3DGeometry):

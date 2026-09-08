@@ -28,6 +28,10 @@ from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
     from zonda.cirsoc import CubiertaAislada
+    from zonda.cirsoc.resultados import (
+        FilaComponentesCubiertaAislada,
+        FilaCubiertaAislada,
+    )
     from zonda.enums import (
         DireccionVientoCubiertaAislada,
         Unidad,
@@ -118,28 +122,28 @@ class Presiones(PresionesMixin):
         if direccion is None or self._actores_actuales is None:
             return
         for zona, actores in self._actores_actuales.items():
-            presion = self._presion(direccion, zona)
+            fila = self._fila(direccion, zona)
             try:
                 for actor in actores:
-                    actor.asignar_presion(presion=presion, unidad=self.unidad)
+                    actor.asignar_presion(fila.presion, unidad=self.unidad, fila=fila)
             except TypeError:
-                actores.asignar_presion(presion=presion, unidad=self.unidad)
+                actores.asignar_presion(fila.presion, unidad=self.unidad, fila=fila)
 
-    def _presion(
+    def _fila(
         self,
         direccion: DireccionVientoCubiertaAislada,
         zona: ZonaPresionCubiertaAislada,
-    ) -> float:
-        """La presión de una zona para el caso actual.
+    ) -> FilaCubiertaAislada:
+        """La fila de una zona para el caso actual.
 
         Args:
             direccion: La dirección del viento.
             zona: La zona de la cubierta para esa dirección.
 
         Returns:
-            La presión correspondiente.
+            La fila correspondiente.
         """
-        return self._filas[(direccion, zona, self._caso_actual)].unica().presion
+        return self._filas[(direccion, zona, self._caso_actual)].unica()
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""
@@ -232,24 +236,27 @@ class Componentes(PresionesMixin):
         if self._componente_actual is None:
             return
         for zona, actores in self._actores_cubierta.items():
-            presion = self._presion(zona)
+            fila = self._fila(zona)
             try:
                 for actor in actores:
-                    actor.asignar_presion(presion=presion, unidad=self.unidad)
+                    actor.asignar_presion(fila.presion, unidad=self.unidad, fila=fila)
             except TypeError:
-                actores.asignar_presion(presion=presion, unidad=self.unidad)
+                actores.asignar_presion(fila.presion, unidad=self.unidad, fila=fila)
 
-    def _presion(self, zona: ZonaComponenteCubiertaAislada) -> float:
-        """La presión de una zona para el componente y el signo actuales.
+    def _fila(
+        self, zona: ZonaComponenteCubiertaAislada
+    ) -> FilaComponentesCubiertaAislada:
+        """La fila de una zona para el componente y el signo actuales.
 
         Args:
             zona: La zona de la cubierta.
 
         Returns:
-            La presión correspondiente.
+            La fila correspondiente.
         """
-        filas = self._filas[(self._componente_actual, zona, self._tipo_presion_actual)]
-        return filas.unica().presion
+        return self._filas[
+            (self._componente_actual, zona, self._tipo_presion_actual)
+        ].unica()
 
     def _actualizar_titulo(self) -> None:
         """Actualiza el título de la escena."""

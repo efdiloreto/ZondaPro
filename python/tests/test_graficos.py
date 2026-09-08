@@ -117,6 +117,45 @@ def test_el_contorno_le_pasa_al_shader_el_otro_extremo_de_la_arista(qapp):
         assert len(np.unique(arista[:, :3], axis=0)) == 2
 
 
+def test_el_trazo_cerrado_aporta_dos_vertices_por_esquina(qapp):
+    """El glow usa el trazo a inglete: cada esquina abre para los dos lados.
+
+    Cada vértice lleva la esquina previa (COLOR) y la siguiente (NORMAL), que
+    es lo que el shader necesita para calcular el inglete en pantalla.
+    """
+    trazo = mallas.MallaTrazo([(CUADRADO, True)])
+    v = np.frombuffer(trazo.vertexData().data(), dtype="<f4").reshape(-1, 10)
+
+    # Dos vértices (lado +1 y -1) por cada una de las 4 esquinas.
+    assert len(v) == 8
+    # El quad que une cada par de esquinas contiguas, incluida la vuelta de
+    # la última contra la primera: 6 índices por tramo.
+    assert len(trazo.indexData()) == 4 * 6 * 4
+
+    # La esquina (1, 0, 0): su tramo previo llega desde (0, 0, 0) y el
+    # siguiente sale hacia (1, 1, 0).
+    en_esquina = v[np.all(np.isclose(v[:, :3], (1, 0, 0)), axis=1)]
+    assert len(en_esquina) == 2
+    assert np.allclose(en_esquina[:, 3:6], (0, 0, 0))
+    assert np.allclose(en_esquina[:, 7:10], (1, 1, 0))
+    assert sorted(en_esquina[:, 6]) == [-1.0, 1.0]
+
+
+def test_el_trazo_abierto_deja_topes_rectos(qapp):
+    """En los extremos de un trazo abierto no hay tramo del otro lado: la
+    esquina que falta repite al propio vértice y el shader cae en la
+    perpendicular pura del tramo que sí hay."""
+    linea = ((0, 0, 0), (1, 0, 0), (2, 0, 0))
+    trazo = mallas.MallaTrazo([(linea, False)])
+    v = np.frombuffer(trazo.vertexData().data(), dtype="<f4").reshape(-1, 10)
+
+    assert len(v) == 6  # 3 esquinas x 2 lados
+
+    puntas = v[np.all(np.isclose(v[:, :3], (0, 0, 0)), axis=1)]
+    assert np.allclose(puntas[:, 3:6], (0, 0, 0))  # previa == posición
+    assert np.allclose(puntas[:, 7:10], (1, 0, 0))
+
+
 def test_la_punta_de_la_flecha_es_una_piramide(qapp):
     """La punta es una pirámide de base cuadrada sobre un marco.
 
@@ -1935,3 +1974,250 @@ def test_sin_parapeto_las_escenas_no_tienen_bandas(qapp):
         enums.DireccionVientoMetodoDireccionalSprfv.PARALELO
     )
     assert presiones.director.obtener_parapeto() is None
+
+
+# --- El detalle de cálculo de una zona -----------------------------------
+#
+# Al tocar una zona en la vista 3D se muestra cómo se calculó su presión. El
+# detalle se arma en zonda.graficos.detalle y viaja en la fila: el actor la
+# retiene en cada asignar_presion y la expone por su propiedad `detalle`.
+
+
+def _una_fila_edificio():
+    """Una fila de edificio con valores conocidos, para el texto del detalle."""
+    from zonda.cirsoc.resultados import FilaEdificio, PresionVelocidad
+
+    return FilaEdificio(
+        zona=enums.ZonaEdificio.PAREDES,
+        sistema=enums.SistemaResistente.SPRFV,
+        q=PresionVelocidad(altura=10.0, kz=1.04, kzt=1.0, valor=850.0),
+        cp=-0.7,
+        factor_rafaga=0.85,
+        gcpi=0.18,
+        pos=-510.0,
+        neg=-731.0,
+        referencia="Fig. 2.4-1",
+        pared=enums.ParedEdificioSprfv.SOTAVENTO,
+    )
+
+
+def test_asignar_presion_retiene_la_fila(qapp):
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    assert actor.fila is None
+
+    fila = _una_fila_edificio()
+    actor.asignar_presion(-510, enums.Unidad.N, fila=fila)
+    assert actor.fila is fila
+
+
+def test_la_flecha_conoce_a_su_actor(qapp):
+    """La vista usa la referencia para seleccionar la zona tocando la flecha."""
+    escena = Escena3D()
+    tabla = TablaColores(-500, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    assert actor.flecha.actor is actor
+
+
+def test_el_detalle_muestra_el_desglose_del_calculo(qapp):
+    """El desglose es el mismo que imprime la tabla del reporte, un valor por línea."""
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(-510, enums.Unidad.N, fila=_una_fila_edificio())
+
+    detalle = actor.detalle
+    assert detalle["titulo"] == "Pared Sotavento"
+    # La vista acomoda las filas en dos columnas: tienen que cruzar como
+    # listas de listas, no como tuplas, que llegan como objetos opacos sin
+    # length ni indexación.
+    assert isinstance(detalle["filas"], list)
+    assert all(isinstance(fila, list) for fila in detalle["filas"])
+    filas = dict(detalle["filas"])
+    assert filas["q"] == "= 850.00 N/m²"
+    assert filas["Kz"] == "= 1.04"
+    assert filas["Kzt"] == "= 1.00"
+    assert filas["Ke"] == "= 1.00"
+    assert filas["z"] == "= 10.00 m"
+    assert filas["Cp"] == "= -0.70"
+    assert filas["G"] == "= 0.85"
+    assert filas["GCpi"] == "= +0.18"
+    assert filas["p"] == "= -510.00 N/m²"
+    assert filas["Ref"] == "Fig. 2.4-1"
+
+
+def test_el_detalle_muestra_el_gcpi_del_signo_mostrado(qapp):
+    """El signo del GCpi y la presión son los de la zona seleccionada."""
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(-731, enums.Unidad.N, fila=_una_fila_edificio())
+
+    filas = dict(actor.detalle["filas"])
+    assert filas["GCpi"] == "= -0.18"
+    assert filas["p"] == "= -731.00 N/m²"
+
+
+def test_el_detalle_convierte_a_la_unidad_de_la_escena(qapp):
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(-510, enums.Unidad.KN, fila=_una_fila_edificio())
+
+    filas = dict(actor.detalle["filas"])
+    assert filas["q"] == "= 0.85 kN/m²"
+    assert filas["p"] == "= -0.51 kN/m²"
+
+
+def test_el_detalle_sin_presion_interna_muestra_una_sola_presion(qapp):
+    """El alero y el parapeto SPRFV no llevan presión interna."""
+    from dataclasses import replace
+
+    fila = replace(_una_fila_edificio(), con_presion_interna=False, pos=-731.0)
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(-731, enums.Unidad.N, fila=fila)
+
+    filas = dict(actor.detalle["filas"])
+    assert filas["p"] == "= -731.00 N/m²"
+    assert "GCpi" not in filas
+
+
+def test_el_detalle_del_parapeto_componentes_desglosa_los_coeficientes(qapp):
+    """El Art. 5.6 suma las dos caras del parapeto: el desglose lo muestra."""
+    from dataclasses import replace
+
+    fila = replace(
+        _una_fila_edificio(),
+        pared=enums.ParedEdificioSprfv.BARLOVENTO,
+        zona=enums.ZonaEdificio.PARAPETO,
+        sistema=enums.SistemaResistente.COMPONENTES,
+        zona_parapeto=enums.ZonaParapeto.BORDE,
+        cp_frontal=0.12,
+        cp_posterior=-1.2,
+        cp=-1.08,
+        pos=-918.0,
+        neg=-1000.0,
+    )
+    escena = Escena3D()
+    tabla = TablaColores(-1000, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(-918, enums.Unidad.N, fila=fila)
+
+    detalle = actor.detalle
+    assert detalle["titulo"] == "Parapeto - Caso Barlovento - Borde"
+    filas = dict(detalle["filas"])
+    assert filas["GCp frontal"] == "= 0.12"
+    assert filas["GCp posterior"] == "= -1.20"
+    assert filas["GCp neto"] == "= -1.08"
+    assert filas["GCpi"] == "= +0.18"
+
+
+def test_el_detalle_de_un_actor_sin_fila_es_none(qapp):
+    """Los actores de geometría no llevan fila: la vista no les abre popup."""
+    escena = Escena3D()
+    tabla = TablaColores(-500, 500)
+    actor = ActorPresion(escena, CUADRADO, tabla_colores=tabla, presion=True)
+    actor.asignar_presion(500, enums.Unidad.N)
+    assert actor.detalle is None
+
+
+def test_el_detalle_del_cartel_muestra_area_y_fuerza(qapp, cartel):
+    from zonda.graficos.escenas import cartel as escena_cartel
+
+    escena = Escena3D()
+    escena_cartel.Presiones(escena, cartel, enums.Unidad.N, enums.Unidad.KN)
+    actor = next(a for a in escena.actores_presion if a.flecha.visible)
+
+    detalle = actor.detalle
+    assert detalle["titulo"] == "Cartel - Caso A"
+    filas = dict(detalle["filas"])
+    assert filas["Cf"].startswith("= ")
+    assert filas["Área"].startswith("= ")
+    assert filas["F"].startswith("= ")
+    assert "kN" in filas["F"]
+    assert filas["Ref"]
+
+
+def test_la_escena_sprfv_entrega_la_fila_de_cada_actor_visible(qapp, edificio):
+    """Toda zona con etiqueta visible tiene su fila para el detalle."""
+    from zonda.cirsoc.resultados import FilaEdificio
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesSprfvMetodoDireccional(
+        escena, edificio, enums.Unidad.N
+    )
+    presiones.actualizar_direccion_viento(
+        enums.DireccionVientoMetodoDireccionalSprfv.PARALELO
+    )
+    alturas = presiones.alturas_presion_barlovento[
+        enums.DireccionVientoMetodoDireccionalSprfv.PARALELO
+    ]
+    presiones.actualizar_altura_pared_barlovento(alturas)
+    presiones.actualizar_gcpi(1)
+
+    # La fila de la pared a sotavento es exactamente la del índice.
+    fila_esperada = presiones._paredes[
+        (
+            enums.DireccionVientoMetodoDireccionalSprfv.PARALELO,
+            enums.ParedEdificioSprfv.SOTAVENTO,
+        )
+    ].unica()
+    actor = presiones._actores_actuales_paredes[enums.ParedEdificioSprfv.SOTAVENTO]
+    assert isinstance(actor.fila, FilaEdificio)
+    assert actor.fila is fila_esperada
+
+    visibles = [a for a in escena.actores_presion if a.flecha.visible]
+    assert visibles
+    for actor in visibles:
+        assert actor.fila is not None, "una zona visible quedó sin fila"
+
+
+def test_la_escena_de_componentes_entrega_la_fila_de_cada_actor_visible(qapp, edificio):
+    from zonda.graficos.escenas import edificio as escena_edificio
+
+    escena = Escena3D()
+    presiones = escena_edificio.PresionesComponentes(escena, edificio, enums.Unidad.N)
+    presiones.actualizar_componente_pared("Viga")
+    presiones.actualizar_componente_cubierta("Correa")
+    presiones.actualizar_gcpi(1)
+
+    visibles = [a for a in escena.actores_presion if a.flecha.visible]
+    assert visibles
+    for actor in visibles:
+        assert actor.fila is not None, "una zona visible quedó sin fila"
+
+
+def test_la_escena_del_cartel_entrega_la_fila_de_cada_actor_visible(qapp, cartel):
+    from zonda.graficos.escenas import cartel as escena_cartel
+
+    escena = Escena3D()
+    presiones = escena_cartel.Presiones(escena, cartel, enums.Unidad.N, enums.Unidad.N)
+    for caso in enums.CasoCartel:
+        presiones.actualizar_caso(caso)
+        visibles = [a for a in escena.actores_presion if a.flecha.visible]
+        assert visibles
+        for actor in visibles:
+            assert actor.fila is not None, "una zona visible quedó sin fila"
+
+
+def test_la_escena_de_la_cubierta_aislada_entrega_la_fila_de_cada_actor_visible(
+    qapp, cubierta_aislada
+):
+    from zonda.graficos.escenas import aisladas as escena_aisladas
+
+    escena = Escena3D()
+    presiones = escena_aisladas.Presiones(escena, cubierta_aislada, enums.Unidad.N)
+    for direccion in enums.DireccionVientoCubiertaAislada:
+        presiones.actualizar_direccion(direccion)
+        visibles = [a for a in escena.actores_presion if a.flecha.visible]
+        assert visibles
+        for actor in visibles:
+            assert actor.fila is not None, "una zona visible quedó sin fila"
+            detalle = actor.detalle
+            filas = dict(detalle["filas"])
+            assert filas["Cpn"].startswith("= ")
+            assert filas["p fricción"].startswith("= ")
