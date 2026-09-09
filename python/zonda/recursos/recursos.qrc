@@ -40,16 +40,6 @@
         <file alias="logo-login.png">imagenes/logo-login.png</file>
         <file alias="gplv3.png">imagenes/gplv3-with-text-84x42.png</file>
     </qresource>
-    <qresource prefix="plantillas">
-        <file alias="base.md">plantillas/base.md</file>
-        <file alias="edificio.md">plantillas/edificio.md</file>
-        <file alias="cubierta-aislada.md">plantillas/cubierta-aislada.md</file>
-        <file alias="cartel.md">plantillas/cartel.md</file>
-        <file alias="macros.md">plantillas/macros.md</file>
-    </qresource>
-    <qresource prefix="css">
-        <file alias="github-pandoc.css">css/github-pandoc.css</file>
-    </qresource>
     <qresource prefix="fuentes">
         <file alias="Oswald-VariableFont_wght.ttf">fuentes/Oswald-VariableFont_wght.ttf</file>
     </qresource>

@@ -350,8 +350,8 @@ QLabel.reporte-subtitulo {
     color: #606060;
 }
 
-/* La acción principal de la vista: exporta con pandoc. El mismo estilo
-   del botón Calcular del panel. */
+/* La acción principal de la vista: abre el diálogo de exportación. El
+   mismo estilo del botón Calcular del panel. */
 QPushButton.reporte-exportar {
     color: black;
     background-color: #febe00;

@@ -17,12 +17,11 @@
 
 """El reporte de resultados con widgets nativos.
 
-La vista en pantalla (`navegacion.VistaReporte`) muestra el mismo detalle
-que el reporte exportado —secciones, tablas y notas— pero con widgets de
-Qt: Jinja2 y pandoc quedan sólo para la exportación
-(`exportacion.DialogoExportacion`). Cada tipología arma sus páginas en su
-propio módulo y los bloques compartidos viven en `secciones.py`,
-`tablas.py` y `comunes.py`.
+La vista en pantalla y el PDF (`zonda.pdf`) consumen el mismo documento
+modelo (`documento.Documento`), armado por cada tipología en su módulo;
+los bloques compartidos viven en `secciones.py`, `tablas.py` y
+`comunes.py`. El diálogo de exportación
+(`exportacion.DialogoExportacion`) deja elegir el papel y pide el PDF.
 """
 
 from zonda.widgets.reportes.navegacion import VistaReporte

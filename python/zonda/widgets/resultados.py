@@ -516,8 +516,6 @@ class WidgetResultadosEdificioComponentes(QtWidgets.QWidget):
 
 
 class WidgetResultadosEdificio(QtWidgets.QWidget, WidgetResultadosMixin):
-    plantilla_reporte = "edificio.md"
-
     def __init__(self, edificio):
         super().__init__()
 
@@ -733,8 +731,6 @@ class WidgetResultadosCubiertaAislada(QtWidgets.QWidget, WidgetResultadosMixin):
     componentes y revestimientos con los botones del panel.
     """
 
-    plantilla_reporte = "cubierta-aislada.md"
-
     def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
         """
 
@@ -804,8 +800,6 @@ class WidgetResultadosCartel(QtWidgets.QWidget, WidgetResultadosMixin):
     Representa el widget que visualiza los resultados para carteles. Presenta el gráfico junto con otros
     widgets que interactuan con este para el caso de la Figura 4.4-1 considerado.
     """
-
-    plantilla_reporte = "cartel.md"
 
     def __init__(self, cartel: Cartel) -> None:
         """

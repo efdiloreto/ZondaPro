@@ -15,42 +15,42 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""La página de reporte del cartel.
+"""El documento de reporte del cartel.
 
-Arma las secciones que la plantilla ``cartel.md`` exporta: el resumen con
-las fuerzas por caso y la de diseño resaltada, los datos de entrada, los
-parámetros de la Figura 4.4-1 y las presiones por caso de carga con sus
-consideraciones.
+Arma las páginas del modelo: el resumen con las fuerzas por caso y la de
+diseño resaltada, los datos de entrada, los parámetros de la Figura
+4.4-1 y las presiones por caso de carga con sus consideraciones. La vista
+y el PDF lo consumen sin conocerse entre sí.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6 import QtCore, QtWidgets
-
 from zonda.enums import CasoCartel, Unidad
 from zonda.unidades import convertir_unidad
 from zonda.widgets.reportes import tablas
 from zonda.widgets.reportes.comunes import (
-    pagina,
-    seccion_rafaga,
-    seccion_topografia,
-    seccion_viento,
-    subseccion_constantes_terreno,
-    subseccion_factor_rafaga,
-    subseccion_factor_topografico,
+    grupo_constantes_terreno,
+    grupo_factor_rafaga,
+    grupo_factor_topografico,
+    grupo_rafaga,
+    grupo_topografia,
+    grupo_viento,
+)
+from zonda.widgets.reportes.documento import (
+    Bloque,
+    Datos,
+    Documento,
+    Grupo,
+    Nota,
+    Pagina,
+    Tarjeta,
+    Tarjetas,
+    Texto,
 )
 from zonda.widgets.reportes.navegacion import VistaReporte
-from zonda.widgets.reportes.secciones import (
-    Nota,
-    Seccion,
-    Subseccion,
-    TablaDatos,
-    Tarjeta,
-    fila_tarjetas,
-    unidades_desde_settings,
-)
+from zonda.widgets.reportes.secciones import unidades_desde_settings
 
 if TYPE_CHECKING:
     from zonda.cirsoc import Cartel
@@ -74,17 +74,27 @@ def vista(cartel: Cartel) -> VistaReporte:
     Returns:
         La vista con sus páginas.
     """
+    return VistaReporte(documento(cartel))
+
+
+def documento(cartel: Cartel) -> Documento:
+    """Arma el documento de reporte del cartel.
+
+    Args:
+        cartel: El cartel calculado.
+
+    Returns:
+        El documento con sus páginas.
+    """
     unidades = unidades_desde_settings()
-    return VistaReporte(
-        cartel,
-        "cartel.md",
+    return Documento(
         "PRESIONES DE VIENTO — CARTEL",
-        (
-            ("Resumen", _pagina_resumen(cartel, unidades)),
-            ("Datos de entrada", _pagina_datos(cartel)),
-            ("Parámetros de cálculo", _pagina_parametros(cartel)),
-            ("Presiones", _pagina_presiones(cartel, unidades)),
-        ),
+        [
+            Pagina("Resumen", _bloques_resumen(cartel, unidades), exportable=False),
+            Pagina("Datos de entrada", _bloques_datos(cartel)),
+            Pagina("Parámetros de cálculo", _bloques_parametros(cartel)),
+            Pagina("Presiones", _bloques_presiones(cartel, unidades)),
+        ],
     )
 
 
@@ -116,7 +126,7 @@ def _caso_de_diseño(cartel: Cartel) -> str:
         cartel: El cartel calculado.
 
     Returns:
-        La conclusión, tal como la escribe la plantilla.
+        La conclusión del informe.
     """
     fuerzas = cartel.presiones.fuerzas_totales
     if fuerzas.get(CasoCartel.CASO_C, 0) > fuerzas[CasoCartel.CASO_A]:
@@ -124,19 +134,19 @@ def _caso_de_diseño(cartel: Cartel) -> str:
     return "La fuerza de diseño es la de los Casos A y B."
 
 
-def _pagina_resumen(cartel: Cartel, unidades: dict[str, Unidad]) -> QtWidgets.QWidget:
-    """La página con las fuerzas de diseño por caso.
+def _bloques_resumen(cartel: Cartel, unidades: dict[str, Unidad]) -> list[Bloque]:
+    """Los bloques con las fuerzas de diseño por caso.
 
     Args:
         cartel: El cartel calculado.
         unidades: Las unidades a mostrar.
 
     Returns:
-        La página armada.
+        Los bloques de la página de resumen.
     """
     fuerzas = cartel.presiones.fuerzas_totales
-    # La conclusión de la plantilla: el Caso C gobierna cuando su fuerza
-    # supera a la del Caso A; si no, el diseño queda en los Casos A y B.
+    # El Caso C gobierna cuando su fuerza supera a la del Caso A; si no,
+    # el diseño queda en los Casos A y B.
     caso_c_gobierna = fuerzas.get(CasoCartel.CASO_C, 0) > fuerzas[CasoCartel.CASO_A]
     detalles = {
         CasoCartel.CASO_A: f"{cartel.geometria.area:.2f} m² de área proyectada",
@@ -165,67 +175,60 @@ def _pagina_resumen(cartel: Cartel, unidades: dict[str, Unidad]) -> QtWidgets.QW
             )
         )
 
-    seccion = Seccion("Resumen")
-    seccion.agregar(
-        fila_tarjetas(
-            Tarjeta("Velocidad básica", f"{cartel.velocidad:.2f} m/s"),
-            Tarjeta(
-                "Presión dinámica, qh",
-                f"{convertir_unidad(cartel.resultados[0].q.valor, unidades['presion']):.2f} "
-                f"{unidades['presion'].value}/m²",
-            ),
-            Tarjeta("Área proyectada", f"{cartel.geometria.area:.2f} m²"),
-        )
-    )
-    seccion.agregar(fila_tarjetas(*tarjetas_fuerza))
-    seccion.agregar(Nota(_caso_de_diseño(cartel), "Fuerza de diseño"))
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+    return [
+        Tarjetas(
+            [
+                Tarjeta("Velocidad básica", f"{cartel.velocidad:.2f} m/s"),
+                Tarjeta(
+                    "Presión dinámica, qh",
+                    f"{convertir_unidad(cartel.resultados[0].q.valor, unidades['presion']):.2f} "
+                    f"{unidades['presion'].value}/m²",
+                ),
+                Tarjeta("Área proyectada", f"{cartel.geometria.area:.2f} m²"),
+            ]
+        ),
+        Tarjetas(tarjetas_fuerza),
+        Nota(_caso_de_diseño(cartel), "Fuerza de diseño"),
+    ]
 
 
-def _pagina_datos(cartel: Cartel) -> QtWidgets.QWidget:
-    """La página con el reglamento y los datos de entrada.
+def _bloques_datos(cartel: Cartel) -> list[Bloque]:
+    """Los bloques con el reglamento y los datos de entrada.
 
     Args:
         cartel: El cartel calculado.
 
     Returns:
-        La página armada.
+        Los bloques de la página de datos.
     """
-    seccion_reglamento = Seccion("Reglamento")
-    seccion_reglamento.agregar(
-        TablaDatos((("Referencia", "Artículo 4.4.1 - Figura 4.4-1"),))
-    )
-
-    seccion_cartel = Seccion("Cartel")
-    seccion_cartel.agregar(
-        TablaDatos(
-            (
-                ("Altura inferior", f"{cartel.altura_inferior:.2f} m"),
-                ("Altura superior", f"{cartel.altura_superior:.2f} m"),
-                ("Ancho", f"{cartel.ancho:.2f} m"),
-                ("Profundidad", f"{cartel.profundidad:.2f} m"),
-            )
-        )
-    )
-
-    return pagina(
-        seccion_reglamento,
-        seccion_cartel,
-        seccion_viento(cartel),
-        seccion_rafaga(cartel, TEXTO_RAFAGA_SIMPLIFICADA),
-        seccion_topografia(cartel),
-    )
+    return [
+        Grupo(
+            "Cartel",
+            [
+                Datos(
+                    (
+                        ("Altura inferior", f"{cartel.altura_inferior:.2f} m"),
+                        ("Altura superior", f"{cartel.altura_superior:.2f} m"),
+                        ("Ancho", f"{cartel.ancho:.2f} m"),
+                        ("Profundidad", f"{cartel.profundidad:.2f} m"),
+                    )
+                )
+            ],
+        ),
+        grupo_viento(cartel),
+        grupo_rafaga(cartel, TEXTO_RAFAGA_SIMPLIFICADA),
+        grupo_topografia(cartel),
+    ]
 
 
-def _pagina_parametros(cartel: Cartel) -> QtWidgets.QWidget:
-    """La página con los parámetros de la Figura 4.4-1.
+def _bloques_parametros(cartel: Cartel) -> list[Bloque]:
+    """Los bloques con los parámetros de la Figura 4.4-1.
 
     Args:
         cartel: El cartel calculado.
 
     Returns:
-        La página armada.
+        Los bloques de la página de parámetros.
     """
     filas: list[tuple[str, str]] = [
         ("Altura neta, s", f"{cartel.geometria.altura_neta:.2f} m"),
@@ -276,18 +279,13 @@ def _pagina_parametros(cartel: Cartel) -> QtWidgets.QWidget:
             ),
         ]
 
-    seccion = Seccion("Parámetros de cálculo")
-    subseccion = Subseccion("Cartel")
-    subseccion.agregar(TablaDatos(filas))
-    seccion.agregar(subseccion)
-    seccion.agregar(subseccion_constantes_terreno(cartel.rafaga))
-    seccion.agregar(
-        subseccion_factor_rafaga(
+    return [
+        Grupo("Cartel", [Datos(filas)]),
+        grupo_constantes_terreno(cartel.rafaga),
+        grupo_factor_rafaga(
             cartel.rafaga, cartel.flexibilidad, TEXTO_RAFAGA_SIMPLIFICADA
-        )
-    )
-    seccion.agregar(
-        subseccion_factor_topografico(
+        ),
+        grupo_factor_topografico(
             cartel,
             cartel.topografia.parametros.k3[-1],
             [
@@ -295,10 +293,8 @@ def _pagina_parametros(cartel: Cartel) -> QtWidgets.QWidget:
                 "correspondiente a la altura h. Los valores para las demás "
                 "alturas se calculan automáticamente y no son mostrados."
             ],
-        )
-    )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        ),
+    ]
 
 
 def _consideraciones(cartel: Cartel) -> str:
@@ -308,7 +304,8 @@ def _consideraciones(cartel: Cartel) -> str:
         cartel: El cartel calculado.
 
     Returns:
-        El texto con la lista de casos y las notas que aplican.
+        El texto con la lista de casos y las notas que aplican, en el
+        subset de HTML que entiende Qt.
     """
     parrafos = [
         "De acuerdo a la Nota 2 de la Figura 4.4-1, para considerar ambas "
@@ -348,45 +345,42 @@ def _consideraciones(cartel: Cartel) -> str:
     return "".join(parrafos)
 
 
-def _pagina_presiones(cartel: Cartel, unidades: dict[str, Unidad]) -> QtWidgets.QWidget:
-    """La página con las presiones y fuerzas por caso de carga.
+def _bloques_presiones(cartel: Cartel, unidades: dict[str, Unidad]) -> list[Bloque]:
+    """Los bloques con las presiones y fuerzas por caso de carga.
 
     Args:
         cartel: El cartel calculado.
         unidades: Las unidades a mostrar.
 
     Returns:
-        La página armada.
+        Los bloques de la página de presiones.
     """
-    seccion = Seccion("Presiones")
+    bloques: list[Bloque] = []
     referencia = cartel.resultados[0].referencia
     for caso in (CasoCartel.CASO_A, CasoCartel.CASO_B, CasoCartel.CASO_C):
         filas_caso = cartel.resultados.filtrar(caso=caso)
         if not filas_caso:
             continue
-        subseccion = Subseccion(caso.value, referencia=referencia)
-        subseccion.agregar(
-            tablas.tabla_cartel(filas_caso, cartel.cf.limites_regiones, unidades)
-        )
-        subseccion.agregar(
-            TablaDatos(
-                (
-                    (
-                        f"Fuerza total del {caso.value}",
-                        _fuerza_total(cartel, caso, unidades),
+        bloques.append(
+            Grupo(
+                caso.value,
+                [
+                    tablas.tabla_cartel(
+                        filas_caso, cartel.cf.limites_regiones, unidades
                     ),
-                )
+                    Datos(
+                        (
+                            (
+                                f"Fuerza total del {caso.value}",
+                                _fuerza_total(cartel, caso, unidades),
+                            ),
+                        )
+                    ),
+                ],
+                referencia=referencia,
             )
         )
-        seccion.agregar(subseccion)
 
-    subseccion_consideraciones = Subseccion("Consideraciones")
-    texto_consideraciones = QtWidgets.QLabel(_consideraciones(cartel))
-    texto_consideraciones.setWordWrap(True)
-    texto_consideraciones.setTextFormat(QtCore.Qt.TextFormat.RichText)
-    subseccion_consideraciones.agregar(texto_consideraciones)
-    seccion.agregar(subseccion_consideraciones)
-
-    seccion.agregar(Nota(NOTA_MINIMAS, "Cargas de viento de diseño mínimas (Art. 4.8)"))
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+    bloques.append(Grupo("Consideraciones", [Texto(_consideraciones(cartel))]))
+    bloques.append(Nota(NOTA_MINIMAS, "Cargas de viento de diseño mínimas (Art. 4.8)"))
+    return bloques

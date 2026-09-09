@@ -15,22 +15,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""La página de reporte del edificio.
+"""El documento de reporte del edificio.
 
-Arma las secciones que la plantilla ``edificio.md`` exporta: el resumen
-con los valores clave, los datos de entrada, los parámetros de cálculo,
-las presiones del SPRFV por dirección de viento y las de componentes y
-revestimientos. Todo se lee de ``estructura.resultados_sprfv`` y
-``estructura.resultados_componentes`` filtrando y agrupando la tabla
-plana, igual que hace la plantilla con ``filtrar(...).agrupar(...)``.
+Arma las páginas del modelo: el resumen con los valores clave, los datos
+de entrada, los parámetros de cálculo, las presiones del SPRFV por
+dirección de viento y las de componentes y revestimientos. Todo se lee de
+``estructura.resultados_sprfv`` y ``estructura.resultados_componentes``
+filtrando y agrupando la tabla plana. La vista y el PDF lo consumen sin
+conocerse entre sí.
 """
 
 from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING
-
-from PyQt6 import QtWidgets
 
 from zonda.enums import (
     DireccionVientoMetodoDireccionalSprfv,
@@ -42,29 +40,33 @@ from zonda.excepciones import ErrorLineamientos
 from zonda.unidades import convertir_unidad
 from zonda.widgets.reportes import tablas
 from zonda.widgets.reportes.comunes import (
-    apilador_componentes,
-    pagina,
-    seccion_rafaga,
-    seccion_topografia,
-    seccion_viento,
-    subseccion_constantes_terreno,
-    subseccion_factor_rafaga,
-    subseccion_factor_topografico,
+    grupo_constantes_terreno,
+    grupo_factor_rafaga,
+    grupo_factor_topografico,
+    grupo_rafaga,
+    grupo_topografia,
+    grupo_viento,
+)
+from zonda.widgets.reportes.documento import (
+    Bloque,
+    Datos,
+    Documento,
+    Grupo,
+    Nota,
+    Pagina,
+    Pestanas,
+    SelectorComponentes,
+    Superficie,
+    Tarjeta,
+    Tarjetas,
 )
 from zonda.widgets.reportes.navegacion import VistaReporte
-from zonda.widgets.reportes.secciones import (
-    Nota,
-    Seccion,
-    Subseccion,
-    TablaDatos,
-    Tarjeta,
-    fila_tarjetas,
-    unidades_desde_settings,
-)
+from zonda.widgets.reportes.secciones import unidades_desde_settings
 
 if TYPE_CHECKING:
     from zonda.cirsoc import Edificio
-    from zonda.cirsoc.resultados import FilaEdificio, Tabla
+    from zonda.cirsoc.resultados import FilaEdificio
+    from zonda.cirsoc.resultados import Tabla as TablaNucleo
 
 TEXTO_RAFAGA_SIMPLIFICADA = (
     "Se adopta el factor de ráfaga igual a 0.85 de acuerdo al artículo 5.8.1."
@@ -121,25 +123,34 @@ def vista(edificio: Edificio) -> VistaReporte:
     Returns:
         La vista con sus páginas.
     """
+    return VistaReporte(documento(edificio))
+
+
+def documento(edificio: Edificio) -> Documento:
+    """Arma el documento de reporte del edificio.
+
+    Args:
+        edificio: El edificio calculado.
+
+    Returns:
+        El documento con sus páginas.
+    """
     unidades = unidades_desde_settings()
-    paginas: list[tuple[str, QtWidgets.QWidget]] = [
-        ("Resumen", _pagina_resumen(edificio, unidades)),
-        ("Datos de entrada", _pagina_datos(edificio)),
-        ("Parámetros de cálculo", _pagina_parametros(edificio)),
-        ("Presiones - SPRFV", _pagina_sprfv(edificio, unidades)),
+    paginas = [
+        Pagina("Resumen", _bloques_resumen(edificio, unidades), exportable=False),
+        Pagina("Datos de entrada", _bloques_datos(edificio)),
+        Pagina("Parámetros de cálculo", _bloques_parametros(edificio)),
+        Pagina("Presiones - SPRFV", _bloques_sprfv(edificio, unidades)),
     ]
-    pagina_componentes = None
     with contextlib.suppress(ErrorLineamientos):
         # Sin lineamientos para componentes, el reporte del SPRFV sigue
         # siendo válido y la página simplemente no aparece.
-        pagina_componentes = _pagina_componentes(edificio, unidades)
-    if pagina_componentes is not None:
-        # En el índice la página va con el nombre corto que usan las
-        # pestañas del panel; la sección de adentro lleva el completo.
-        paginas.append(("Componentes (C&R)", pagina_componentes))
-    return VistaReporte(
-        edificio, "edificio.md", "PRESIONES DE VIENTO — EDIFICIO", paginas
-    )
+        bloques_componentes = _bloques_componentes(edificio, unidades)
+        if bloques_componentes is not None:
+            # En el índice la página va con el nombre corto que usan las
+            # pestañas del panel; la sección de adentro lleva el completo.
+            paginas.append(Pagina("Componentes (C&R)", bloques_componentes))
+    return Documento("PRESIONES DE VIENTO — EDIFICIO", paginas)
 
 
 def _ubicacion(fila: FilaEdificio) -> str:
@@ -223,17 +234,15 @@ def _tarjetas_extremos(
     return tarjetas
 
 
-def _pagina_resumen(
-    edificio: Edificio, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget:
-    """La página con los valores que gobiernan el diseño.
+def _bloques_resumen(edificio: Edificio, unidades: dict[str, Unidad]) -> list[Bloque]:
+    """Los bloques con los valores que gobiernan el diseño.
 
     Args:
         edificio: El edificio calculado.
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada.
+        Los bloques de la página de resumen.
     """
     sprfv = edificio.presiones.cubierta.sprfv
     kzt = (
@@ -241,47 +250,34 @@ def _pagina_resumen(
         if edificio.topografia.topografia_considerada()
         else 1.0
     )
-    seccion = Seccion("Resumen")
-    seccion.agregar(
-        fila_tarjetas(
-            Tarjeta("Velocidad básica", f"{edificio.velocidad:.2f} m/s"),
-            Tarjeta("Coeficiente de presión interna", f"±{sprfv.gcpi:.2f}"),
-            Tarjeta(
-                "Factor topográfico, Kzt",
-                f"{kzt:.2f}",
-                detalle="máximo entre las alturas" if kzt != 1.0 else None,
-            ),
+    bloques: list[Bloque] = [
+        Tarjetas(
+            [
+                Tarjeta("Velocidad básica", f"{edificio.velocidad:.2f} m/s"),
+                Tarjeta("Coeficiente de presión interna", f"±{sprfv.gcpi:.2f}"),
+                Tarjeta(
+                    "Factor topográfico, Kzt",
+                    f"{kzt:.2f}",
+                    detalle="máximo entre las alturas" if kzt != 1.0 else None,
+                ),
+            ]
         )
-    )
+    ]
     tarjetas_extremos = _tarjetas_extremos(edificio, unidades)
     if tarjetas_extremos:
-        seccion.agregar(fila_tarjetas(*tarjetas_extremos))
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        bloques.append(Tarjetas(tarjetas_extremos))
+    return bloques
 
 
-def _pagina_datos(edificio: Edificio) -> QtWidgets.QWidget:
-    """La página con el reglamento y los datos de entrada.
+def _bloques_datos(edificio: Edificio) -> list[Bloque]:
+    """Los bloques con el reglamento y los datos de entrada.
 
     Args:
         edificio: El edificio calculado.
 
     Returns:
-        La página armada.
+        Los bloques de la página de datos.
     """
-    seccion_reglamento = Seccion("Reglamento")
-    seccion_reglamento.agregar(
-        TablaDatos(
-            (
-                (
-                    "Método de cálculo",
-                    "Método 2 (Analítico) - Procedimiento "
-                    f"{edificio.metodo_sprfv.value.capitalize()}",
-                ),
-            )
-        )
-    )
-
     filas: list[tuple[str, str]] = [
         ("Elevación sobre terreno", f"{edificio.elevacion:.2f} m"),
         ("Ancho", f"{edificio.ancho:.2f} m"),
@@ -298,26 +294,36 @@ def _pagina_datos(edificio: Edificio) -> QtWidgets.QWidget:
         ("Tipo de cubierta", edificio.geometria.tipo_cubierta.value.capitalize()),
         ("Clasificación de cerramiento", edificio.cerramiento.value.capitalize()),
     ]
-    seccion_edificio = Seccion("Edificio")
-    seccion_edificio.agregar(TablaDatos(filas))
+    return [
+        Grupo(
+            "Método de cálculo",
+            [
+                Datos(
+                    (
+                        (
+                            "Método",
+                            "2 (Analítico) - Procedimiento "
+                            f"{edificio.metodo_sprfv.value.capitalize()}",
+                        ),
+                    )
+                )
+            ],
+        ),
+        Grupo("Edificio", [Datos(filas)]),
+        grupo_viento(edificio),
+        grupo_rafaga(edificio, TEXTO_RAFAGA_SIMPLIFICADA),
+        grupo_topografia(edificio),
+    ]
 
-    return pagina(
-        seccion_reglamento,
-        seccion_edificio,
-        seccion_viento(edificio),
-        seccion_rafaga(edificio, TEXTO_RAFAGA_SIMPLIFICADA),
-        seccion_topografia(edificio),
-    )
 
-
-def _pagina_parametros(edificio: Edificio) -> QtWidgets.QWidget:
-    """La página con los parámetros intermedios del cálculo.
+def _bloques_parametros(edificio: Edificio) -> list[Bloque]:
+    """Los bloques con los parámetros intermedios del cálculo.
 
     Args:
         edificio: El edificio calculado.
 
     Returns:
-        La página armada.
+        Los bloques de la página de parámetros.
     """
     sprfv = edificio.presiones.cubierta.sprfv
     filas: list[tuple[str, str]] = [
@@ -338,38 +344,28 @@ def _pagina_parametros(edificio: Edificio) -> QtWidgets.QWidget:
         ("Coeficiente de presión interna, GCpi", f"±{sprfv.gcpi:.2f}"),
         ("Factor de direccionalidad, Kd", f"{sprfv.factor_direccionalidad:.2f}"),
     ]
-    subseccion_cubierta = Subseccion("Cubierta")
-    subseccion_cubierta.agregar(TablaDatos(filas))
-
-    seccion = Seccion("Parámetros de cálculo")
-    seccion.agregar(subseccion_cubierta)
-    seccion.agregar(
-        subseccion_constantes_terreno(
+    return [
+        Grupo("Cubierta", [Datos(filas)]),
+        grupo_constantes_terreno(
             edificio.rafaga[DireccionVientoMetodoDireccionalSprfv.PARALELO]
-        )
-    )
-    seccion.agregar(
-        subseccion_factor_rafaga(
+        ),
+        grupo_factor_rafaga(
             edificio.rafaga, edificio.flexibilidad, TEXTO_RAFAGA_SIMPLIFICADA
-        )
-    )
-    seccion.agregar(
-        subseccion_factor_topografico(
+        ),
+        grupo_factor_topografico(
             edificio,
             edificio.topografia.k3_en(edificio.geometria.cubierta.altura_media),
             [NOTA_K3],
-        )
-    )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        ),
+    ]
 
 
 def _titulo_superficie(base: str, clave: tuple, sin_posicion: str | None = None) -> str:
     """El título de una superficie de cubierta o alero.
 
-    Es el port del macro ``titulo_superficie``: cuando la superficie no
-    está dividida por posición, igualmente nombra el caso de presión si la
-    fila lo trae (el caso positivo del nuevo Reglamento con ángulo < 10°).
+    Cuando la superficie no está dividida por posición, igualmente nombra
+    el caso de presión si la fila lo trae (el caso positivo del nuevo
+    Reglamento con ángulo < 10°).
 
     Args:
         base: El nombre de la superficie ("Cubierta", "Alero").
@@ -389,12 +385,12 @@ def _titulo_superficie(base: str, clave: tuple, sin_posicion: str | None = None)
     return titulo
 
 
-def _secciones_direccion(
+def _bloques_direccion(
     edificio: Edificio,
     direccion: DireccionVientoMetodoDireccionalSprfv,
     unidades: dict[str, Unidad],
-) -> QtWidgets.QWidget:
-    """Las subsecciones de presiones de una dirección de viento.
+) -> list[Bloque]:
+    """Los grupos de presiones de una dirección de viento.
 
     Args:
         edificio: El edificio calculado.
@@ -402,91 +398,93 @@ def _secciones_direccion(
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        El widget con las subsecciones de paredes, cubierta y alero.
+        Los grupos de paredes, cubierta y alero, en orden.
     """
     filas_direccion = edificio.resultados_sprfv.filtrar(direccion=direccion)
-    widget = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(widget)
-    # El margen separa las tarjetas del pane de la pestaña, que es el borde
-    # que dibuja el QTabWidget a su alrededor.
-    layout.setContentsMargins(9, 9, 9, 9)
-    layout.setSpacing(12)
-
+    bloques: list[Bloque] = []
     for pared, filas in filas_direccion.filtrar(zona=ZonaEdificio.PAREDES).agrupar(
         "pared"
     ):
-        subseccion = Subseccion(
-            f"Pared {pared.value.capitalize()}" if pared else "Paredes",
-            referencia=filas[0].referencia,
+        bloques.append(
+            Grupo(
+                f"Pared {pared.value.capitalize()}" if pared else "Paredes",
+                [tablas.tabla_presiones(filas, unidades)],
+                referencia=filas[0].referencia,
+            )
         )
-        subseccion.agregar(tablas.tabla_presiones(filas, unidades))
-        layout.addWidget(subseccion)
-
     for clave, filas in filas_direccion.filtrar(zona=ZonaEdificio.CUBIERTA).agrupar(
         "posicion", "caso"
     ):
-        subseccion = Subseccion(
-            _titulo_superficie("Cubierta", clave), referencia=filas[0].referencia
+        bloques.append(
+            Grupo(
+                _titulo_superficie("Cubierta", clave),
+                [tablas.tabla_presiones(filas, unidades)],
+                referencia=filas[0].referencia,
+            )
         )
-        subseccion.agregar(tablas.tabla_presiones(filas, unidades))
-        layout.addWidget(subseccion)
-
     for clave, filas in filas_direccion.filtrar(zona=ZonaEdificio.ALERO).agrupar(
         "posicion", "caso"
     ):
-        subseccion = Subseccion(
-            _titulo_superficie("Alero", clave, "Aleros"),
-            referencia=filas[0].referencia,
+        bloques.append(
+            Grupo(
+                _titulo_superficie("Alero", clave, "Aleros"),
+                [tablas.tabla_presiones(filas, unidades)],
+                referencia=filas[0].referencia,
+            )
         )
-        subseccion.agregar(tablas.tabla_presiones(filas, unidades))
-        layout.addWidget(subseccion)
-
-    layout.addStretch(1)
-    return widget
+    return bloques
 
 
-def _pagina_sprfv(edificio: Edificio, unidades: dict[str, Unidad]) -> QtWidgets.QWidget:
-    """La página con las presiones del SPRFV.
+def _bloques_sprfv(edificio: Edificio, unidades: dict[str, Unidad]) -> list[Bloque]:
+    """Los bloques con las presiones del SPRFV.
 
     Args:
         edificio: El edificio calculado.
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada, con una pestaña por dirección de viento, el
-        parapeto cuando lo hay y las notas del Reglamento.
+        Los bloques: una pestaña por dirección de viento, el parapeto
+        cuando lo hay y las notas del Reglamento.
     """
-    seccion = Seccion("Presiones - SPRFV")
-
-    pestañas = QtWidgets.QTabWidget()
-    for direccion in DireccionVientoMetodoDireccionalSprfv:
-        pestañas.addTab(
-            _secciones_direccion(edificio, direccion, unidades),
-            f"{direccion.value.capitalize()} a la cumbrera",
+    bloques: list[Bloque] = [
+        Pestanas(
+            [
+                (
+                    f"{direccion.value.capitalize()} a la cumbrera",
+                    _bloques_direccion(edificio, direccion, unidades),
+                )
+                for direccion in DireccionVientoMetodoDireccionalSprfv
+            ]
         )
-    seccion.agregar(pestañas)
+    ]
 
     parapeto = edificio.resultados_sprfv.filtrar(zona=ZonaEdificio.PARAPETO)
     if parapeto:
-        subseccion = Subseccion("Parapeto", referencia=parapeto[0].referencia)
-        subseccion.agregar(tablas.tabla_parapeto_sprfv(parapeto, unidades))
-        subseccion.agregar(Nota(NOTA_PARAPETO_SPRFV, "Parapeto (Art. 2.4.5)"))
-        seccion.agregar(subseccion)
+        bloques.append(
+            Grupo(
+                "Parapeto",
+                [tablas.tabla_parapeto_sprfv(parapeto, unidades)],
+                referencia=parapeto[0].referencia,
+            )
+        )
+        bloques.append(Nota(NOTA_PARAPETO_SPRFV, "Parapeto (Art. 2.4.5)"))
 
-    seccion.agregar(
+    bloques.append(
         Nota(NOTA_MINIMAS_SPRFV, "Cargas de viento de diseño mínimas (Art. 2.1.5)")
     )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+    return bloques
 
 
-def _contenido_componente(
-    filas_componente: Tabla[FilaEdificio],
+def _grupos_componente(
+    filas_componente: TablaNucleo[FilaEdificio],
     areas: dict[str, float] | None,
     unidades: dict[str, Unidad],
-) -> QtWidgets.QWidget:
-    """La página de un componente: una subsección por pared —una sola en
-    cubierta— con su tabla de presiones.
+) -> list[Grupo]:
+    """Los grupos de un componente: su tabla de presiones.
+
+    Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan a cada altura y
+    el Reglamento distingue zonas de área efectiva: la tabla se parte por
+    zona, con un grupo por cada una.
 
     Args:
         filas_componente: Las filas del componente, de todas las paredes.
@@ -494,91 +492,49 @@ def _contenido_componente(
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        El contenido de la página del componente.
+        Los grupos del componente, uno por zona cuando corresponde.
     """
-    contenedor = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(contenedor)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(12)
     areas = areas or {}
-    for pared, filas_pared in filas_componente.agrupar("pared"):
-        nombre = filas_pared[0].componente or ""
-        area = areas.get(nombre)
-        area_texto = f" ({area:g} m²)" if area is not None else ""
-        titulo_pared = f"Pared {pared.value.capitalize()} — " if pared else ""
-        por_altura = len({fila.q.altura for fila in filas_pared}) > 1
-        if por_altura:
-            # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan a
-            # cada altura y el Reglamento distingue zonas de área
-            # efectiva: la tabla se parte por zona.
-            for zona_componente, filas_zona_componente in filas_pared.agrupar(
-                "zona_componente"
-            ):
-                subseccion = Subseccion(
-                    f"{titulo_pared}Componente: {nombre}{area_texto} "
-                    f"(Zona: {zona_componente.value.capitalize()})",
-                    referencia=filas_zona_componente[0].referencia,
-                )
-                subseccion.agregar(
-                    tablas.tabla_presiones(filas_zona_componente, unidades)
-                )
-                layout.addWidget(subseccion)
-        else:
-            subseccion = Subseccion(
+    nombre = filas_componente[0].componente or ""
+    area = areas.get(nombre)
+    area_texto = f" ({area:g} m²)" if area is not None else ""
+    pared = filas_componente[0].pared
+    titulo_pared = f"Pared {pared.value.capitalize()} — " if pared else ""
+    referencia = filas_componente[0].referencia
+
+    por_altura = len({fila.q.altura for fila in filas_componente}) > 1
+    if not por_altura:
+        return [
+            Grupo(
                 f"{titulo_pared}Componente: {nombre}{area_texto}",
-                referencia=filas_pared[0].referencia,
+                [tablas.tabla_presiones(filas_componente, unidades)],
+                referencia=referencia,
             )
-            subseccion.agregar(tablas.tabla_presiones(filas_pared, unidades))
-            layout.addWidget(subseccion)
-    layout.addStretch(1)
-    return contenedor
+        ]
+
+    return [
+        Grupo(
+            f"{titulo_pared}Componente: {nombre}{area_texto} "
+            f"(Zona: {zona_componente.value.capitalize()})",
+            [tablas.tabla_presiones(filas_zona, unidades)],
+            referencia=filas_zona[0].referencia,
+        )
+        for zona_componente, filas_zona in filas_componente.agrupar("zona_componente")
+    ]
 
 
-def _contenido_parapeto(
-    edificio: Edificio,
-    filas_parapeto: Tabla[FilaEdificio],
-    unidades: dict[str, Unidad],
-) -> QtWidgets.QWidget:
-    """La página del parapeto: su tabla por casos de carga con la nota.
-
-    Args:
-        edificio: El edificio calculado.
-        filas_parapeto: Las filas del parapeto.
-        unidades: Las unidades de fuerza y presión a mostrar.
-
-    Returns:
-        El contenido de la página del parapeto.
-    """
-    contenedor = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(contenedor)
-    layout.setContentsMargins(0, 0, 0, 0)
-    subseccion = Subseccion(
-        f"Parapeto (área efectiva: {edificio.area_parapeto:g} m²)",
-        referencia=filas_parapeto[0].referencia,
-    )
-    subseccion.agregar(tablas.tabla_parapeto_componentes(filas_parapeto, unidades))
-    subseccion.agregar(Nota(NOTA_PARAPETO_COMPONENTES, "Parapeto (Art. 5.6)"))
-    layout.addWidget(subseccion)
-    layout.addStretch(1)
-    return contenedor
-
-
-def _pagina_componentes(
+def _bloques_componentes(
     edificio: Edificio, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget | None:
-    """La página con las presiones de componentes y revestimientos.
-
-    Muestra de a un componente por vez: una cápsula segmentada elige la
-    superficie —pared o cubierta, y parapeto cuando lo hay— y un
-    desplegable elige el componente.
+) -> list[Bloque] | None:
+    """Los bloques con las presiones de componentes y revestimientos.
 
     Args:
         edificio: El edificio calculado.
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada, o ``None`` cuando el edificio no tiene
-        componentes cargados.
+        Los bloques, o ``None`` cuando el edificio no tiene componentes
+        cargados.
 
     Raises:
         ErrorLineamientos: Cuando el Reglamento no da lineamientos para
@@ -588,7 +544,7 @@ def _pagina_componentes(
     if not componentes:
         return None
 
-    superficies: list[tuple[str, list[str], list[QtWidgets.QWidget]]] = []
+    superficies: list[Superficie] = []
     for zona, areas in (
         (ZonaEdificio.PAREDES, edificio.componentes_paredes),
         (ZonaEdificio.CUBIERTA, edificio.componentes_cubierta),
@@ -596,30 +552,48 @@ def _pagina_componentes(
         filas_zona = componentes.filtrar(zona=zona)
         if not filas_zona:
             continue
-        nombres: list[str] = []
-        páginas: list[QtWidgets.QWidget] = []
+        componentes_superficie: list[tuple[str, list[Bloque]]] = []
         for nombre, filas_componente in filas_zona.agrupar("componente"):
-            nombres.append(nombre)
-            páginas.append(_contenido_componente(filas_componente, areas, unidades))
-        superficies.append((ETIQUETAS_SUPERFICIES[zona], nombres, páginas))
+            componentes_superficie.append(
+                (
+                    nombre,
+                    list(_grupos_componente(filas_componente, areas, unidades)),
+                )
+            )
+        superficies.append(
+            Superficie(ETIQUETAS_SUPERFICIES[zona], componentes_superficie)
+        )
 
     filas_parapeto = componentes.filtrar(zona=ZonaEdificio.PARAPETO)
     if filas_parapeto:
         superficies.append(
-            (
+            Superficie(
                 "PARAPETO",
-                [],
-                [_contenido_parapeto(edificio, filas_parapeto, unidades)],
+                [
+                    (
+                        "Parapeto",
+                        [
+                            Grupo(
+                                f"Parapeto (área efectiva: "
+                                f"{edificio.area_parapeto:g} m²)",
+                                [
+                                    tablas.tabla_parapeto_componentes(
+                                        filas_parapeto, unidades
+                                    )
+                                ],
+                                referencia=filas_parapeto[0].referencia,
+                            ),
+                            Nota(NOTA_PARAPETO_COMPONENTES, "Parapeto (Art. 5.6)"),
+                        ],
+                    )
+                ],
             )
         )
 
-    seccion = Seccion("Componentes y Revestimientos")
-    seccion.agregar(apilador_componentes(superficies))
-    seccion.agregar(
+    return [
+        SelectorComponentes(superficies),
         Nota(
             NOTA_MINIMAS_COMPONENTES,
             "Presiones de viento de diseño mínimas (Art. 5.2.2)",
-        )
-    )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        ),
+    ]

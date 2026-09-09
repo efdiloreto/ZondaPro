@@ -15,14 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tablas de resultados nativas y sus generadores.
+"""Tablas de resultados y sus generadores.
 
-`TablaResultados` es el reemplazo en pantalla de las tablas Markdown de
-las plantillas: mismas columnas, mismo formato de ``%.2f`` y la referencia
-al Reglamento en la subsección que la contiene. Cada función generadora
-porta un macro de ``macros.md`` y se alimenta de la `Tabla` plana de
-``zonda.cirsoc.resultados`` filtrada y agrupada, nunca de las estructuras
-anidadas del núcleo.
+Cada función generadora porta un bloque de reporte: mismas columnas,
+mismo formato de ``%.2f`` y la referencia al Reglamento que la acompaña.
+Se alimenta de la `Tabla` plana de ``zonda.cirsoc.resultados`` filtrada y
+agrupada, nunca de las estructuras anidadas del núcleo, y devuelve el
+modelo de :mod:`zonda.widgets.reportes.documento`: la vista lo muestra en
+una ``TablaResultados`` y el PDF lo convierte en tabla de
+``QTextDocument``.
 
 Los extremos de presión de cada tabla se resaltan con negrita y color —
 rojo para el empuje máximo, azul para la succión máxima, la misma
@@ -32,7 +33,6 @@ tooltip que lo dice en texto, para que el color no sea el único aviso.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -44,6 +44,7 @@ from zonda.enums import (
     Unidad,
 )
 from zonda.unidades import convertir_unidad
+from zonda.widgets.reportes.documento import Celda, Tabla
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -54,7 +55,9 @@ if TYPE_CHECKING:
         FilaComponentesCubiertaAislada,
         FilaCubiertaAislada,
         FilaEdificio,
-        Tabla,
+    )
+    from zonda.cirsoc.resultados import (
+        Tabla as TablaNucleo,
     )
 
 # El empuje máximo va en rojo y la succión máxima en azul: es la misma
@@ -67,14 +70,6 @@ _TOOLTIPS_EXTREMOS = {
     "maximo": "Máxima presión de diseño de esta tabla",
     "minimo": "Máxima succión de diseño de esta tabla",
 }
-
-
-@dataclass(frozen=True, slots=True)
-class Celda:
-    """Una celda de la tabla, con su texto y el resaltado si corresponde."""
-
-    texto: str
-    clase: str | None = None
 
 
 def numero(valor: float) -> str:
@@ -132,6 +127,13 @@ class TablaResultados(QtWidgets.QTableWidget):
         super().__init__(len(filas), len(columnas), parent)
         self.setProperty("class", "tabla-resultados")
         self._anchos_base: list[int] = []
+
+        # El contenido del reporte va un punto más grande que el resto de
+        # la interfaz; las alturas de fila se derivan de esta métrica, así
+        # que sube solo.
+        fuente = self.font()
+        fuente.setPointSize(fuente.pointSize() + 1)
+        self.setFont(fuente)
 
         self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
@@ -273,8 +275,8 @@ class TablaResultados(QtWidgets.QTableWidget):
 
 
 def tabla_presiones(
-    filas: Tabla[FilaEdificio], unidades: dict[str, Unidad]
-) -> TablaResultados:
+    filas: TablaNucleo[FilaEdificio], unidades: dict[str, Unidad]
+) -> Tabla:
     """La tabla de presiones de una superficie del edificio.
 
     Es el port del macro ``presiones`` de ``macros.md``: las columnas se
@@ -365,12 +367,12 @@ def tabla_presiones(
             celdas.append(Celda(numero(presiones_pos[indice]), clases_pos[indice]))
         filas_tabla.append(celdas)
 
-    return TablaResultados(columnas, filas_tabla)
+    return Tabla(columnas, filas_tabla)
 
 
 def tabla_parapeto_sprfv(
-    filas: Tabla[FilaEdificio], unidades: dict[str, Unidad]
-) -> TablaResultados:
+    filas: TablaNucleo[FilaEdificio], unidades: dict[str, Unidad]
+) -> Tabla:
     """La tabla del parapeto para SPRFV (Art. 2.4.5).
 
     El coeficiente GCpn es una presión neta combinada que ya incluye el
@@ -398,15 +400,15 @@ def tabla_parapeto_sprfv(
         ]
         for indice, fila in enumerate(filas)
     ]
-    return TablaResultados(
+    return Tabla(
         ["Caso", "Kz", "Kzt", "GCpn", f"qp ({unidad})", f"pp ({unidad})"],
         filas_tabla,
     )
 
 
 def tabla_parapeto_componentes(
-    filas: Tabla[FilaEdificio], unidades: dict[str, Unidad]
-) -> TablaResultados:
+    filas: TablaNucleo[FilaEdificio], unidades: dict[str, Unidad]
+) -> Tabla:
     """La tabla del parapeto para componentes y revestimientos (Art. 5.6).
 
     Muestra el desglose del coeficiente combinado en las presiones externas
@@ -444,7 +446,7 @@ def tabla_parapeto_componentes(
         ]
 
     filas_tabla = [celdas_parapeto(indice, fila) for indice, fila in enumerate(filas)]
-    return TablaResultados(
+    return Tabla(
         [
             "Caso",
             "Zona",
@@ -462,8 +464,8 @@ def tabla_parapeto_componentes(
 
 
 def tabla_cubierta_aislada(
-    filas: Tabla[FilaCubiertaAislada], unidades: dict[str, Unidad]
-) -> TablaResultados:
+    filas: TablaNucleo[FilaCubiertaAislada], unidades: dict[str, Unidad]
+) -> Tabla:
     """La tabla de presiones normales de la cubierta aislada.
 
     Args:
@@ -490,7 +492,7 @@ def tabla_cubierta_aislada(
         ]
         for indice, fila in enumerate(filas)
     ]
-    return TablaResultados(
+    return Tabla(
         [
             "Caso",
             "Zona",
@@ -506,8 +508,8 @@ def tabla_cubierta_aislada(
 
 
 def tabla_componentes_cubierta_aislada(
-    filas: Tabla[FilaComponentesCubiertaAislada], unidades: dict[str, Unidad]
-) -> TablaResultados:
+    filas: TablaNucleo[FilaComponentesCubiertaAislada], unidades: dict[str, Unidad]
+) -> Tabla:
     """La tabla de componentes y revestimientos de la cubierta aislada.
 
     Cada zona trae una fila con el coeficiente positivo y una con el
@@ -548,17 +550,17 @@ def tabla_componentes_cubierta_aislada(
                     Celda(numero(presiones[indice]), resaltados[indice]),
                 ]
             )
-    return TablaResultados(
+    return Tabla(
         ["Zona", "Kh", "Kzth", "CN", f"qh ({unidad})", f"p ({unidad})"],
         filas_tabla,
     )
 
 
 def tabla_cartel(
-    filas: Tabla[FilaCartel],
+    filas: TablaNucleo[FilaCartel],
     limites_regiones: dict,
     unidades: dict[str, Unidad],
-) -> TablaResultados:
+) -> Tabla:
     """La tabla de presiones del cartel para un caso de la Figura 4.4-1.
 
     Los Casos A y B traen una fila con la superficie completa; el Caso C
@@ -597,12 +599,12 @@ def tabla_cartel(
     else:
         columnas = ["Cf", f"qh ({unidad})", f"p ({unidad})"]
     columnas += ["Área (m²)", f"F ({unidad_fuerza})"]
-    return TablaResultados(columnas, filas_tabla)
+    return Tabla(columnas, filas_tabla)
 
 
 def tabla_constantes_terreno(
     constantes: Sequence[float],
-) -> TablaResultados:
+) -> Tabla:
     """Las constantes de exposición del terreno de la Tabla 1.6-1.
 
     Args:
@@ -612,7 +614,7 @@ def tabla_constantes_terreno(
     Returns:
         La tabla armada, de una fila.
     """
-    return TablaResultados(
+    return Tabla(
         [
             "α",
             "Zg (m)",
@@ -629,7 +631,7 @@ def tabla_constantes_terreno(
     )
 
 
-def tabla_rafaga(rafaga: Rafaga, flexibilidad: Flexibilidad) -> TablaResultados:
+def tabla_rafaga(rafaga: Rafaga, flexibilidad: Flexibilidad) -> Tabla:
     """Los parámetros del factor de ráfaga de una dirección de viento.
 
     Args:
@@ -652,10 +654,10 @@ def tabla_rafaga(rafaga: Rafaga, flexibilidad: Flexibilidad) -> TablaResultados:
         valores += [numero(parametros.gr), numero(parametros.r)]
     columnas += ["Q", "G"]
     valores += [numero(rafaga.factor_q), numero(rafaga.factor)]
-    return TablaResultados(columnas, [valores])
+    return Tabla(columnas, [valores])
 
 
-def tabla_topografia(topografia: Topografia, k3: float) -> TablaResultados:
+def tabla_topografia(topografia: Topografia, k3: float) -> Tabla:
     """Los parámetros del factor topográfico de la Figura 1.8-1.
 
     Args:
@@ -668,7 +670,7 @@ def tabla_topografia(topografia: Topografia, k3: float) -> TablaResultados:
     """
     parametros = topografia.parametros
     valores = [numero(parametro) for parametro in parametros[:-1]] + [numero(k3)]
-    return TablaResultados(
+    return Tabla(
         ["K1/(H/Lh)", "γ", "μ", "Lh (m)", "K1", "K2", "K3"],
         [valores],
     )

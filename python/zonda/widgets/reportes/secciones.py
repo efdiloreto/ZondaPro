@@ -15,18 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Bloques reutilizables que componen el reporte en pantalla.
+"""Bloques reutilizables del reporte en pantalla y su armado.
 
-Cada bloque es el equivalente nativo de lo que las plantillas Jinja arman
-para exportar: una `Seccion` es un encabezado de primer nivel, una
-`Subseccion` el título de una tabla con su referencia al Reglamento, una
-`Tarjeta` un valor destacado del resumen y una `Nota` el pie que explica
-los mínimos y las consideraciones del Reglamento.
+Los widgets (``Seccion``, ``Subseccion``, ``TablaDatos``, ``Tarjeta``,
+``Nota``) son la forma visual de los bloques del modelo de
+:mod:`zonda.widgets.reportes.documento`; ``armar_vista`` y
+``armar_pagina`` recorren el modelo y los instancian. El PDF recorre el
+mismo modelo sin pasar por acá.
 
 Los módulos por tipología (`edificio.py`, `cartel.py`,
-`cubierta_aislada.py`) combinan estos bloques con las tablas de
-`tablas.py`, y las secciones de datos de entrada compartidas viven en
-`comunes.py` para que ninguna tipología repita su armado.
+`cubierta_aislada.py`) arman el modelo con las tablas de `tablas.py`, y
+los grupos de datos de entrada compartidos viven en `comunes.py` para que
+ninguna tipología repita su armado.
 """
 
 from __future__ import annotations
@@ -37,9 +37,18 @@ from PyQt6 import QtCore, QtWidgets
 
 from zonda.enums import Unidad
 from zonda.recursos import icono
+from zonda.widgets.custom import crear_capsula, crear_segmento
+from zonda.widgets.reportes import documento
+from zonda.widgets.reportes.tablas import TablaResultados
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
+
+    from zonda.widgets.reportes.documento import Bloque, Documento, Pagina
+
+# El ancho que comparten el desplegable y la cápsula de superficies del
+# selector de componentes.
+ANCHO_SELECTOR = 260
 
 
 def unidades_desde_settings() -> dict[str, Unidad]:
@@ -56,6 +65,243 @@ def unidades_desde_settings() -> dict[str, Unidad]:
     finally:
         settings.endGroup()
     return {"fuerza": Unidad(fuerza), "presion": Unidad(presion)}
+
+
+# --- El armado de la vista desde el modelo -------------------------------
+
+
+def armar_vista(documento_reporte: Documento) -> list[tuple[str, QtWidgets.QWidget]]:
+    """Arma las páginas de la vista desde el modelo del documento.
+
+    Args:
+        documento_reporte: El documento a mostrar.
+
+    Returns:
+        Las páginas como pares de nombre de sección y widget, en el orden
+        del índice.
+    """
+    return [
+        (pagina.titulo, armar_pagina(pagina)) for pagina in documento_reporte.paginas
+    ]
+
+
+def armar_pagina(pagina: Pagina) -> QtWidgets.QWidget:
+    """Arma la página de una tipología desde el modelo.
+
+    Args:
+        pagina: La página a armar.
+
+    Returns:
+        El widget de la página, con sus secciones apiladas.
+    """
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(18)
+
+    seccion = Seccion(pagina.titulo, descripcion=pagina.descripcion)
+    _armar_bloques(pagina.bloques, seccion.agregar)
+    layout.addWidget(seccion)
+    layout.addStretch(1)
+    return contenedor
+
+
+def _armar_bloques(
+    bloques: list[Bloque], agregar: Callable[[QtWidgets.QWidget], None]
+) -> None:
+    """Convierte los bloques del modelo en widgets y los agrega.
+
+    Args:
+        bloques: Los bloques a convertir, en orden de lectura.
+        agregar: El callback que acomoda cada widget (el layout de la
+            sección, de la subsección o de la pestaña).
+    """
+    for bloque in bloques:
+        if isinstance(bloque, documento.Grupo):
+            subseccion = Subseccion(bloque.titulo, referencia=bloque.referencia)
+            _armar_bloques(bloque.bloques, subseccion.agregar)
+            agregar(subseccion)
+        elif isinstance(bloque, documento.Datos):
+            agregar(TablaDatos(bloque.filas))
+        elif isinstance(bloque, documento.Tabla):
+            agregar(TablaResultados(bloque.columnas, bloque.filas))
+        elif isinstance(bloque, documento.Tarjetas):
+            agregar(
+                fila_tarjetas(
+                    *[
+                        Tarjeta(
+                            tarjeta.titulo,
+                            tarjeta.valor,
+                            detalle=tarjeta.detalle,
+                            destacada=tarjeta.destacada,
+                        )
+                        for tarjeta in bloque.tarjetas
+                    ]
+                )
+            )
+        elif isinstance(bloque, documento.Nota):
+            agregar(Nota(bloque.texto, bloque.titulo))
+        elif isinstance(bloque, documento.Texto):
+            etiqueta = QtWidgets.QLabel(bloque.texto)
+            etiqueta.setWordWrap(True)
+            etiqueta.setTextFormat(QtCore.Qt.TextFormat.RichText)
+            agregar(etiqueta)
+        elif isinstance(bloque, documento.Titulo):
+            etiqueta = QtWidgets.QLabel(bloque.texto)
+            etiqueta.setProperty("class", "grupo-tabla")
+            agregar(etiqueta)
+        elif isinstance(bloque, documento.Pestanas):
+            agregar(_armar_pestanas(bloque))
+        elif isinstance(bloque, documento.SelectorComponentes):
+            agregar(_armar_selector(bloque))
+
+
+def _armar_pestanas(pestanas: documento.Pestanas) -> QtWidgets.QTabWidget:
+    """Convierte un bloque de pestañas en un ``QTabWidget``.
+
+    Args:
+        pestanas: El bloque con el contenido de cada pestaña.
+
+    Returns:
+        El widget con las pestañas.
+    """
+    pestañas = QtWidgets.QTabWidget()
+    for etiqueta, bloques in pestanas.items:
+        contenedor = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(contenedor)
+        # El margen separa el contenido del pane de la pestaña, que es el
+        # borde que dibuja el QTabWidget a su alrededor.
+        layout.setContentsMargins(9, 9, 9, 9)
+        layout.setSpacing(12)
+        _armar_bloques(bloques, layout.addWidget)
+        layout.addStretch(1)
+        pestañas.addTab(contenedor, etiqueta)
+    return pestañas
+
+
+def _armar_selector(selector: documento.SelectorComponentes) -> QtWidgets.QWidget:
+    """Convierte el selector de componentes en cápsula y desplegable.
+
+    Args:
+        selector: El bloque con las superficies y sus componentes.
+
+    Returns:
+        El widget con los selectores y el apilador de contenido.
+    """
+    superficies = []
+    for superficie in selector.superficies:
+        nombres = [nombre for nombre, _ in superficie.componentes]
+        páginas = [_armar_contenido(bloques) for _, bloques in superficie.componentes]
+        superficies.append((superficie.etiqueta, nombres, páginas))
+    return apilador_componentes(superficies)
+
+
+def _armar_contenido(bloques: list[Bloque]) -> QtWidgets.QWidget:
+    """El contenido de una pestaña o de un componente, apilado.
+
+    Args:
+        bloques: Los bloques del contenido.
+
+    Returns:
+        El widget con los bloques.
+    """
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(12)
+    _armar_bloques(bloques, layout.addWidget)
+    layout.addStretch(1)
+    return contenedor
+
+
+def apilador_componentes(
+    superficies: list[tuple[str, list[str], list[QtWidgets.QWidget]]],
+) -> QtWidgets.QWidget:
+    """El selector de componentes de la página de C&R.
+
+    Muestra de a un componente por vez: una cápsula segmentada elige la
+    superficie cuando hay más de una —pared o cubierta en el edificio— y
+    un desplegable elige el componente; el contenido de cada uno va en un
+    apilador. Cuando sólo hay una superficie la cápsula no aparece y si
+    además no tiene componentes —un parapeto solo— la fila de selectores
+    se omite.
+
+    Args:
+        superficies: Por cada superficie, su etiqueta, los nombres de sus
+            componentes y la página de cada uno, en el mismo orden.
+
+    Returns:
+        El widget con los selectores y el apilador de contenido.
+    """
+    apilador = QtWidgets.QStackedWidget()
+    arranques: list[int] = []
+    for _, _, páginas in superficies:
+        arranques.append(apilador.count())
+        for página in páginas:
+            apilador.addWidget(página)
+
+    combo = QtWidgets.QComboBox()
+    combo.setProperty("class", "selector-componente")
+    combo.setMinimumWidth(ANCHO_SELECTOR)
+
+    fila_selectores = QtWidgets.QWidget()
+    layout_selectores = QtWidgets.QHBoxLayout(fila_selectores)
+    layout_selectores.setContentsMargins(0, 0, 0, 0)
+    layout_selectores.setSpacing(9)
+
+    grupo: QtWidgets.QButtonGroup | None = None
+    if len(superficies) > 1:
+        grupo = QtWidgets.QButtonGroup(fila_selectores)
+        grupo.setExclusive(True)
+        segmentos = []
+        for indice, (etiqueta, _, _) in enumerate(superficies):
+            segmento = crear_segmento(etiqueta)
+            # Más bajo que los del panel: acá es un selector de página,
+            # no la barra principal.
+            segmento.setProperty("compacto", True)
+            segmento.setChecked(indice == 0)
+            grupo.addButton(segmento, indice)
+            segmentos.append(segmento)
+        # La cápsula entera mide lo mismo que el desplegable: los
+        # segmentos reparten el ancho, con la letra baja del QSS.
+        ancho_segmento = (ANCHO_SELECTOR - 3 * (len(segmentos) - 1)) // len(segmentos)
+        for segmento in segmentos:
+            segmento.setFixedWidth(ancho_segmento)
+        layout_selectores.addWidget(crear_capsula(*segmentos))
+    layout_selectores.addWidget(combo)
+    layout_selectores.addStretch(1)
+
+    estado = {"superficie": 0}
+
+    def _mostrar_superficie(indice: int) -> None:
+        """Conmuta la superficie: repuebla el desplegable con sus
+        componentes y muestra el primero."""
+        estado["superficie"] = indice
+        nombres = superficies[indice][1]
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItems(nombres)
+        combo.blockSignals(False)
+        combo.setVisible(bool(nombres))
+        apilador.setCurrentIndex(arranques[indice])
+
+    def _mostrar_componente(indice: int) -> None:
+        """Muestra la página del componente elegido de la superficie."""
+        apilador.setCurrentIndex(arranques[estado["superficie"]] + indice)
+
+    if grupo is not None:
+        grupo.idClicked.connect(_mostrar_superficie)
+    combo.currentIndexChanged.connect(_mostrar_componente)
+    _mostrar_superficie(0)
+
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(9)
+    if grupo is not None or any(nombres for _, nombres, _ in superficies):
+        layout.addWidget(fila_selectores)
+    layout.addWidget(apilador)
+    return contenedor
 
 
 class Seccion(QtWidgets.QWidget):
@@ -144,12 +390,13 @@ class Subseccion(QtWidgets.QFrame):
         layout.setSpacing(7)
 
         fila_titulo = QtWidgets.QHBoxLayout()
-        etiqueta_titulo = QtWidgets.QLabel(titulo)
-        etiqueta_titulo.setProperty("class", "subseccion-titulo")
-        # Sin ajuste de línea: un título con word-wrap dentro de esta fila
-        # achica el ancho que pide y se parte en dos aunque la tarjeta sobre
-        # de ancho. Los títulos son de una línea por diseño.
-        fila_titulo.addWidget(etiqueta_titulo)
+        if titulo:
+            etiqueta_titulo = QtWidgets.QLabel(titulo)
+            etiqueta_titulo.setProperty("class", "subseccion-titulo")
+            # Sin ajuste de línea: un título con word-wrap dentro de esta fila
+            # achica el ancho que pide y se parte en dos aunque la tarjeta sobre
+            # de ancho. Los títulos son de una línea por diseño.
+            fila_titulo.addWidget(etiqueta_titulo)
         fila_titulo.addStretch()
         if referencia:
             etiqueta_referencia = QtWidgets.QLabel(f"Ref: {referencia}")
@@ -186,6 +433,12 @@ class TablaDatos(QtWidgets.QWidget):
             parent: El widget parent.
         """
         super().__init__(parent)
+
+        # El contenido del reporte va un punto más grande que el resto de
+        # la interfaz: es la letra que se lee de corrido, no la del chrome.
+        fuente = self.font()
+        fuente.setPointSize(fuente.pointSize() + 1)
+        self.setFont(fuente)
 
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

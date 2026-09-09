@@ -17,11 +17,11 @@
 
 """La vista del reporte en pantalla.
 
-Es el reemplazo del visor web: un encabezado con el título del reporte y
-la acción de exportar, una columna con las secciones —el índice del
-documento— y las páginas correspondientes en un apilador. Las páginas las
-arma cada tipología (`edificio.py`, `cartel.py`, `cubierta_aislada.py`)
-con los bloques de `secciones.py` y `tablas.py`; esta vista sólo sabe
+Es un encabezado con el título del reporte y la acción de exportar, una
+columna con las secciones —el índice del documento— y las páginas
+correspondientes en un apilador. Las páginas salen del modelo de
+:mod:`zonda.widgets.reportes.documento`, armado por cada tipología
+(`edificio.py`, `cartel.py`, `cubierta_aislada.py`); esta vista sólo sabe
 acomodarlas y navegarlas.
 """
 
@@ -32,12 +32,10 @@ from typing import TYPE_CHECKING
 from PyQt6 import QtCore, QtWidgets
 
 from zonda.widgets.reportes.exportacion import DialogoExportacion
-from zonda.widgets.reportes.secciones import unidades_desde_settings
+from zonda.widgets.reportes.secciones import armar_vista
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
+    from zonda.widgets.reportes.documento import Documento
 
 ANCHO_MENU = 190
 
@@ -46,30 +44,20 @@ class VistaReporte(QtWidgets.QWidget):
     """El reporte de resultados con widgets nativos.
 
     Args:
-        estructura: La estructura calculada de donde salen los valores.
-        plantilla: La plantilla del reporte exportado, que el diálogo de
-            exportación usa tal como la usa el visor web que reemplazó.
-        titulo: El título del encabezado.
-        paginas: Las páginas del reporte, como pares de nombre de sección
-            y widget, en el orden del índice.
+        documento: El modelo del documento a mostrar.
         parent: El widget parent.
     """
 
     def __init__(
         self,
-        estructura: Edificio | Cartel | CubiertaAislada,
-        plantilla: str,
-        titulo: str,
-        paginas: Sequence[tuple[str, QtWidgets.QWidget]],
+        documento: Documento,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
 
-        self._estructura = estructura
-        self._plantilla = plantilla
-        self._unidades = unidades_desde_settings()
+        self._documento = documento
 
-        etiqueta_titulo = QtWidgets.QLabel(titulo)
+        etiqueta_titulo = QtWidgets.QLabel(documento.titulo)
         etiqueta_titulo.setProperty("class", "reporte-titulo")
 
         etiqueta_codigo = QtWidgets.QLabel("CIRSOC 102-2025")
@@ -102,7 +90,7 @@ class VistaReporte(QtWidgets.QWidget):
         )
 
         self._paginas = QtWidgets.QStackedWidget()
-        for nombre, pagina in paginas:
+        for nombre, pagina in armar_vista(documento):
             self._menu.addItem(nombre)
             self._paginas.addWidget(self._envolver_en_scroll(pagina))
 
@@ -134,7 +122,7 @@ class VistaReporte(QtWidgets.QWidget):
         """Envuelve una página en un área de desplazamiento.
 
         Args:
-            pagina: La página armada por la tipología.
+            pagina: La página armada desde el modelo.
 
         Returns:
             El área lista para el apilador.
@@ -150,24 +138,4 @@ class VistaReporte(QtWidgets.QWidget):
 
     def _exportar(self) -> None:
         """Abre el diálogo de exportación del reporte."""
-        DialogoExportacion(
-            self,
-            self._estructura,
-            self._plantilla,
-            self._unidades,
-            nombre_proyecto=self._nombre_proyecto(),
-        )
-
-    def _nombre_proyecto(self) -> str:
-        """El nombre para prellenar el proyecto del informe.
-
-        La vista vive dentro de la ventana del módulo, que es quien sabe
-        el archivo ``.zda`` abierto. La pregunta va por duck typing para
-        no acoplar el reporte al módulo: si la ventana no sabe
-        responder, el campo arranca vacío.
-
-        Returns:
-            El nombre del archivo sin extensión, o una cadena vacía.
-        """
-        nombre_archivo = getattr(self.window(), "nombre_archivo", None)
-        return nombre_archivo() if callable(nombre_archivo) else ""
+        DialogoExportacion(self, self._documento)

@@ -19,10 +19,10 @@
 
 Como el reporte nativo lee ``estructura.resultados*`` filtrando y
 agrupando la tabla plana, acá se verifica que las tablas muestren las
-mismas filas que las plantillas de exportación, que los extremos queden
-resaltados y que las páginas de cada tipología armen sus secciones. Son
-widgets puros: no necesitan OpenGL ni pandoc (éste sólo participa al
-exportar, y lo cubre ``test_reportes.py``).
+mismas filas que viajan al PDF, que los extremos queden resaltados y que
+las páginas de cada tipología armen sus secciones. Son widgets puros: no
+necesitan OpenGL (la exportación a PDF la cubre ``test_reportes.py``
+desde el mismo modelo de documento).
 """
 
 import pytest
@@ -47,10 +47,10 @@ from zonda.widgets.reportes import (
     edificio as reporte_edificio,
 )
 from zonda.widgets.reportes import exportacion, tablas
+from zonda.widgets.reportes.documento import Tabla as TablaModelo
 from zonda.widgets.reportes.exportacion import DialogoExportacion
 from zonda.widgets.reportes.navegacion import VistaReporte
-from zonda.widgets.reportes.secciones import unidades_desde_settings
-from zonda.widgets.reportes.tablas import TablaResultados
+from zonda.widgets.reportes.secciones import TablaResultados, unidades_desde_settings
 
 from .conftest import SIN_OPENGL
 
@@ -61,6 +61,22 @@ necesita_opengl = pytest.mark.skipif(
 
 
 # --- Helpers -------------------------------------------------------------
+
+
+def tabla_widget(modelo: TablaModelo) -> TablaResultados:
+    """La vista de una tabla del modelo.
+
+    Los generadores de ``tablas.py`` devuelven el modelo, que la vista y
+    el PDF consumen por igual; las pruebas de comportamiento de la vista
+    necesitan el widget.
+
+    Args:
+        modelo: La tabla del documento.
+
+    Returns:
+        La tabla armada como widget.
+    """
+    return TablaResultados(modelo.columnas, modelo.filas)
 
 
 def subsecciones(widget: QtWidgets.QWidget) -> list[str]:
@@ -158,7 +174,7 @@ def test_las_filas_tienen_aire_y_la_tabla_ocupa_el_ancho(qapp, edificio):
         zona=ZonaEdificio.PAREDES,
         pared=ParedEdificioSprfv.BARLOVENTO,
     )
-    tabla = tablas.tabla_presiones(barlovento, unidades_desde_settings())
+    tabla = tabla_widget(tablas.tabla_presiones(barlovento, unidades_desde_settings()))
     assert all(tabla.rowHeight(fila) >= 28 for fila in range(tabla.rowCount()))
 
     # Un widget oculto no recibe resizeEvent, así que la prueba la muestra
@@ -195,7 +211,7 @@ def test_los_extremos_de_la_columna_quedan_resaltados(qapp, edificio):
         direccion=DireccionVientoMetodoDireccionalSprfv.PARALELO,
         zona=ZonaEdificio.CUBIERTA,
     ).agrupar("posicion", "caso")[0]
-    tabla = tablas.tabla_presiones(filas, unidades_desde_settings())
+    tabla = tabla_widget(tablas.tabla_presiones(filas, unidades_desde_settings()))
     indice_pos = tabla.columnCount() - 2
     indice_neg = tabla.columnCount() - 1
 
@@ -219,7 +235,7 @@ def test_la_tabla_de_presiones_adapta_las_columnas(qapp, edificio):
         zona=ZonaEdificio.PAREDES,
         pared=ParedEdificioSprfv.BARLOVENTO,
     )
-    tabla = tablas.tabla_presiones(barlovento, unidades)
+    tabla = tabla_widget(tablas.tabla_presiones(barlovento, unidades))
     assert tabla.horizontalHeaderItem(0).text() == "Alturas (m)"
     assert tabla.rowCount() == len({fila.q.altura for fila in barlovento})
     assert tabla.horizontalHeaderItem(5).text().startswith("pn [+GCpi]")
@@ -235,7 +251,7 @@ def test_el_positivo_propio_de_la_zona_dice_positiva(qapp, edificio_con_parapeto
         zona=ZonaEdificio.CUBIERTA
     )
     for _, filas in componentes.agrupar("pared", "componente"):
-        tabla = tablas.tabla_presiones(filas, unidades_desde_settings())
+        tabla = tabla_widget(tablas.tabla_presiones(filas, unidades_desde_settings()))
         etiquetas = textos_de_columna(tabla, 0)
         assert "2 (positiva)" in etiquetas
         assert "3 (positiva)" in etiquetas
@@ -250,7 +266,9 @@ def test_la_tabla_de_componentes_de_cubierta_aislada_trae_ambos_signos(
     filas = cubierta_aislada_con_componentes.resultados_componentes.filtrar(
         componente="Chapa"
     )
-    tabla = tablas.tabla_componentes_cubierta_aislada(filas, unidades_desde_settings())
+    tabla = tabla_widget(
+        tablas.tabla_componentes_cubierta_aislada(filas, unidades_desde_settings())
+    )
     etiquetas = textos_de_columna(tabla, 0)
     assert "1 (positiva)" in etiquetas
     assert "1 (negativa)" in etiquetas
@@ -260,7 +278,9 @@ def test_la_tabla_de_cubierta_aislada_trae_friccion(qapp, cubierta_aislada):
     filas = cubierta_aislada.resultados.filtrar(
         direccion=DireccionVientoCubiertaAislada.GAMMA_0
     )
-    tabla = tablas.tabla_cubierta_aislada(filas, unidades_desde_settings())
+    tabla = tabla_widget(
+        tablas.tabla_cubierta_aislada(filas, unidades_desde_settings())
+    )
     indice_friccion = tabla.columnCount() - 1
     esperado = f"{filas[0].presion_friccion:.2f}"
     assert all(texto == esperado for texto in textos_de_columna(tabla, indice_friccion))
@@ -271,13 +291,17 @@ def test_la_tabla_del_cartel_trae_las_regiones_del_caso_c(qapp, cartel):
 
     unidades = unidades_desde_settings()
     caso_a = cartel.resultados.filtrar(caso=CasoCartel.CASO_A)
-    tabla = tablas.tabla_cartel(caso_a, cartel.cf.limites_regiones, unidades)
+    tabla = tabla_widget(
+        tablas.tabla_cartel(caso_a, cartel.cf.limites_regiones, unidades)
+    )
     assert tabla.columnCount() == 5
     assert tabla.rowCount() == 1
 
     if cartel.cf.aplica_caso_c:
         caso_c = cartel.resultados.filtrar(caso=CasoCartel.CASO_C)
-        tabla_c = tablas.tabla_cartel(caso_c, cartel.cf.limites_regiones, unidades)
+        tabla_c = tabla_widget(
+            tablas.tabla_cartel(caso_c, cartel.cf.limites_regiones, unidades)
+        )
         assert tabla_c.rowCount() == len(caso_c)
         assert tabla_c.item(0, 0).text().endswith("m")
 
@@ -295,7 +319,7 @@ def test_la_tabla_de_rafaga_de_estructura_flexible_trae_resonancia(qapp):
         False,
         CategoriaExposicion.B,
     )
-    tabla = tablas.tabla_rafaga(flexible, Flexibilidad.FLEXIBLE)
+    tabla = tabla_widget(tablas.tabla_rafaga(flexible, Flexibilidad.FLEXIBLE))
     titulos = [
         tabla.horizontalHeaderItem(columna).text()
         for columna in range(tabla.columnCount())
@@ -315,7 +339,7 @@ def test_la_tabla_de_rafaga_de_estructura_flexible_trae_resonancia(qapp):
         False,
         CategoriaExposicion.B,
     )
-    tabla = tablas.tabla_rafaga(rigida, Flexibilidad.RIGIDA)
+    tabla = tabla_widget(tablas.tabla_rafaga(rigida, Flexibilidad.RIGIDA))
     titulos = [
         tabla.horizontalHeaderItem(columna).text()
         for columna in range(tabla.columnCount())
@@ -324,9 +348,11 @@ def test_la_tabla_de_rafaga_de_estructura_flexible_trae_resonancia(qapp):
 
 
 def test_la_tabla_topografica_muestra_los_parametros(qapp, cartel_con_topografia):
-    tabla = tablas.tabla_topografia(
-        cartel_con_topografia.topografia,
-        cartel_con_topografia.topografia.parametros.k3[-1],
+    tabla = tabla_widget(
+        tablas.tabla_topografia(
+            cartel_con_topografia.topografia,
+            cartel_con_topografia.topografia.parametros.k3[-1],
+        )
     )
     assert tabla.rowCount() == 1
     assert tabla.columnCount() == 7
@@ -490,53 +516,33 @@ def test_la_topografia_considerada_muestra_la_tabla(qapp, cartel_con_topografia)
 
 
 def test_el_dialogo_de_exportacion_muestra_lo_que_corresponde(qapp, edificio):
-    dialogo = DialogoExportacion(
-        None,
-        edificio,
-        "edificio.md",
-        unidades_desde_settings(),
-        nombre_proyecto="Mi Proyecto",
-    )
+    dialogo = DialogoExportacion(None, reporte_edificio.documento(edificio))
     try:
-        # Sin formatos que elegir: el papel y el aviso de LaTeX están
-        # siempre, porque la salida única es el PDF.
+        # El diálogo sólo deja elegir el papel: los márgenes y el pie los
+        # fija el exportador.
         assert not dialogo._boton_configurar_pagina.isHidden()
-        assert not dialogo._label_aviso_latex.isHidden()
-
-        # Los datos del informe: el nombre llega prellenado del archivo
-        # abierto y el resto arranca vacío.
-        assert dialogo._edicion_nombre.text() == "Mi Proyecto"
-        assert dialogo._edicion_proyectista.text() == ""
-        assert dialogo._edicion_empresa.text() == ""
-        assert dialogo._edicion_ubicacion.text() == ""
-        assert dialogo._edicion_observaciones.toPlainText() == ""
+        assert not hasattr(dialogo, "_edicion_nombre")
+        assert not hasattr(dialogo, "_edicion_observaciones")
     finally:
         dialogo.close()
         dialogo.deleteLater()
 
 
-def test_el_dialogo_de_exportacion_usa_los_datos_tipeados(qapp, edificio, monkeypatch):
-    """Al exportar, el reporte se arma recién con los datos del informe
-    tal como quedaron en los campos, y se convierte a PDF."""
+def test_el_dialogo_de_exportacion_exporta_el_documento(qapp, edificio, monkeypatch):
+    """Al exportar, el documento modelo viaja al exportador de PDF junto
+    con la ruta elegida."""
     capturado: dict = {}
 
-    class ReporteStub:
-        def __init__(self, plantilla, estructura, unidades, datos_proyecto=None):
-            capturado["datos_proyecto"] = datos_proyecto
+    def exportar(documento, ruta, layout=None):
+        capturado["documento"] = documento
+        capturado["ruta"] = ruta
 
-        def exportar(self, formato, nombre_archivo=None, **kwargs):
-            capturado["formato"] = formato
-            capturado["nombre_archivo"] = nombre_archivo
-
-    monkeypatch.setattr(exportacion, "Reporte", ReporteStub)
+    monkeypatch.setattr(exportacion.pdf, "exportar_pdf", exportar)
     monkeypatch.setattr(exportacion, "AvisoExito", lambda *args, **kwargs: None)
 
-    dialogo = DialogoExportacion(
-        None, edificio, "edificio.md", unidades_desde_settings()
-    )
+    documento = reporte_edificio.documento(edificio)
+    dialogo = DialogoExportacion(None, documento)
     try:
-        dialogo._edicion_nombre.setText("Proyecto X")
-        dialogo._edicion_observaciones.setPlainText("Sin observaciones.")
         dialogo._dialogo_guardar_archivo.getSaveFileName = lambda *args, **kwargs: (
             "/tmp/reporte.pdf",
             "PDF (*.pdf)",
@@ -546,11 +552,8 @@ def test_el_dialogo_de_exportacion_usa_los_datos_tipeados(qapp, edificio, monkey
         dialogo.close()
         dialogo.deleteLater()
 
-    assert capturado["formato"] == "pdf"
-    assert capturado["nombre_archivo"] == "/tmp/reporte.pdf"
-    assert capturado["datos_proyecto"]["nombre"] == "Proyecto X"
-    assert capturado["datos_proyecto"]["observaciones"] == "Sin observaciones."
-    assert capturado["datos_proyecto"]["proyectista"] == ""
+    assert capturado["ruta"] == "/tmp/reporte.pdf"
+    assert capturado["documento"] is documento
 
 
 # --- La integración con la pantalla de resultados -----------------------

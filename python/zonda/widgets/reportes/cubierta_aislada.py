@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-"""La página de reporte de la cubierta aislada.
+"""El documento de reporte de la cubierta aislada.
 
-Arma las secciones que la plantilla ``cubierta-aislada.md`` exporta: el
-resumen, los datos de entrada, los parámetros de cálculo, las presiones
-normales por dirección del viento, las presiones laterales de cenefas,
-parapetos y tímpanos con las fuerzas de fricción, y los componentes y
-revestimientos de las Figuras 5.5-1 a 5.5-3.
+Arma las páginas del modelo: el resumen, los datos de entrada, los
+parámetros de cálculo, las presiones normales por dirección del viento,
+las presiones laterales de cenefas, parapetos y tímpanos con las fuerzas
+de fricción, y los componentes y revestimientos de las Figuras 5.5-1 a
+5.5-3. La vista y el PDF lo consumen sin conocerse entre sí.
 """
 
 from __future__ import annotations
@@ -29,40 +29,38 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from PyQt6 import QtWidgets
-
 from zonda.enums import DireccionVientoCubiertaAislada, Unidad
 from zonda.excepciones import ErrorLineamientos
 from zonda.unidades import convertir_unidad
 from zonda.widgets.reportes import tablas
 from zonda.widgets.reportes.comunes import (
-    apilador_componentes,
-    pagina,
-    seccion_rafaga,
-    seccion_topografia,
-    seccion_viento,
-    subseccion_constantes_terreno,
-    subseccion_factor_rafaga,
-    subseccion_factor_topografico,
+    grupo_constantes_terreno,
+    grupo_factor_rafaga,
+    grupo_factor_topografico,
+    grupo_rafaga,
+    grupo_topografia,
+    grupo_viento,
+)
+from zonda.widgets.reportes.documento import (
+    Bloque,
+    Datos,
+    Documento,
+    Grupo,
+    Nota,
+    Pagina,
+    Pestanas,
+    SelectorComponentes,
+    Superficie,
+    Tarjeta,
+    Tarjetas,
+    Texto,
 )
 from zonda.widgets.reportes.navegacion import VistaReporte
-from zonda.widgets.reportes.secciones import (
-    Nota,
-    Seccion,
-    Subseccion,
-    TablaDatos,
-    Tarjeta,
-    fila_tarjetas,
-    unidades_desde_settings,
-)
+from zonda.widgets.reportes.secciones import unidades_desde_settings
 
 if TYPE_CHECKING:
     from zonda.cirsoc import CubiertaAislada
-    from zonda.cirsoc.resultados import (
-        FilaComponentesCubiertaAislada,
-        FilaCubiertaAislada,
-        Tabla,
-    )
+    from zonda.cirsoc.resultados import FilaCubiertaAislada
 
 TEXTO_RAFAGA_SIMPLIFICADA = (
     "Se adopta el factor de efecto de ráfaga simplificado G = 0.85, según "
@@ -126,27 +124,39 @@ def vista(cubierta_aislada: CubiertaAislada) -> VistaReporte:
     Returns:
         La vista con sus páginas.
     """
+    return VistaReporte(documento(cubierta_aislada))
+
+
+def documento(cubierta_aislada: CubiertaAislada) -> Documento:
+    """Arma el documento de reporte de la cubierta aislada.
+
+    Args:
+        cubierta_aislada: La cubierta aislada calculada.
+
+    Returns:
+        El documento con sus páginas.
+    """
     unidades = unidades_desde_settings()
-    paginas: list[tuple[str, QtWidgets.QWidget]] = [
-        ("Resumen", _pagina_resumen(cubierta_aislada, unidades)),
-        ("Datos de entrada", _pagina_datos(cubierta_aislada)),
-        ("Parámetros de cálculo", _pagina_parametros(cubierta_aislada)),
-        ("Presiones normales", _pagina_normales(cubierta_aislada, unidades)),
-        ("Presiones laterales", _pagina_laterales(cubierta_aislada, unidades)),
+    paginas = [
+        Pagina(
+            "Resumen", _bloques_resumen(cubierta_aislada, unidades), exportable=False
+        ),
+        Pagina("Datos de entrada", _bloques_datos(cubierta_aislada)),
+        Pagina("Parámetros de cálculo", _bloques_parametros(cubierta_aislada)),
+        Pagina(
+            "Presiones normales",
+            _bloques_normales(cubierta_aislada, unidades),
+            descripcion=DESCRIPCION_NORMALES,
+        ),
+        Pagina("Presiones laterales", _bloques_laterales(cubierta_aislada, unidades)),
     ]
-    pagina_componentes = None
     with contextlib.suppress(ErrorLineamientos):
         # Sin lineamientos para componentes, el resto del reporte sigue
         # siendo válido y la página simplemente no aparece.
-        pagina_componentes = _pagina_componentes(cubierta_aislada, unidades)
-    if pagina_componentes is not None:
-        paginas.append(("Componentes (C&R)", pagina_componentes))
-    return VistaReporte(
-        cubierta_aislada,
-        "cubierta-aislada.md",
-        "PRESIONES DE VIENTO — CUBIERTA AISLADA",
-        paginas,
-    )
+        bloques_componentes = _bloques_componentes(cubierta_aislada, unidades)
+        if bloques_componentes is not None:
+            paginas.append(Pagina("Componentes (C&R)", bloques_componentes))
+    return Documento("PRESIONES DE VIENTO — CUBIERTA AISLADA", paginas)
 
 
 def _ubicacion(fila: FilaCubiertaAislada) -> str:
@@ -166,40 +176,41 @@ def _ubicacion(fila: FilaCubiertaAislada) -> str:
     return ", ".join(partes)
 
 
-def _pagina_resumen(
+def _bloques_resumen(
     cubierta_aislada: CubiertaAislada, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget:
-    """La página con los valores clave del cálculo.
+) -> list[Bloque]:
+    """Los bloques con los valores clave del cálculo.
 
     Args:
         cubierta_aislada: La cubierta aislada calculada.
-        unidades: Las unidades a mostrar.
+        unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada.
+        Los bloques de la página de resumen.
     """
     unidad = f"{unidades['presion'].value}/m²"
     minimo, maximo = cubierta_aislada.resultados.min_max()
-    seccion = Seccion("Resumen")
-    seccion.agregar(
-        fila_tarjetas(
-            Tarjeta("Velocidad básica", f"{cubierta_aislada.velocidad:.2f} m/s"),
-            Tarjeta(
-                "Presión dinámica, qh",
-                f"{convertir_unidad(cubierta_aislada.resultados[0].q.valor, unidades['presion']):.2f} {unidad}",
-            ),
-            Tarjeta("Factor de ráfaga, G", f"{cubierta_aislada.rafaga.factor:.2f}"),
-            Tarjeta(
-                "Bloqueo",
-                f"{cubierta_aislada.geometria.bloqueo:.0f} %",
-                detalle=(
-                    "flujo de viento obstruido"
-                    if cubierta_aislada.geometria.con_bloqueo
-                    else "flujo de viento libre"
+    bloques: list[Bloque] = [
+        Tarjetas(
+            [
+                Tarjeta("Velocidad básica", f"{cubierta_aislada.velocidad:.2f} m/s"),
+                Tarjeta(
+                    "Presión dinámica, qh",
+                    f"{convertir_unidad(cubierta_aislada.resultados[0].q.valor, unidades['presion']):.2f} {unidad}",
                 ),
-            ),
+                Tarjeta("Factor de ráfaga, G", f"{cubierta_aislada.rafaga.factor:.2f}"),
+                Tarjeta(
+                    "Bloqueo",
+                    f"{cubierta_aislada.geometria.bloqueo:.0f} %",
+                    detalle=(
+                        "flujo de viento obstruido"
+                        if cubierta_aislada.geometria.con_bloqueo
+                        else "flujo de viento libre"
+                    ),
+                ),
+            ]
         )
-    )
+    ]
     tarjetas_extremos: list[Tarjeta] = []
     if maximo > 0:
         fila_max = next(
@@ -226,232 +237,193 @@ def _pagina_resumen(
             )
         )
     if tarjetas_extremos:
-        seccion.agregar(fila_tarjetas(*tarjetas_extremos))
-    seccion.agregar(
+        bloques.append(Tarjetas(tarjetas_extremos))
+    bloques.append(
         Nota(NOTA_MINIMAS_SPRFV, "Cargas de viento de diseño mínimas (Art. 2.1.5)")
     )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+    return bloques
 
 
-def _pagina_datos(cubierta_aislada: CubiertaAislada) -> QtWidgets.QWidget:
-    """La página con el reglamento y los datos de entrada.
-
-    Args:
-        cubierta_aislada: La cubierta aislada calculada.
-
-    Returns:
-        La página armada.
-    """
-    seccion_reglamento = Seccion("Reglamento")
-    seccion_reglamento.agregar(TablaDatos((("Referencia", "Cap. 2, Art. 2.4.3"),)))
-
-    seccion_cubierta = Seccion("Cubierta Aislada")
-    seccion_cubierta.agregar(
-        TablaDatos(
-            (
-                ("Ancho", f"{cubierta_aislada.ancho:.2f} m"),
-                ("Longitud", f"{cubierta_aislada.longitud:.2f} m"),
-                ("Altura de alero", f"{cubierta_aislada.altura_alero:.2f} m"),
-                ("Altura de cumbrera", f"{cubierta_aislada.altura_cumbrera:.2f} m"),
-                (
-                    "Tipo de cubierta",
-                    cubierta_aislada.geometria.tipo_cubierta.value.capitalize(),
-                ),
-            )
-        )
-    )
-
-    return pagina(
-        seccion_reglamento,
-        seccion_cubierta,
-        seccion_viento(cubierta_aislada),
-        seccion_rafaga(cubierta_aislada, TEXTO_RAFAGA_SIMPLIFICADA),
-        seccion_topografia(cubierta_aislada),
-    )
-
-
-def _pagina_parametros(cubierta_aislada: CubiertaAislada) -> QtWidgets.QWidget:
-    """La página con los parámetros intermedios del cálculo.
+def _bloques_datos(cubierta_aislada: CubiertaAislada) -> list[Bloque]:
+    """Los bloques con el reglamento y los datos de entrada.
 
     Args:
         cubierta_aislada: La cubierta aislada calculada.
 
     Returns:
-        La página armada.
+        Los bloques de la página de datos.
     """
-    subseccion_cubierta = Subseccion("Cubierta")
-    subseccion_cubierta.agregar(
-        TablaDatos(
-            (
-                ("Ángulo de cubierta", f"{cubierta_aislada.geometria.angulo:.2f}°"),
-                (
-                    "Altura media de cubierta",
-                    f"{cubierta_aislada.geometria.altura_media:.2f} m",
-                ),
-                ("Bloqueo", f"{cubierta_aislada.geometria.bloqueo:.0f} %"),
-                (
-                    "Flujo de viento",
-                    "obstruido" if cubierta_aislada.geometria.con_bloqueo else "libre",
-                ),
-                (
-                    "Factor de direccionalidad, Kd",
-                    f"{cubierta_aislada.presiones.factor_direccionalidad:.2f}",
-                ),
-            )
-        )
-    )
+    return [
+        Grupo(
+            "Cubierta Aislada",
+            [
+                Datos(
+                    (
+                        ("Ancho", f"{cubierta_aislada.ancho:.2f} m"),
+                        ("Longitud", f"{cubierta_aislada.longitud:.2f} m"),
+                        ("Altura de alero", f"{cubierta_aislada.altura_alero:.2f} m"),
+                        (
+                            "Altura de cumbrera",
+                            f"{cubierta_aislada.altura_cumbrera:.2f} m",
+                        ),
+                        (
+                            "Tipo de cubierta",
+                            cubierta_aislada.geometria.tipo_cubierta.value.capitalize(),
+                        ),
+                    )
+                )
+            ],
+        ),
+        grupo_viento(cubierta_aislada),
+        grupo_rafaga(cubierta_aislada, TEXTO_RAFAGA_SIMPLIFICADA),
+        grupo_topografia(cubierta_aislada),
+    ]
 
-    seccion = Seccion("Parámetros de cálculo")
-    seccion.agregar(subseccion_cubierta)
-    seccion.agregar(subseccion_constantes_terreno(cubierta_aislada.rafaga))
-    seccion.agregar(
-        subseccion_factor_rafaga(
+
+def _bloques_parametros(cubierta_aislada: CubiertaAislada) -> list[Bloque]:
+    """Los bloques con los parámetros intermedios del cálculo.
+
+    Args:
+        cubierta_aislada: La cubierta aislada calculada.
+
+    Returns:
+        Los bloques de la página de parámetros.
+    """
+    return [
+        Grupo(
+            "Cubierta",
+            [
+                Datos(
+                    (
+                        (
+                            "Ángulo de cubierta",
+                            f"{cubierta_aislada.geometria.angulo:.2f}°",
+                        ),
+                        (
+                            "Altura media de cubierta",
+                            f"{cubierta_aislada.geometria.altura_media:.2f} m",
+                        ),
+                        ("Bloqueo", f"{cubierta_aislada.geometria.bloqueo:.0f} %"),
+                        (
+                            "Flujo de viento",
+                            "obstruido"
+                            if cubierta_aislada.geometria.con_bloqueo
+                            else "libre",
+                        ),
+                        (
+                            "Factor de direccionalidad, Kd",
+                            f"{cubierta_aislada.presiones.factor_direccionalidad:.2f}",
+                        ),
+                    )
+                )
+            ],
+        ),
+        grupo_constantes_terreno(cubierta_aislada.rafaga),
+        grupo_factor_rafaga(
             cubierta_aislada.rafaga,
             cubierta_aislada.flexibilidad,
             TEXTO_RAFAGA_SIMPLIFICADA,
-        )
-    )
-    seccion.agregar(
-        subseccion_factor_topografico(
+        ),
+        grupo_factor_topografico(
             cubierta_aislada,
             cubierta_aislada.topografia.parametros.k3[0],
             ["El valor de K3 es el correspondiente a la altura media."],
-        )
-    )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        ),
+    ]
 
 
-def _pagina_normales(
+def _bloques_normales(
     cubierta_aislada: CubiertaAislada, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget:
-    """La página con las presiones normales por dirección del viento.
+) -> list[Bloque]:
+    """Los bloques con las presiones normales por dirección del viento.
 
     Args:
         cubierta_aislada: La cubierta aislada calculada.
-        unidades: Las unidades a mostrar.
+        unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada, con una pestaña por dirección.
+        Los bloques, con una pestaña por dirección.
     """
-    seccion = Seccion("Presiones Normales", descripcion=DESCRIPCION_NORMALES)
-
-    pestañas = QtWidgets.QTabWidget()
+    items: list[tuple[str, list[Bloque]]] = []
     for direccion in DireccionVientoCubiertaAislada:
         filas = cubierta_aislada.resultados.filtrar(direccion=direccion)
-        subseccion = Subseccion(
-            f"Viento {direccion.value}", referencia=filas[0].referencia
+        items.append(
+            (
+                direccion.value,
+                # El título de la dirección ya viaja en la pestaña: el
+                # grupo lleva sólo la referencia al Reglamento, así no se
+                # repite "Viento γ = 270º" dos veces.
+                [
+                    Grupo(
+                        "",
+                        [tablas.tabla_cubierta_aislada(filas, unidades)],
+                        referencia=filas[0].referencia,
+                    )
+                ],
+            )
         )
-        subseccion.agregar(tablas.tabla_cubierta_aislada(filas, unidades))
-        contenedor = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(contenedor)
-        # El margen separa la tarjeta del pane de la pestaña.
-        layout.setContentsMargins(9, 9, 9, 9)
-        layout.addWidget(subseccion)
-        layout.addStretch(1)
-        pestañas.addTab(contenedor, direccion.value)
-    seccion.agregar(pestañas)
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+    return [Pestanas(items)]
 
 
-def _pagina_laterales(
+def _bloques_laterales(
     cubierta_aislada: CubiertaAislada, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget:
-    """La página con las presiones laterales de cenefas, parapetos y tímpanos.
+) -> list[Bloque]:
+    """Los bloques con las presiones laterales de cenefas, parapetos y
+    tímpanos.
 
     Args:
         cubierta_aislada: La cubierta aislada calculada.
-        unidades: Las unidades a mostrar.
+        unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada.
+        Los bloques de la página de presiones laterales.
     """
     unidad = f"{unidades['presion'].value}/m²"
-    # La presión dinámica de la superficie, igual que la que usa la
-    # plantilla: la de la primera fila, evaluada a la altura media.
+    # La presión dinámica de la superficie, evaluada a la altura media.
     presion_velocidad = convertir_unidad(
         cubierta_aislada.resultados[0].q.valor, unidades["presion"]
     )
 
-    subseccion_cenefas = Subseccion(
-        "Cenefas, Parapetos y Tímpanos", referencia="Art. 2.4.5"
-    )
-    subseccion_cenefas.agregar(
-        TablaDatos(
-            (
-                (
-                    "A barlovento (GCpn = +1.5)",
-                    f"{1.5 * presion_velocidad:.2f} {unidad}",
+    return [
+        Grupo(
+            "Cenefas, Parapetos y Tímpanos",
+            [
+                Datos(
+                    (
+                        (
+                            "A barlovento (GCpn = +1.5)",
+                            f"{1.5 * presion_velocidad:.2f} {unidad}",
+                        ),
+                        (
+                            "A sotavento (GCpn = -1.0)",
+                            f"{-1.0 * presion_velocidad:.2f} {unidad}",
+                        ),
+                    )
                 ),
-                (
-                    "A sotavento (GCpn = -1.0)",
-                    f"{-1.0 * presion_velocidad:.2f} {unidad}",
-                ),
-            )
-        )
-    )
-    subseccion_cenefas.agregar(Nota(DESCRIPCION_CENEFAS, "Cargas laterales"))
-
-    subseccion_friccion = Subseccion(
-        "Fuerzas de fricción", referencia="Art. 2.4.3.1 - Tabla 2.4-1"
-    )
-    texto_friccion = QtWidgets.QLabel(DESCRIPCION_FRICCION)
-    texto_friccion.setWordWrap(True)
-    subseccion_friccion.agregar(texto_friccion)
-
-    seccion = Seccion("Presiones Laterales")
-    seccion.agregar(subseccion_cenefas)
-    seccion.agregar(subseccion_friccion)
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+                Nota(DESCRIPCION_CENEFAS, "Cargas laterales"),
+            ],
+            referencia="Art. 2.4.5",
+        ),
+        Grupo(
+            "Fuerzas de fricción",
+            [Texto(DESCRIPCION_FRICCION)],
+            referencia="Art. 2.4.3.1 - Tabla 2.4-1",
+        ),
+    ]
 
 
-def _contenido_componente(
-    nombre: str,
-    area: float,
-    filas: Tabla[FilaComponentesCubiertaAislada],
-    unidades: dict[str, Unidad],
-) -> QtWidgets.QWidget:
-    """La página de un componente: su tabla de presiones netas por zona.
-
-    Args:
-        nombre: El nombre del componente.
-        area: Su área efectiva de viento.
-        filas: Las filas del componente.
-        unidades: Las unidades de fuerza y presión a mostrar.
-
-    Returns:
-        El contenido de la página del componente.
-    """
-    contenedor = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(contenedor)
-    layout.setContentsMargins(0, 0, 0, 0)
-    subseccion = Subseccion(
-        f"Componente: {nombre} ({area:g} m²)",
-        referencia=(f"{filas[0].referencia}; a: {filas[0].distancia_a:.2f} m"),
-    )
-    subseccion.agregar(tablas.tabla_componentes_cubierta_aislada(filas, unidades))
-    layout.addWidget(subseccion)
-    layout.addStretch(1)
-    return contenedor
-
-
-def _pagina_componentes(
+def _bloques_componentes(
     cubierta_aislada: CubiertaAislada, unidades: dict[str, Unidad]
-) -> QtWidgets.QWidget | None:
-    """La página con los componentes y revestimientos.
-
-    Muestra de a un componente por vez: un desplegable elige cuál.
+) -> list[Bloque] | None:
+    """Los bloques con los componentes y revestimientos.
 
     Args:
         cubierta_aislada: La cubierta aislada calculada.
         unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
-        La página armada, o ``None`` cuando la cubierta no tiene
-        componentes cargados.
+        Los bloques, o ``None`` cuando la cubierta no tiene componentes
+        cargados.
 
     Raises:
         ErrorLineamientos: Cuando el Reglamento no da lineamientos para
@@ -461,25 +433,26 @@ def _pagina_componentes(
     if not componentes or cubierta_aislada.componentes is None:
         return None
 
-    nombres: list[str] = []
-    páginas: list[QtWidgets.QWidget] = []
+    componentes_superficie: list[tuple[str, list[Bloque]]] = []
     for nombre, area in cubierta_aislada.componentes.items():
-        nombres.append(nombre)
-        páginas.append(
-            _contenido_componente(
-                nombre, area, componentes.filtrar(componente=nombre), unidades
+        filas = componentes.filtrar(componente=nombre)
+        componentes_superficie.append(
+            (
+                nombre,
+                [
+                    Grupo(
+                        f"Componente: {nombre} ({area:g} m²)",
+                        [tablas.tabla_componentes_cubierta_aislada(filas, unidades)],
+                        referencia=f"{filas[0].referencia}; a: {filas[0].distancia_a:.2f} m",
+                    )
+                ],
             )
         )
 
-    seccion = Seccion(
-        "Componentes y Revestimientos", descripcion=DESCRIPCION_COMPONENTES
-    )
-    seccion.agregar(apilador_componentes([("Componentes", nombres, páginas)]))
-    seccion.agregar(
+    return [
+        SelectorComponentes([Superficie("Componentes", componentes_superficie)]),
         Nota(
             NOTA_MINIMAS_COMPONENTES,
             "Presiones de viento de diseño mínimas (Art. 5.2.2)",
-        )
-    )
-    seccion.agregar_estiramiento()
-    return pagina(seccion)
+        ),
+    ]

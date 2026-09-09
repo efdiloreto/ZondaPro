@@ -93,9 +93,6 @@ Los hooks no reemplazan a CI: si no los instalás, el workflow de `dev` frena
 igual lo que esté mal. mypy y pytest quedan fuera de los hooks a propósito
 (mypy arrastra errores preexistentes y pytest tarda demasiado para un commit).
 
-Para exportar reportes a PDF, DOCX u ODT corriendo desde el código fuente hace
-falta [pandoc](https://pandoc.org/installing.html) en el `PATH`.
-
 ## Convenciones del código
 
 - **Todo en español:** nombres de funciones y variables, comentarios y
