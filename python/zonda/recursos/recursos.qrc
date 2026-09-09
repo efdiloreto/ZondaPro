@@ -23,12 +23,10 @@
         <file alias="apoyo.png">iconos/generales/apoyo.png</file>
         <file alias="cerrar-sesion.png">iconos/generales/cerrar-sesion.png</file>
         <file alias="actualizar.png">iconos/generales/actualizar.png</file>
+        <file alias="flecha-abajo.png">iconos/generales/flecha-abajo.png</file>
         <file alias="edificio.png">iconos/modulos/edificio.png</file>
         <file alias="cartel.png">iconos/modulos/cartel.png</file>
         <file alias="cubierta-aislada.png">iconos/modulos/cubierta-aislada.png</file>
-        <file alias="viento.png">iconos/modulos/viento.png</file>
-        <file alias="topografia.png">iconos/modulos/topografia.png</file>
-        <file alias="componentes.png">iconos/modulos/componentes.png</file>
         <file alias="zonda.ico">iconos/zonda.ico</file>
     </qresource>
     <qresource prefix="imagenes">

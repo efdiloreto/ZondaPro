@@ -94,12 +94,15 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Migrar una figura o tabla de C&R:** El camino es siempre el mismo. 1) En `cp/`, el nuevo string de `referencia` con sus valores, y las dimensiones que definen las zonas expuestas como propiedad (por ejemplo `distancias_zonas`), nunca recalculadas en la vista. 2) En `enums.py`, la zona nueva si hace falta. 3) En el director, agregar la `referencia` al dispatch (`_seleccionar_cubierta`) **y** el método que arma las zonas: si no está en el dispatch la cubierta se queda sin zonas y no hay error. El alero reusa la geometría de la cubierta recortada con `recortar_poligono` contra el plano de la pared. 4) Los tests de valores, de áreas por zona y de escena.
 - **Proyectos (`.zda`):** Guardan el estado crudo de los widgets de entrada (`estado()` / `cargar_estado()`), no los `parametros()` de cálculo. Los `Enum` se serializan por su `name`. Si cambia el esquema, incrementar `VERSION_FORMATO`.
 - **Reporte en pantalla y exportación:** El reporte que se ve en la interfaz
-  es nativo (Qt widgets) y la exportación es Jinja2 + pandoc. Los dos
-  comparten la misma fuente —`estructura.resultados*` filtrada y agrupada—
+  es nativo (Qt widgets) y la exportación es Jinja2 + pandoc, sólo a PDF. Los
+  dos comparten la misma fuente —`estructura.resultados*` filtrada y agrupada—
   pero no el renderizador: no renderizar Markdown en pantalla ni rearmar
-  widgets para exportar. La configuración de exportación vive en
-  `widgets/reportes/exportacion.py` y las plantillas en
-  `recursos/plantillas/`.
+  widgets para exportar. El diálogo de exportación
+  (`widgets/reportes/exportacion.py`) carga los datos del informe —nombre
+  del proyecto, proyectista, empresa, ubicación y observaciones— que las
+  plantillas de `recursos/plantillas/` ponen en la portada y en la sección
+  de observaciones; el footer con la versión de Zonda vive en la plantilla
+  base y no se puede sacar.
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.

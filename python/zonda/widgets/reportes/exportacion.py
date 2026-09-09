@@ -17,11 +17,11 @@
 
 """El diálogo de exportación del reporte.
 
-Es la configuración de exportación que vivía al costado del visor web,
-con la misma mecánica: el reporte se renderiza con Jinja a Markdown y
-pandoc lo convierte al formato elegido. Lo único que desaparece es la vía
-HTML→PDF que pasaba por la QWebEngineView; el PDF se exporta por pandoc
-con LaTeX, igual que el formato "PDF" de siempre.
+El reporte se renderiza con Jinja a Markdown y pandoc lo convierte a
+PDF por LaTeX. El diálogo carga los datos del informe —nombre del
+proyecto, proyectista, empresa, ubicación y observaciones— que viajan a
+la portada y a la sección final de observaciones; el footer con la
+versión de Zonda lo agrega la plantilla y no se puede sacar.
 """
 
 from __future__ import annotations
@@ -39,27 +39,17 @@ if TYPE_CHECKING:
     from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
     from zonda.enums import Unidad
 
-FORMATOS = (
-    ("Microsoft Word", ".docx"),
-    ("PDF", ".pdf"),
-    ("Markdown", ".md"),
-    ("LibreOffice Writer", ".odt"),
-    ("HTML", ".html"),
-)
-
-# Los formatos que reciben el documento de referencia del que adoptan los
-# estilos. Para el resto el campo no aplica.
-FORMATOS_CON_REFERENCIA = ("Microsoft Word", "LibreOffice Writer")
-
 
 class DialogoExportacion(QtWidgets.QDialog):
-    """El diálogo que exporta el reporte con pandoc.
+    """El diálogo que exporta el reporte a PDF con pandoc.
 
     Args:
         parent: El widget parent.
         estructura: La estructura calculada.
         plantilla: La plantilla Jinja del reporte.
         unidades: Las unidades de fuerza y presión del reporte.
+        nombre_proyecto: El nombre con el que arranca el campo del
+            proyecto: el del archivo ``.zda`` abierto, si lo hay.
     """
 
     def __init__(
@@ -68,10 +58,13 @@ class DialogoExportacion(QtWidgets.QDialog):
         estructura: Edificio | Cartel | CubiertaAislada,
         plantilla: str,
         unidades: dict[str, Unidad],
+        nombre_proyecto: str = "",
     ) -> None:
         super().__init__(parent)
 
-        self._reporte = Reporte(plantilla, estructura, unidades)
+        self._estructura = estructura
+        self._plantilla = plantilla
+        self._unidades = unidades
 
         # El papel se configura desde acá para el PDF: pandoc lo recibe
         # como variables de geometry y no sabe nada de impresoras.
@@ -81,27 +74,18 @@ class DialogoExportacion(QtWidgets.QDialog):
         )
         self._printer.setPageSize(QtGui.QPageSize(QtGui.QPageSize.PageSizeId.A4))
 
-        self._combobox_formatos = QtWidgets.QComboBox()
-        for item in FORMATOS:
-            self._combobox_formatos.addItem(*item)
-        self._combobox_formatos.currentTextChanged.connect(self._actualizar_formato)
+        self._edicion_nombre = QtWidgets.QLineEdit(nombre_proyecto)
+        self._edicion_proyectista = QtWidgets.QLineEdit()
+        self._edicion_empresa = QtWidgets.QLineEdit()
+        self._edicion_ubicacion = QtWidgets.QLineEdit()
+        self._edicion_observaciones = QtWidgets.QPlainTextEdit()
+        self._edicion_observaciones.setMaximumHeight(68)
 
         self._boton_configurar_pagina = QtWidgets.QPushButton("Configurar Página")
         self._boton_configurar_pagina.clicked.connect(self._configurar_pagina)
 
-        self._label_seleccion_archivo = QtWidgets.QLabel("Documento de referencia:")
-        self._label_seleccion_archivo.setToolTip(
-            "Documento de referencia del que se adoptan los estilos al exportar el reporte"
-        )
-
-        self._line_edit = QtWidgets.QLineEdit()
-
-        self._boton_seleccionar_archivo = QtWidgets.QPushButton("...")
-        self._boton_seleccionar_archivo.setMaximumWidth(30)
-        self._boton_seleccionar_archivo.clicked.connect(self._obtener_archivo)
-
         self._label_aviso_latex = QtWidgets.QLabel(
-            '* Esta opción requiere tener "LaTeX" instalado en el sistema. Puede instalarlo via '
+            '* La exportación requiere tener "LaTeX" instalado en el sistema. Puede instalarlo via '
             "<a href=www.miktex.org>MiKTeX</a> o <a href=www.tug.org/texlive>TeXLive.</a>"
         )
         self._label_aviso_latex.setWordWrap(True)
@@ -110,36 +94,36 @@ class DialogoExportacion(QtWidgets.QDialog):
         )
         self._label_aviso_latex.setOpenExternalLinks(True)
 
-        self._dialogo_seleccionar_archivo = QtWidgets.QFileDialog(self)
-        self._dialogo_seleccionar_archivo.setAcceptMode(
-            QtWidgets.QFileDialog.AcceptMode.AcceptSave
-        )
-        self._dialogo_seleccionar_archivo.setFileMode(
-            QtWidgets.QFileDialog.FileMode.ExistingFile
-        )
-
         self._dialogo_guardar_archivo = QtWidgets.QFileDialog(self)
         self._dialogo_guardar_archivo.setAcceptMode(
             QtWidgets.QFileDialog.AcceptMode.AcceptSave
         )
+        self._dialogo_guardar_archivo.setDefaultSuffix("pdf")
 
         boton_exportar_reporte = QtWidgets.QPushButton("Exportar")
         boton_exportar_reporte.clicked.connect(self._exportar_reporte)
 
         layout_exportacion = QtWidgets.QGridLayout()
-        layout_exportacion.addWidget(QtWidgets.QLabel("Formato:"), 0, 0)
-        layout_exportacion.addWidget(self._combobox_formatos, 0, 1)
-        layout_exportacion.addWidget(self._boton_configurar_pagina, 0, 2)
-        layout_exportacion.addWidget(self._label_seleccion_archivo, 1, 0, 1, 2)
-        layout_exportacion.addWidget(self._line_edit, 2, 0, 1, 2)
-        layout_exportacion.addWidget(self._boton_seleccionar_archivo, 2, 2)
-        layout_exportacion.addWidget(self._label_aviso_latex, 3, 0, 1, 3)
+        layout_exportacion.addWidget(QtWidgets.QLabel("Nombre del proyecto:"), 0, 0)
+        layout_exportacion.addWidget(self._edicion_nombre, 0, 1, 1, 2)
+        layout_exportacion.addWidget(QtWidgets.QLabel("Proyectista:"), 1, 0)
+        layout_exportacion.addWidget(self._edicion_proyectista, 1, 1, 1, 2)
+        layout_exportacion.addWidget(QtWidgets.QLabel("Empresa / Estudio:"), 2, 0)
+        layout_exportacion.addWidget(self._edicion_empresa, 2, 1, 1, 2)
+        layout_exportacion.addWidget(QtWidgets.QLabel("Ubicación:"), 3, 0)
+        layout_exportacion.addWidget(self._edicion_ubicacion, 3, 1, 1, 2)
         layout_exportacion.addWidget(
-            boton_exportar_reporte, 5, 0, 1, 3, QtCore.Qt.AlignmentFlag.AlignRight
+            QtWidgets.QLabel("Observaciones:"), 4, 0, QtCore.Qt.AlignmentFlag.AlignTop
         )
-        layout_exportacion.setRowStretch(4, 1)
+        layout_exportacion.addWidget(self._edicion_observaciones, 4, 1, 1, 2)
+        layout_exportacion.addWidget(self._boton_configurar_pagina, 5, 0)
+        layout_exportacion.addWidget(self._label_aviso_latex, 5, 1, 1, 2)
+        layout_exportacion.addWidget(
+            boton_exportar_reporte, 7, 0, 1, 3, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        layout_exportacion.setRowStretch(6, 1)
 
-        group_box_exportacion = QtWidgets.QGroupBox("Configuración de Exportación")
+        group_box_exportacion = QtWidgets.QGroupBox("Datos del Informe")
         group_box_exportacion.setLayout(layout_exportacion)
         group_box_exportacion.setMinimumWidth(500)
 
@@ -150,7 +134,6 @@ class DialogoExportacion(QtWidgets.QDialog):
         self.setModal(True)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
 
-        self._actualizar_formato(self._combobox_formatos.currentText())
         self.show()
 
     def _configurar_pagina(self) -> None:
@@ -160,41 +143,15 @@ class DialogoExportacion(QtWidgets.QDialog):
             assert impresora is not None
             self._printer = impresora
 
-    def _obtener_archivo(self) -> None:
-        descripcion = self._combobox_formatos.currentText()
-        formato = self._combobox_formatos.currentData()
-        filtro = f"{descripcion} (*{formato})"
-        texto, _ = self._dialogo_seleccionar_archivo.getOpenFileName(
-            self, filter=filtro
-        )
-        if texto:
-            self._line_edit.setText(texto)
-
-    def _actualizar_formato(self, descripcion_formato: str) -> None:
-        """Muestra u oculta los controles según el formato elegido.
-
-        Args:
-            descripcion_formato: La descripción del formato seleccionado.
-        """
-        es_pdf = descripcion_formato == "PDF"
-        con_referencia = descripcion_formato in FORMATOS_CON_REFERENCIA
-        self._boton_configurar_pagina.setVisible(es_pdf)
-        self._label_aviso_latex.setVisible(es_pdf)
-        for widget in (
-            self._label_seleccion_archivo,
-            self._line_edit,
-            self._boton_seleccionar_archivo,
-        ):
-            widget.setVisible(con_referencia)
-
     def _exportar_reporte(self) -> None:
-        """Le pide al usuario un archivo y escribe el reporte en ese formato."""
-        descripcion_formato = self._combobox_formatos.currentText()
-        formato = self._combobox_formatos.currentData()
-        filtro = f"{descripcion_formato} (*{formato})"
+        """Le pide al usuario un archivo y escribe el reporte en PDF.
+
+        El reporte se arma recién acá, con los datos del informe tal
+        como quedaron en los campos.
+        """
         nombre_archivo, _ = self._dialogo_guardar_archivo.getSaveFileName(
             self,
-            filter=filtro,
+            filter="PDF (*.pdf)",
             directory=QtCore.QStandardPaths.writableLocation(
                 QtCore.QStandardPaths.StandardLocation.DocumentsLocation
             ),
@@ -202,18 +159,21 @@ class DialogoExportacion(QtWidgets.QDialog):
         if not nombre_archivo:
             return
 
-        papel = self._papel() if descripcion_formato == "PDF" else None
-        ruta_referencia = (
-            self._line_edit.text()
-            if descripcion_formato in FORMATOS_CON_REFERENCIA
-            else ""
-        )
         try:
+            self._reporte = Reporte(
+                self._plantilla,
+                self._estructura,
+                self._unidades,
+                datos_proyecto={
+                    "nombre": self._edicion_nombre.text().strip(),
+                    "proyectista": self._edicion_proyectista.text().strip(),
+                    "empresa": self._edicion_empresa.text().strip(),
+                    "ubicacion": self._edicion_ubicacion.text().strip(),
+                    "observaciones": self._edicion_observaciones.toPlainText().strip(),
+                },
+            )
             self._reporte.exportar(
-                formato[1:],
-                nombre_archivo=nombre_archivo,
-                referencia_doc=ruta_referencia,
-                papel=papel,
+                "pdf", nombre_archivo=nombre_archivo, papel=self._papel()
             )
         except OSError:
             AvisoError(

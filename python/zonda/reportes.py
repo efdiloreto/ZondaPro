@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import pypandoc
 from jinja2 import Environment, FileSystemLoader
 
-from zonda import enums, recursos
+from zonda import __acercade__, enums, recursos
 from zonda.unidades import convertir_unidad
 
 if TYPE_CHECKING:
@@ -34,22 +34,26 @@ if TYPE_CHECKING:
 # propio; ahora viven en el sistema de archivos y alcanza con el loader estándar
 # de Jinja.
 env = Environment(loader=FileSystemLoader(recursos.directorio("plantillas")))
-env.globals.update(zip=zip, all=all, enums=enums)
+env.globals.update(zip=zip, all=all, enums=enums, version=__acercade__.__version__)
 env.filters["convertir_unidad"] = convertir_unidad
 
 
-def render_plantilla(plantilla: str, **kwargs) -> str:
+def render_plantilla(
+    plantilla: str, proyecto: dict[str, str] | None = None, **kwargs
+) -> str:
     """Renderiza una plantilla a string.
 
     Args:
         plantilla: La plantilla a renderizar.
+        proyecto: Los datos del informe para la portada; vacío cuando no
+            se pasa, para que las plantillas siempre lo tengan definido.
         **kwargs: Los argumentos que se le pasa a la plantilla.
 
     Returns: La plantilla renderizada en string.
 
     """
     plantilla_ = env.get_template(plantilla)
-    return plantilla_.render(**kwargs)
+    return plantilla_.render(proyecto=proyecto or {}, **kwargs)
 
 
 class Reporte:
@@ -63,16 +67,23 @@ class Reporte:
         plantilla: str,
         estructura: Edificio | Cartel | CubiertaAislada,
         unidades: dict[str, Unidad],
+        datos_proyecto: dict[str, str] | None = None,
     ) -> None:
         """
 
         Args:
             plantilla: La plantilla a utilizar.
             estructura: La estructura de donde se renderizan los resultados.
-            unidades: Las unidades en la que se muestran los resultados
+            unidades: Las unidades en la que se muestran los resultados.
+            datos_proyecto: Los datos del informe: nombre, proyectista,
+                empresa, ubicacion y observaciones. Los vacíos no se
+                muestran.
         """
         self._texto_md = render_plantilla(
-            plantilla, estructura=estructura, unidades=unidades
+            plantilla,
+            estructura=estructura,
+            unidades=unidades,
+            proyecto=datos_proyecto or {},
         )
 
     def exportar(

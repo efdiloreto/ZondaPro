@@ -223,7 +223,11 @@ def main():
         str(recursos.ruta("fuentes/Oswald-VariableFont_wght.ttf"))
     )
 
-    app.setStyleSheet(recursos.texto("qss/zonda.qss"))
+    # Qt resuelve las url() de la hoja contra el directorio de trabajo,
+    # así que el token RECURSOS va con la ruta real de los recursos.
+    app.setStyleSheet(
+        recursos.texto("qss/zonda.qss").replace("RECURSOS", recursos.raiz().as_posix())
+    )
 
     # La consulta a GitHub sale ya, mientras se arma la interfaz, para que el
     # resultado esté listo cuando se abra el primer módulo, que es donde se

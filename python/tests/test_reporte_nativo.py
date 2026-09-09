@@ -46,7 +46,7 @@ from zonda.widgets.reportes import (
 from zonda.widgets.reportes import (
     edificio as reporte_edificio,
 )
-from zonda.widgets.reportes import tablas
+from zonda.widgets.reportes import exportacion, tablas
 from zonda.widgets.reportes.exportacion import DialogoExportacion
 from zonda.widgets.reportes.navegacion import VistaReporte
 from zonda.widgets.reportes.secciones import unidades_desde_settings
@@ -111,6 +111,30 @@ def textos_de_columna(tabla: TablaResultados, columna: int) -> list[str]:
         Los textos en el orden de las filas.
     """
     return [tabla.item(fila, columna).text() for fila in range(tabla.rowCount())]
+
+
+def combo_componentes(página: QtWidgets.QWidget) -> QtWidgets.QComboBox:
+    """El desplegable de componentes de una página de C&R.
+
+    Args:
+        página: La página de componentes y revestimientos.
+
+    Returns:
+        El QComboBox que elige el componente.
+    """
+    return página.findChildren(QtWidgets.QComboBox)[0]
+
+
+def apilador_contenido(página: QtWidgets.QWidget) -> QtWidgets.QStackedWidget:
+    """El apilador con la página de cada componente.
+
+    Args:
+        página: La página de componentes y revestimientos.
+
+    Returns:
+        El QStackedWidget que muestra el componente elegido.
+    """
+    return página.findChildren(QtWidgets.QStackedWidget)[0]
 
 
 # --- TablaResultados -----------------------------------------------------
@@ -359,6 +383,47 @@ def test_la_pagina_de_componentes_nombra_los_componentes(qapp, edificio):
     assert any(titulo.startswith("Componente: Correa (5 m²)") for titulo in titulos)
 
 
+def test_la_pagina_de_componentes_del_edificio_filtra_por_superficie(qapp, edificio):
+    """La cápsula elige la superficie y el desplegable queda con sus
+    componentes: primero se ve el de pared y al conmutar, el de cubierta.
+    """
+    vista = reporte_edificio.vista(edificio)
+    página = vista._paginas.widget(4)
+    combo = combo_componentes(página)
+    apilador = apilador_contenido(página)
+
+    # Arranca en el primer componente de pared.
+    assert combo.currentText() == "Viga"
+    assert subsecciones(apilador.currentWidget()) == ["Componente: Viga (10 m²)"]
+
+    cubierta = next(
+        boton
+        for boton in página.findChildren(QtWidgets.QPushButton)
+        if boton.text() == "CUBIERTA"
+    )
+    cubierta.click()
+    assert combo.currentText() == "Correa"
+    assert subsecciones(apilador.currentWidget()) == ["Componente: Correa (5 m²)"]
+
+
+def test_la_pagina_de_componentes_muestra_el_componente_elegido(
+    qapp, cubierta_aislada_con_componentes
+):
+    """El desplegable conmuta el contenido: sólo se ve la tabla del
+    componente seleccionado."""
+    vista = reporte_cubierta_aislada.vista(cubierta_aislada_con_componentes)
+    página = vista._paginas.widget(5)
+    combo = combo_componentes(página)
+    apilador = apilador_contenido(página)
+
+    assert combo.currentText() == "Chapa"
+    assert subsecciones(apilador.currentWidget()) == ["Componente: Chapa (0.5 m²)"]
+
+    combo.setCurrentIndex(1)
+    assert combo.currentText() == "Correa"
+    assert subsecciones(apilador.currentWidget()) == ["Componente: Correa (2 m²)"]
+
+
 def test_la_vista_del_cartel_trae_las_consideraciones(qapp, cartel):
     vista = reporte_cartel.vista(cartel)
     nombres = [vista._menu.item(i).text() for i in range(vista._menu.count())]
@@ -426,27 +491,66 @@ def test_la_topografia_considerada_muestra_la_tabla(qapp, cartel_con_topografia)
 
 def test_el_dialogo_de_exportacion_muestra_lo_que_corresponde(qapp, edificio):
     dialogo = DialogoExportacion(
-        None, edificio, "edificio.md", unidades_desde_settings()
+        None,
+        edificio,
+        "edificio.md",
+        unidades_desde_settings(),
+        nombre_proyecto="Mi Proyecto",
     )
     try:
-        # Word: el documento de referencia se pide, la página no.
-        dialogo._combobox_formatos.setCurrentText("Microsoft Word")
-        assert not dialogo._line_edit.isHidden()
-        assert dialogo._boton_configurar_pagina.isHidden()
-
-        # PDF: al revés, y el aviso de LaTeX acompaña.
-        dialogo._combobox_formatos.setCurrentText("PDF")
-        assert dialogo._line_edit.isHidden()
+        # Sin formatos que elegir: el papel y el aviso de LaTeX están
+        # siempre, porque la salida única es el PDF.
         assert not dialogo._boton_configurar_pagina.isHidden()
         assert not dialogo._label_aviso_latex.isHidden()
 
-        # Markdown: ni referencia ni papel.
-        dialogo._combobox_formatos.setCurrentText("Markdown")
-        assert dialogo._line_edit.isHidden()
-        assert dialogo._boton_configurar_pagina.isHidden()
+        # Los datos del informe: el nombre llega prellenado del archivo
+        # abierto y el resto arranca vacío.
+        assert dialogo._edicion_nombre.text() == "Mi Proyecto"
+        assert dialogo._edicion_proyectista.text() == ""
+        assert dialogo._edicion_empresa.text() == ""
+        assert dialogo._edicion_ubicacion.text() == ""
+        assert dialogo._edicion_observaciones.toPlainText() == ""
     finally:
         dialogo.close()
         dialogo.deleteLater()
+
+
+def test_el_dialogo_de_exportacion_usa_los_datos_tipeados(qapp, edificio, monkeypatch):
+    """Al exportar, el reporte se arma recién con los datos del informe
+    tal como quedaron en los campos, y se convierte a PDF."""
+    capturado: dict = {}
+
+    class ReporteStub:
+        def __init__(self, plantilla, estructura, unidades, datos_proyecto=None):
+            capturado["datos_proyecto"] = datos_proyecto
+
+        def exportar(self, formato, nombre_archivo=None, **kwargs):
+            capturado["formato"] = formato
+            capturado["nombre_archivo"] = nombre_archivo
+
+    monkeypatch.setattr(exportacion, "Reporte", ReporteStub)
+    monkeypatch.setattr(exportacion, "AvisoExito", lambda *args, **kwargs: None)
+
+    dialogo = DialogoExportacion(
+        None, edificio, "edificio.md", unidades_desde_settings()
+    )
+    try:
+        dialogo._edicion_nombre.setText("Proyecto X")
+        dialogo._edicion_observaciones.setPlainText("Sin observaciones.")
+        dialogo._dialogo_guardar_archivo.getSaveFileName = lambda *args, **kwargs: (
+            "/tmp/reporte.pdf",
+            "PDF (*.pdf)",
+        )
+        dialogo._exportar_reporte()
+    finally:
+        dialogo.close()
+        dialogo.deleteLater()
+
+    assert capturado["formato"] == "pdf"
+    assert capturado["nombre_archivo"] == "/tmp/reporte.pdf"
+    assert capturado["datos_proyecto"]["nombre"] == "Proyecto X"
+    assert capturado["datos_proyecto"]["observaciones"] == "Sin observaciones."
+    assert capturado["datos_proyecto"]["proyectista"] == ""
 
 
 # --- La integración con la pantalla de resultados -----------------------

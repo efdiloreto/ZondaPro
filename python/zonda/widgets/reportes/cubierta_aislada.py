@@ -36,6 +36,7 @@ from zonda.excepciones import ErrorLineamientos
 from zonda.unidades import convertir_unidad
 from zonda.widgets.reportes import tablas
 from zonda.widgets.reportes.comunes import (
+    apilador_componentes,
     pagina,
     seccion_rafaga,
     seccion_topografia,
@@ -57,7 +58,11 @@ from zonda.widgets.reportes.secciones import (
 
 if TYPE_CHECKING:
     from zonda.cirsoc import CubiertaAislada
-    from zonda.cirsoc.resultados import FilaCubiertaAislada
+    from zonda.cirsoc.resultados import (
+        FilaComponentesCubiertaAislada,
+        FilaCubiertaAislada,
+        Tabla,
+    )
 
 TEXTO_RAFAGA_SIMPLIFICADA = (
     "Se adopta el factor de efecto de ráfaga simplificado G = 0.85, según "
@@ -403,14 +408,46 @@ def _pagina_laterales(
     return pagina(seccion)
 
 
+def _contenido_componente(
+    nombre: str,
+    area: float,
+    filas: Tabla[FilaComponentesCubiertaAislada],
+    unidades: dict[str, Unidad],
+) -> QtWidgets.QWidget:
+    """La página de un componente: su tabla de presiones netas por zona.
+
+    Args:
+        nombre: El nombre del componente.
+        area: Su área efectiva de viento.
+        filas: Las filas del componente.
+        unidades: Las unidades de fuerza y presión a mostrar.
+
+    Returns:
+        El contenido de la página del componente.
+    """
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    subseccion = Subseccion(
+        f"Componente: {nombre} ({area:g} m²)",
+        referencia=(f"{filas[0].referencia}; a: {filas[0].distancia_a:.2f} m"),
+    )
+    subseccion.agregar(tablas.tabla_componentes_cubierta_aislada(filas, unidades))
+    layout.addWidget(subseccion)
+    layout.addStretch(1)
+    return contenedor
+
+
 def _pagina_componentes(
     cubierta_aislada: CubiertaAislada, unidades: dict[str, Unidad]
 ) -> QtWidgets.QWidget | None:
     """La página con los componentes y revestimientos.
 
+    Muestra de a un componente por vez: un desplegable elige cuál.
+
     Args:
         cubierta_aislada: La cubierta aislada calculada.
-        unidades: Las unidades a mostrar.
+        unidades: Las unidades de fuerza y presión a mostrar.
 
     Returns:
         La página armada, o ``None`` cuando la cubierta no tiene
@@ -424,18 +461,20 @@ def _pagina_componentes(
     if not componentes or cubierta_aislada.componentes is None:
         return None
 
+    nombres: list[str] = []
+    páginas: list[QtWidgets.QWidget] = []
+    for nombre, area in cubierta_aislada.componentes.items():
+        nombres.append(nombre)
+        páginas.append(
+            _contenido_componente(
+                nombre, area, componentes.filtrar(componente=nombre), unidades
+            )
+        )
+
     seccion = Seccion(
         "Componentes y Revestimientos", descripcion=DESCRIPCION_COMPONENTES
     )
-    for nombre, area in cubierta_aislada.componentes.items():
-        filas = componentes.filtrar(componente=nombre)
-        subseccion = Subseccion(
-            f"Componente: {nombre} ({area:g} m²)",
-            referencia=(f"{filas[0].referencia}; a: {filas[0].distancia_a:.2f} m"),
-        )
-        subseccion.agregar(tablas.tabla_componentes_cubierta_aislada(filas, unidades))
-        seccion.agregar(subseccion)
-
+    seccion.agregar(apilador_componentes([("Componentes", nombres, páginas)]))
     seccion.agregar(
         Nota(
             NOTA_MINIMAS_COMPONENTES,

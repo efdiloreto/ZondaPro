@@ -21,7 +21,7 @@ import shutil
 
 import pytest
 
-from zonda import enums
+from zonda import __acercade__, enums
 from zonda.enums import Unidad
 from zonda.reportes import Reporte, env, render_plantilla
 
@@ -47,6 +47,59 @@ def test_las_plantillas_se_encuentran():
 def test_reporte_edificio(edificio):
     reporte = Reporte("edificio.md", edificio, UNIDADES)
     assert reporte._texto_md.strip()
+
+
+def test_el_footer_con_la_version_viaja_siempre(edificio):
+    """El footer con la versión de Zonda va en el Markdown con o sin
+    datos del proyecto: vive en la plantilla y no se puede sacar."""
+    for datos in (None, {"nombre": "Proyecto X"}):
+        texto = render_plantilla(
+            "edificio.md",
+            estructura=edificio,
+            unidades=UNIDADES,
+            proyecto=datos or {},
+        )
+        assert "Calculado con Zonda" in texto
+        assert __acercade__.__version__ in texto
+
+
+def test_los_datos_del_proyecto_llenan_la_portada_y_observaciones(edificio):
+    """El nombre pasa al cuerpo bajo el título fijo, los datos de
+    autoría van al metadata de autor y las observaciones cierran."""
+    datos = {
+        "nombre": "Proyecto X",
+        "proyectista": "Juana Pérez",
+        "empresa": "Estudio Y",
+        "ubicacion": "Neuquén",
+        "observaciones": "Valores sin considerar fatigue.",
+    }
+    texto = render_plantilla(
+        "edificio.md", estructura=edificio, unidades=UNIDADES, proyecto=datos
+    )
+    assert "# Proyecto X" in texto
+    assert '- "Proyectista: Juana Pérez"' in texto
+    assert '- "Empresa: Estudio Y"' in texto
+    assert '- "Ubicación: Neuquén"' in texto
+    assert "## Observaciones" in texto
+    assert "Valores sin considerar fatigue." in texto
+
+
+def test_sin_datos_del_proyecto_la_portada_queda_como_siempre(edificio):
+    texto = render_plantilla("edificio.md", estructura=edificio, unidades=UNIDADES)
+    assert "title: CÁLCULO DE PRESIONES DE VIENTO SOBRE EDIFICIO" in texto
+    assert "\n# " not in texto
+    assert "Proyectista:" not in texto
+    assert "## Observaciones" not in texto
+
+
+def test_los_valores_con_comillas_no_rompen_el_yaml(edificio):
+    """Las comillas dobles del texto del usuario se cambian por
+    simples: el author del YAML sigue siendo válido."""
+    datos = {"proyectista": 'Dijo "hola"'}
+    texto = render_plantilla(
+        "edificio.md", estructura=edificio, unidades=UNIDADES, proyecto=datos
+    )
+    assert "- \"Proyectista: Dijo 'hola'\"" in texto
 
 
 def test_reporte_edificio_angulo_menor_diez_muestra_el_caso_positivo(

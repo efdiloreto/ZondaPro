@@ -80,7 +80,7 @@ class VistaReporte(QtWidgets.QWidget):
         columna_titulo.addWidget(etiqueta_titulo)
         columna_titulo.addWidget(etiqueta_codigo)
 
-        boton_exportar = QtWidgets.QPushButton("Exportar…")
+        boton_exportar = QtWidgets.QPushButton("Exportar")
         boton_exportar.setProperty("class", "reporte-exportar")
         boton_exportar.clicked.connect(self._exportar)
 
@@ -108,8 +108,15 @@ class VistaReporte(QtWidgets.QWidget):
 
         cuerpo = QtWidgets.QSplitter()
         cuerpo.setChildrenCollapsible(False)
+        # El sizeHint del menú (256px) es más ancho que su ancho fijo y
+        # el splitter arranca ahí, dejando un hueco muerto en su panel:
+        # se le fija el reparto inicial y el handle mide lo mismo que el
+        # margen derecho, para que el hueco a cada lado del contenido
+        # sea igual.
+        cuerpo.setHandleWidth(13)
         cuerpo.addWidget(self._menu)
         cuerpo.addWidget(self._paginas)
+        cuerpo.setSizes([ANCHO_MENU, 1])
         cuerpo.setStretchFactor(0, 0)
         cuerpo.setStretchFactor(1, 1)
 
@@ -117,7 +124,9 @@ class VistaReporte(QtWidgets.QWidget):
         self._menu.setCurrentRow(0)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(11, 11, 11, 11)
+        # El margen derecho es el mismo hueco que queda entre la barra y
+        # el contenido: 13px de cada lado del área de resultados.
+        layout.setContentsMargins(11, 11, 13, 11)
         layout.addLayout(encabezado)
         layout.addWidget(cuerpo, 1)
 
@@ -133,9 +142,32 @@ class VistaReporte(QtWidgets.QWidget):
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        # Aire entre el contenido y la barra de desplazamiento: cuando la
+        # barra aparece, no le pega a las tablas.
+        scroll.setViewportMargins(0, 0, 12, 0)
         scroll.setWidget(pagina)
         return scroll
 
     def _exportar(self) -> None:
         """Abre el diálogo de exportación del reporte."""
-        DialogoExportacion(self, self._estructura, self._plantilla, self._unidades)
+        DialogoExportacion(
+            self,
+            self._estructura,
+            self._plantilla,
+            self._unidades,
+            nombre_proyecto=self._nombre_proyecto(),
+        )
+
+    def _nombre_proyecto(self) -> str:
+        """El nombre para prellenar el proyecto del informe.
+
+        La vista vive dentro de la ventana del módulo, que es quien sabe
+        el archivo ``.zda`` abierto. La pregunta va por duck typing para
+        no acoplar el reporte al módulo: si la ventana no sabe
+        responder, el campo arranca vacío.
+
+        Returns:
+            El nombre del archivo sin extensión, o una cadena vacía.
+        """
+        nombre_archivo = getattr(self.window(), "nombre_archivo", None)
+        return nombre_archivo() if callable(nombre_archivo) else ""

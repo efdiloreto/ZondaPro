@@ -4,10 +4,31 @@ lang: es
 table-numbers: false
 title: {% block titulo_encabezado -%}{%- endblock %}
 subtitle: CIRSOC 102-2025
+{%- if proyecto.proyectista or proyecto.empresa or proyecto.ubicacion %}
+author:
+{%- if proyecto.proyectista %}
+  - "Proyectista: {{ proyecto.proyectista | replace('"', "'") }}"
+{%- endif %}
+{%- if proyecto.empresa %}
+  - "Empresa: {{ proyecto.empresa | replace('"', "'") }}"
+{%- endif %}
+{%- if proyecto.ubicacion %}
+  - "Ubicación: {{ proyecto.ubicacion | replace('"', "'") }}"
+{%- endif %}
+{%- endif %}
 header-includes:
     - \usepackage[labelformat=empty]{caption}
+    - \usepackage{fancyhdr}
+    - \pagestyle{fancy}
+    - \fancyhf{}
+    - \fancyfoot[C]{\small Calculado con Zonda {{ version }}}
+    - \renewcommand{\headrulewidth}{0pt}
+    - \renewcommand{\footrulewidth}{0pt}
     - \pagenumbering{gobble}
 ---
+{%- if proyecto.nombre %}
+# {{ proyecto.nombre }}
+{% endif %}
 
 ## DATOS GENERALES
 ### REGLAMENTO
@@ -80,3 +101,9 @@ No se considera la topografía debido a que no se cumplen todas las condiciones 
 {% endblock %}
 {% block presiones_componentes %}
 {% endblock %}
+
+{% if proyecto.observaciones %}
+## Observaciones
+
+{{ proyecto.observaciones }}
+{% endif %}

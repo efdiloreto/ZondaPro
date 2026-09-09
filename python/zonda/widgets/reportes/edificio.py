@@ -42,6 +42,7 @@ from zonda.excepciones import ErrorLineamientos
 from zonda.unidades import convertir_unidad
 from zonda.widgets.reportes import tablas
 from zonda.widgets.reportes.comunes import (
+    apilador_componentes,
     pagina,
     seccion_rafaga,
     seccion_topografia,
@@ -63,7 +64,7 @@ from zonda.widgets.reportes.secciones import (
 
 if TYPE_CHECKING:
     from zonda.cirsoc import Edificio
-    from zonda.cirsoc.resultados import FilaEdificio
+    from zonda.cirsoc.resultados import FilaEdificio, Tabla
 
 TEXTO_RAFAGA_SIMPLIFICADA = (
     "Se adopta el factor de ráfaga igual a 0.85 de acuerdo al artículo 5.8.1."
@@ -104,6 +105,11 @@ NOTA_K3 = (
     "altura media. Los valores para las demás alturas se calculan "
     "automáticamente y no son mostrados."
 )
+
+ETIQUETAS_SUPERFICIES = {
+    ZonaEdificio.PAREDES: "PARED",
+    ZonaEdificio.CUBIERTA: "CUBIERTA",
+}
 
 
 def vista(edificio: Edificio) -> VistaReporte:
@@ -474,10 +480,97 @@ def _pagina_sprfv(edificio: Edificio, unidades: dict[str, Unidad]) -> QtWidgets.
     return pagina(seccion)
 
 
+def _contenido_componente(
+    filas_componente: Tabla[FilaEdificio],
+    areas: dict[str, float] | None,
+    unidades: dict[str, Unidad],
+) -> QtWidgets.QWidget:
+    """La página de un componente: una subsección por pared —una sola en
+    cubierta— con su tabla de presiones.
+
+    Args:
+        filas_componente: Las filas del componente, de todas las paredes.
+        areas: Las áreas efectivas de los componentes de la superficie.
+        unidades: Las unidades de fuerza y presión a mostrar.
+
+    Returns:
+        El contenido de la página del componente.
+    """
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(12)
+    areas = areas or {}
+    for pared, filas_pared in filas_componente.agrupar("pared"):
+        nombre = filas_pared[0].componente or ""
+        area = areas.get(nombre)
+        area_texto = f" ({area:g} m²)" if area is not None else ""
+        titulo_pared = f"Pared {pared.value.capitalize()} — " if pared else ""
+        por_altura = len({fila.q.altura for fila in filas_pared}) > 1
+        if por_altura:
+            # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan a
+            # cada altura y el Reglamento distingue zonas de área
+            # efectiva: la tabla se parte por zona.
+            for zona_componente, filas_zona_componente in filas_pared.agrupar(
+                "zona_componente"
+            ):
+                subseccion = Subseccion(
+                    f"{titulo_pared}Componente: {nombre}{area_texto} "
+                    f"(Zona: {zona_componente.value.capitalize()})",
+                    referencia=filas_zona_componente[0].referencia,
+                )
+                subseccion.agregar(
+                    tablas.tabla_presiones(filas_zona_componente, unidades)
+                )
+                layout.addWidget(subseccion)
+        else:
+            subseccion = Subseccion(
+                f"{titulo_pared}Componente: {nombre}{area_texto}",
+                referencia=filas_pared[0].referencia,
+            )
+            subseccion.agregar(tablas.tabla_presiones(filas_pared, unidades))
+            layout.addWidget(subseccion)
+    layout.addStretch(1)
+    return contenedor
+
+
+def _contenido_parapeto(
+    edificio: Edificio,
+    filas_parapeto: Tabla[FilaEdificio],
+    unidades: dict[str, Unidad],
+) -> QtWidgets.QWidget:
+    """La página del parapeto: su tabla por casos de carga con la nota.
+
+    Args:
+        edificio: El edificio calculado.
+        filas_parapeto: Las filas del parapeto.
+        unidades: Las unidades de fuerza y presión a mostrar.
+
+    Returns:
+        El contenido de la página del parapeto.
+    """
+    contenedor = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(contenedor)
+    layout.setContentsMargins(0, 0, 0, 0)
+    subseccion = Subseccion(
+        f"Parapeto (área efectiva: {edificio.area_parapeto:g} m²)",
+        referencia=filas_parapeto[0].referencia,
+    )
+    subseccion.agregar(tablas.tabla_parapeto_componentes(filas_parapeto, unidades))
+    subseccion.agregar(Nota(NOTA_PARAPETO_COMPONENTES, "Parapeto (Art. 5.6)"))
+    layout.addWidget(subseccion)
+    layout.addStretch(1)
+    return contenedor
+
+
 def _pagina_componentes(
     edificio: Edificio, unidades: dict[str, Unidad]
 ) -> QtWidgets.QWidget | None:
     """La página con las presiones de componentes y revestimientos.
+
+    Muestra de a un componente por vez: una cápsula segmentada elige la
+    superficie —pared o cubierta, y parapeto cuando lo hay— y un
+    desplegable elige el componente.
 
     Args:
         edificio: El edificio calculado.
@@ -495,52 +588,33 @@ def _pagina_componentes(
     if not componentes:
         return None
 
-    seccion = Seccion("Componentes y Revestimientos")
-    for zona, filas_zona in componentes.agrupar("zona"):
-        if zona == ZonaEdificio.PARAPETO:
-            subseccion = Subseccion(
-                f"Parapeto (área efectiva: {edificio.area_parapeto:g} m²)",
-                referencia=filas_zona[0].referencia,
-            )
-            subseccion.agregar(tablas.tabla_parapeto_componentes(filas_zona, unidades))
-            subseccion.agregar(Nota(NOTA_PARAPETO_COMPONENTES, "Parapeto (Art. 5.6)"))
-            seccion.agregar(subseccion)
+    superficies: list[tuple[str, list[str], list[QtWidgets.QWidget]]] = []
+    for zona, areas in (
+        (ZonaEdificio.PAREDES, edificio.componentes_paredes),
+        (ZonaEdificio.CUBIERTA, edificio.componentes_cubierta),
+    ):
+        filas_zona = componentes.filtrar(zona=zona)
+        if not filas_zona:
             continue
+        nombres: list[str] = []
+        páginas: list[QtWidgets.QWidget] = []
+        for nombre, filas_componente in filas_zona.agrupar("componente"):
+            nombres.append(nombre)
+            páginas.append(_contenido_componente(filas_componente, areas, unidades))
+        superficies.append((ETIQUETAS_SUPERFICIES[zona], nombres, páginas))
 
-        areas = (
-            edificio.componentes_paredes
-            if zona == ZonaEdificio.PAREDES
-            else edificio.componentes_cubierta
-        ) or {}
-        for clave, filas in filas_zona.agrupar("pared", "componente"):
-            pared, nombre = clave
-            titulo_pared = f"Pared {pared.value.capitalize()} — " if pared else ""
-            por_altura = len({fila.q.altura for fila in filas}) > 1
-            if por_altura:
-                # Con la Figura 5.4-1 (h > 20 m) las paredes se evalúan a
-                # cada altura y el Reglamento distingue zonas de área
-                # efectiva: la tabla se parte por zona.
-                for zona_componente, filas_zona_componente in filas.agrupar(
-                    "zona_componente"
-                ):
-                    subseccion = Subseccion(
-                        f"{titulo_pared}Componente: {nombre} "
-                        f"({areas[nombre]:g} m²) "
-                        f"(Zona: {zona_componente.value.capitalize()})",
-                        referencia=filas_zona_componente[0].referencia,
-                    )
-                    subseccion.agregar(
-                        tablas.tabla_presiones(filas_zona_componente, unidades)
-                    )
-                    seccion.agregar(subseccion)
-            else:
-                subseccion = Subseccion(
-                    f"{titulo_pared}Componente: {nombre} ({areas[nombre]:g} m²)",
-                    referencia=filas[0].referencia,
-                )
-                subseccion.agregar(tablas.tabla_presiones(filas, unidades))
-                seccion.agregar(subseccion)
+    filas_parapeto = componentes.filtrar(zona=ZonaEdificio.PARAPETO)
+    if filas_parapeto:
+        superficies.append(
+            (
+                "PARAPETO",
+                [],
+                [_contenido_parapeto(edificio, filas_parapeto, unidades)],
+            )
+        )
 
+    seccion = Seccion("Componentes y Revestimientos")
+    seccion.agregar(apilador_componentes(superficies))
     seccion.agregar(
         Nota(
             NOTA_MINIMAS_COMPONENTES,

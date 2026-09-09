@@ -139,25 +139,27 @@ class WidgetPanelEntrada(WidgetPanel):
         widget_logo = WidgetLogo(nombre_archivo="logo-secundario.png")
 
         boton_dialogo_viento = WidgetBotonPanel("VIENTO")
+        boton_dialogo_viento.setProperty("class", "dialogo")
         boton_dialogo_viento.clicked.connect(self._dialogo_viento)
-        boton_dialogo_viento.setIcon(recursos.icono("iconos/viento.png"))
-        boton_dialogo_viento.setIconSize(QtCore.QSize(32, 32))
 
         boton_dialogo_topografia = WidgetBotonPanel("TOPOGRAFIA")
+        boton_dialogo_topografia.setProperty("class", "dialogo")
         boton_dialogo_topografia.clicked.connect(self._dialogo_topografia)
-        boton_dialogo_topografia.setIcon(recursos.icono("iconos/topografia.png"))
-        boton_dialogo_topografia.setIconSize(QtCore.QSize(32, 32))
 
         self.boton_calcular = WidgetBotonPanel("CALCULAR")
         self.boton_calcular.setProperty("class", "accion")
 
         layout_principal = QtWidgets.QHBoxLayout()
-        layout_principal.setSpacing(0)
-        layout_principal.setContentsMargins(11, 0, 0, 0)
+        layout_principal.setSpacing(10)
+        layout_principal.setContentsMargins(11, 0, 11, 0)
         layout_principal.addWidget(widget_logo)
         layout_principal.addStretch()
-        layout_principal.addWidget(boton_dialogo_viento)
-        layout_principal.addWidget(boton_dialogo_topografia)
+        layout_principal.addWidget(
+            boton_dialogo_viento, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        layout_principal.addWidget(
+            boton_dialogo_topografia, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
         if componentes:
             self.componentes = {
@@ -166,14 +168,17 @@ class WidgetPanelEntrada(WidgetPanel):
                 "area_parapeto": None,
             }
             boton_dialogo_componentes = WidgetBotonPanel("C&&R")
+            boton_dialogo_componentes.setProperty("class", "dialogo")
             boton_dialogo_componentes.clicked.connect(self._dialogo_componentes)
-            boton_dialogo_componentes.setIcon(recursos.icono("iconos/componentes.png"))
-            boton_dialogo_componentes.setIconSize(QtCore.QSize(32, 32))
 
-            layout_principal.addWidget(boton_dialogo_componentes)
+            layout_principal.addWidget(
+                boton_dialogo_componentes, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
 
         layout_principal.addStretch()
-        layout_principal.addWidget(self.boton_calcular)
+        layout_principal.addWidget(
+            self.boton_calcular, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.setLayout(layout_principal)
 
@@ -237,47 +242,92 @@ class WidgetPanelEntrada(WidgetPanel):
             self.componentes = dialogo.componentes()
 
 
+def crear_segmento(texto: str, clase: str = "segmento") -> WidgetBotonPanel:
+    """Crea un botón segmento, marcable, con la clase del QSS.
+
+    Lo usan la barra de resultados del panel y los selectores de las
+    páginas de componentes del reporte. En la barra van con la clase de
+    los botones de diálogo, porque comparten el look.
+
+    Args:
+        texto: El rótulo del segmento.
+        clase: La clase que viste al botón en el QSS.
+
+    Returns:
+        El botón creado, sin grupo: quien lo usa lo agrega al suyo.
+    """
+    boton = WidgetBotonPanel(texto)
+    boton.setProperty("class", clase)
+    boton.setCheckable(True)
+    return boton
+
+
+def crear_capsula(*botones: WidgetBotonPanel) -> QtWidgets.QWidget:
+    """Arma una cápsula con los segmentos dados.
+
+    El valor de la clase va sin acento porque los selectores del QSS no
+    lo llevan bien.
+
+    Args:
+        *botones: Los segmentos del grupo exclusivo, en orden.
+
+    Returns:
+        El contenedor de la cápsula.
+    """
+    cápsula = QtWidgets.QWidget()
+    cápsula.setProperty("class", "capsula")
+
+    layout = QtWidgets.QHBoxLayout(cápsula)
+    layout.setContentsMargins(3, 3, 3, 3)
+    layout.setSpacing(3)
+
+    for boton in botones:
+        layout.addWidget(boton)
+
+    return cápsula
+
+
 class WidgetPanelResultados(WidgetPanel):
     def __init__(self, sistemas: bool = False):
         super().__init__(altura_fija=57)
 
         self.boton_volver = WidgetBotonPanel("VOLVER")
+        self.boton_volver.setProperty("class", "dialogo")
 
         layout_botones = QtWidgets.QHBoxLayout()
-        layout_botones.setContentsMargins(0, 0, 0, 0)
-        layout_botones.addWidget(self.boton_volver)
+        layout_botones.setSpacing(10)
+        layout_botones.setContentsMargins(11, 0, 0, 0)
+        layout_botones.addWidget(
+            self.boton_volver, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         layout_botones.addStretch()
 
         # Los botones del panel son un grupo exclusivo: marcan qué página
         # del apilador de resultados se muestra y hacen de índice del
-        # módulo. Los de la vista 3D van agrupados en una cápsula
-        # segmentada y el reporte es una cápsula aparte, no una ventana
-        # distinta.
+        # módulo. Van sueltos, todos con el look de los botones de
+        # diálogo, y el marcado se llena de gris.
         self.grupo_botones = QtWidgets.QButtonGroup(self)
         self.grupo_botones.setExclusive(True)
 
         if sistemas:
-            self.boton_sprfv = self._crear_segmento("SPRFV", 0, chequeada=True)
-            self.boton_componentes = self._crear_segmento("C&&R", 1)
+            self.boton_sprfv = self._crear_segmento("3D - SPRFV", 0, chequeada=True)
+            self.boton_componentes = self._crear_segmento("3D - C&&R", 1)
             self.boton_componentes.setEnabled(False)
             layout_botones.addWidget(
-                self._crear_cápsula(self.boton_sprfv, self.boton_componentes),
-                0,
-                QtCore.Qt.AlignmentFlag.AlignVCenter,
+                self.boton_sprfv, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
+            layout_botones.addWidget(
+                self.boton_componentes, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
             )
         else:
-            self.boton_grafico = self._crear_segmento("GRÁFICO", 0, chequeada=True)
+            self.boton_3d = self._crear_segmento("3D", 0, chequeada=True)
             layout_botones.addWidget(
-                self._crear_cápsula(self.boton_grafico),
-                0,
-                QtCore.Qt.AlignmentFlag.AlignVCenter,
+                self.boton_3d, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
             )
 
         self.boton_reporte = self._crear_segmento("REPORTE", 2 if sistemas else 1)
         layout_botones.addWidget(
-            self._crear_cápsula(self.boton_reporte),
-            0,
-            QtCore.Qt.AlignmentFlag.AlignVCenter,
+            self.boton_reporte, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
         )
 
         layout_botones.addStretch()
@@ -295,35 +345,10 @@ class WidgetPanelResultados(WidgetPanel):
         Returns:
             El botón creado.
         """
-        boton = WidgetBotonPanel(texto)
-        boton.setProperty("class", "segmento")
-        boton.setCheckable(True)
+        boton = crear_segmento(texto, clase="dialogo")
         boton.setChecked(chequeada)
         self.grupo_botones.addButton(boton, id)
         return boton
-
-    def _crear_cápsula(self, *botones: WidgetBotonPanel) -> QtWidgets.QWidget:
-        """Arma una cápsula con los segmentos dados.
-
-        El valor de la clase va sin acento porque los selectores del QSS
-        no lo llevan bien.
-
-        Args:
-            *botones: Los segmentos del grupo exclusivo, en orden.
-
-        Returns:
-            El contenedor de la cápsula.
-        """
-        cápsula = QtWidgets.QWidget()
-        cápsula.setProperty("class", "capsula")
-
-        layout = QtWidgets.QHBoxLayout(cápsula)
-        layout.setContentsMargins(3, 3, 3, 3)
-        layout.setSpacing(0)
-        for boton in botones:
-            layout.addWidget(boton)
-
-        return cápsula
 
 
 def enlaces_de_autores(color: str = "#606060") -> str:
