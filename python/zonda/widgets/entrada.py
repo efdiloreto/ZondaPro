@@ -978,8 +978,8 @@ class WidgetEstructuraCartel(WidgetEstructuraBase):
 
         datos_spinboxs = (
             ("altura_superior", 0.1, 300, 10, " m"),
-            ("altura_inferior", 0, 200, 0, " m"),
-            ("ancho", 0.1, 300, 5, " m"),
+            ("altura_inferior", 0, 200, 5, " m"),
+            ("ancho", 0.1, 300, 10, " m"),
             ("profundidad", 0.1, 50, 1, " m"),
         )
         self._spinboxs = {}

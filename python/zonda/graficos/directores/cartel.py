@@ -31,6 +31,10 @@ if TYPE_CHECKING:
     from zonda.graficos.colores import TablaColores
     from zonda.graficos.escena import Camara, Escena3D
 
+# El cartel se apoya en una pata central; si el ancho pasa de este
+# valor, en dos repartidas a lo largo del ancho.
+ANCHO_DOS_SOPORTES = 7.5
+
 
 class Geometria:
     """Geometria.
@@ -165,12 +169,14 @@ class Geometria:
     def _crear_soportes(self):
         if self.altura_inferior > 0:
             radio = min(self.ancho, abs(self.profundidad)) / 4
-            cilindro(
-                self.escena,
-                radio,
-                self.altura_inferior,
-                (self.ancho / 2, self.profundidad / 2),
-            )
+            centro_z = self.profundidad / 2
+            if self.ancho > ANCHO_DOS_SOPORTES:
+                cuarto = self.ancho / 4
+                centros_xz = ((cuarto, centro_z), (3 * cuarto, centro_z))
+            else:
+                centros_xz = ((self.ancho / 2, centro_z),)
+            for centro_xz in centros_xz:
+                cilindro(self.escena, radio, self.altura_inferior, centro_xz)
 
 
 class Presiones(Geometria):
