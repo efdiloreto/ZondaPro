@@ -44,13 +44,7 @@ if "QT_QPA_PLATFORM" not in os.environ and not _hay_display():
 SIN_OPENGL = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
 
 import pytest
-from PyQt6 import QtCore, QtWidgets
-
-# QtWebEngine exige contextos OpenGL compartidos y el atributo debe fijarse
-# antes de que exista una QApplication, incluida la que crea pytest-qt.
-QtWidgets.QApplication.setAttribute(
-    QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts
-)
+from PyQt6 import QtCore
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio

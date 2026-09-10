@@ -1,7 +1,7 @@
 # Guía para agentes — Zonda
 
 Aplicación de escritorio para calcular cargas de viento según **CIRSOC 102-2025** (reglamento argentino).
-Interfaz en **PyQt6**, visualización 3D en **Qt Quick 3D** y reportes técnicos en Markdown vía **Jinja2 + pandoc**.
+Interfaz en **PyQt6**, visualización 3D en **Qt Quick 3D** y reportes técnicos exportados a **PDF con el motor de texto nativo de Qt**.
 
 **Convención de idioma:** Todo el código, nombres de funciones/variables, comentarios y docstrings están en **español**. Mantené esta convención en cualquier cambio o agregado.
 
@@ -53,7 +53,7 @@ El flujo de dependencias es estrictamente unidireccional:
      generales (ayuda, configuración, acerca de) y la franja que avisa de una
      versión nueva. `abrir_proyecto()` vive acá y no en `main.py` porque es la
      bienvenida la que abre los módulos.
-   - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes.py` (visor de reportes con `QtWebEngine`).
+   - `modulos.py` (`QMainWindow` por tipología), `entrada.py` (formularios), `resultados.py` (tablas y gráficos), `reportes/` (el reporte de resultados: `documento.py` define el **modelo del documento** que alimenta a la vista y al PDF, `secciones.py` y `tablas.py` los bloques compartidos en pantalla, `comunes.py` los grupos de datos comunes a las tres tipologías, y `edificio.py`/`cartel.py`/`cubierta_aislada.py` arman el modelo de cada una; `navegacion.py` arma la vista con índice y páginas; `exportacion.py` es el diálogo que exporta). El renderizador del PDF vive en `zonda/pdf.py`.
    - `apoyo.py` (columna lateral de patrocinadores de la pantalla de inicio, el
      perfil de un patrocinador de oro y la ventana de Agradecimientos). Cada
      nivel se comporta distinto y eso es lo que compra: oro abre su perfil
@@ -65,8 +65,8 @@ El flujo de dependencias es estrictamente unidireccional:
    - `enums.py` (enumerados del dominio), `tipos.py` (sólo alias geométricos y
      numéricos; los resultados se describen en `cirsoc/resultados.py`),
      `unidades.py`, `excepciones.py`.
-   - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
-   - `reportes.py`: Motor de plantillas Jinja2 y compilación con pandoc.
+    - `proyecto.py`: Serialización y deserialización de proyectos `.zda`.
+    - `pdf.py`: El exportador de PDF, con el motor de texto nativo de Qt.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
    - `recientes.py`: Los últimos proyectos abiertos o guardados, en `QSettings`.
      Los que ya no están en disco se saltean al listar pero no se borran: pueden
@@ -93,20 +93,37 @@ El flujo de dependencias es estrictamente unidireccional:
 - **Contrato actor ↔ fila:** Las claves con las que el director agrupa los actores tienen que ser **los mismos enums** con los que `presiones/` etiqueta las filas. Si aparece una zona en `cp/` que el director no dibuja -o al revés-, la zona queda sin presión o el actor sin valor, sin que nada falle. Los tests de `test_graficos.py` cubren justamente eso: que las áreas de las zonas cubran la superficie sin huecos ni solapes y que ningún actor quede sin presión.
 - **Migrar una figura o tabla de C&R:** El camino es siempre el mismo. 1) En `cp/`, el nuevo string de `referencia` con sus valores, y las dimensiones que definen las zonas expuestas como propiedad (por ejemplo `distancias_zonas`), nunca recalculadas en la vista. 2) En `enums.py`, la zona nueva si hace falta. 3) En el director, agregar la `referencia` al dispatch (`_seleccionar_cubierta`) **y** el método que arma las zonas: si no está en el dispatch la cubierta se queda sin zonas y no hay error. El alero reusa la geometría de la cubierta recortada con `recortar_poligono` contra el plano de la pared. 4) Los tests de valores, de áreas por zona y de escena.
 - **Proyectos (`.zda`):** Guardan el estado crudo de los widgets de entrada (`estado()` / `cargar_estado()`), no los `parametros()` de cálculo. Los `Enum` se serializan por su `name`. Si cambia el esquema, incrementar `VERSION_FORMATO`.
-- **QtWebEngine:** Requiere `AA_ShareOpenGLContexts` configurado antes de instanciar `QApplication` (definido en `main.py`). No agregar banderas de ventana nativa (`WA_NativeWindow`) a `QWebEngineView`.
+- **Reporte en pantalla y exportación:** Los módulos por tipología
+  (`edificio.py`, `cartel.py`, `cubierta_aislada.py` en
+  `widgets/reportes/`) arman **un documento modelo** (`documento.py`:
+  `Documento` → `Pagina` → bloques: `Grupo`, `Datos`, `Tabla`, `Nota`,
+  `Tarjetas`, `Pestanas`, `SelectorComponentes`...) desde
+  `estructura.resultados*` filtrada y agrupada, con valores ya formateados
+  y unidades resueltas. Dos renderizadores lo consumen sin conocerse: el
+  builder de pantalla (`secciones.py`, con índice, pestañas y selector de
+  componentes) y `zonda/pdf.py`, que lo convierte en texto enriquecido de
+  Qt (`QTextCursor`/`QTextTable`, sin HTML ni pandoc ni LaTeX) y lo
+  escribe con `QPdfWriter`.   No rearmar widgets para exportar ni
+  renderizar el PDF con widgets. La página de resumen lleva
+  `exportable=False` y no viaja al PDF. El diálogo de exportación
+  (`exportacion.py`) deja elegir papel y orientación; el pie —firma
+  "Zonda {versión}" en Oswald a la izquierda, numeración "Página X de Y"
+  a la derecha, alineados con los márgenes del contenido, con la línea
+  de borde a borde de la hoja— lo dibuja `pdf.py` en todas las páginas
+  y no se puede sacar; los márgenes de la hoja los fija `pdf.py`.
 - **Separación de excepciones:**
   - `ErrorLineamientos`: Se lanza en `cirsoc` cuando la geometría excede el alcance del reglamento.
   - `ErrorEstructura`, `ErrorViento`, `ErrorComponentes`: Se lanzan en la capa de `widgets` al validar formularios.
 - **Presión mínima:** Hay tres, con distinto alcance:
   - **Componentes y revestimientos:** ±800 N/m² (Art. 5.2.2, "edificios y otras estructuras"; `presion_minima` en `presiones/base.py`), aplicado al módulo de cada signo del valor neto, incluyendo las paredes bajo la Figura 5.4-1, el alero y los componentes de cubiertas aisladas. Ojo al escribir tests: en edificios chicos el recorte tapa las diferencias entre zonas, así que un test que compare zonas necesita una velocidad alta.
   - **Otras estructuras:** 0,80 kN/m² por el área proyectada A_f (Art. 4.8, `PRESION_MINIMA_OTRAS_ESTRUCTURAS` en `presiones/cartel.py`), aplicado como piso de la presión de cada fila del cartel: sus filas son fuerzas (presión × área), así que recortar la presión deja la fuerza por encima del mínimo.
-  - **SPRFV:** Cargas de viento de diseño mínimas (Art. 2.1.5): 0,75 kN/m² por el área de pared proyectada sobre un plano vertical más 0,4 kN/m² por el área de cubierta proyectada sobre un plano horizontal, y 0,75 kN/m² × A_f para edificios abiertos, criterio con el que se trata al SPRFV de la cubierta aislada. Son fuerzas sobre áreas proyectadas, no presiones por superficie, así que van sólo como nota en las plantillas del reporte y no se aplican a los valores calculados (issue #10).
+  - **SPRFV:** Cargas de viento de diseño mínimas (Art. 2.1.5): 0,75 kN/m² por el área de pared proyectada sobre un plano vertical más 0,4 kN/m² por el área de cubierta proyectada sobre un plano horizontal, y 0,75 kN/m² × A_f para edificios abiertos, criterio con el que se trata al SPRFV de la cubierta aislada. Son fuerzas sobre áreas proyectadas, no presiones por superficie, así que van sólo como nota del reporte y no se aplican a los valores calculados (issue #10).
 - **Tabla de resultados:** Los consumidores (reporte, vista 3D, tablas de la
   interfaz) leen `estructura.resultados` -y en el edificio `resultados_sprfv` /
   `resultados_componentes`- y **filtran o agrupan**; no navegan las estructuras
   anidadas de `cp/` y `presiones/`, que son detalle interno. Si una fila necesita
   un dato nuevo, va como campo de la fila, no como una consulta al cálculo desde
-  la vista: cuando la plantilla o la escena le preguntan algo al núcleo (por
+  la vista: cuando el documento o la escena le preguntan algo al núcleo (por
   ejemplo si el ángulo llega a 10°) terminan repitiendo la lógica del Reglamento.
   El edificio separa SPRFV de componentes porque el Reglamento puede no proveer
   lineamientos para los segundos, y en ese caso `resultados_componentes` lanza

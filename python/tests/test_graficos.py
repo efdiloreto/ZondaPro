@@ -507,6 +507,22 @@ def test_el_punto_mas_cercano_ignora_los_solidos(qapp):
 # --- Las escenas de cada estructura --------------------------------------
 
 
+def test_los_soportes_del_cartel(qapp):
+    """El cartel apoya en una pata central, o en dos si el ancho pasa el límite."""
+    from zonda.graficos.directores import cartel as director_cartel
+
+    escena = Escena3D()
+    director = director_cartel.Geometria(
+        escena, ancho=6, profundidad=1, altura_inferior=5, altura_superior=10
+    )
+    director.inicializar_actores()
+    assert len(escena.solidos) == 1
+
+    director.ancho = director_cartel.ANCHO_DOS_SOPORTES + 1
+    director.inicializar_actores()
+    assert len(escena.solidos) == 2
+
+
 def test_escena_del_cartel(qapp, cartel):
     from zonda.graficos.escenas import cartel as escena_cartel
 
@@ -517,7 +533,7 @@ def test_escena_del_cartel(qapp, cartel):
     # Las caras son las 5 sin presión, la cara a barlovento y las 2 regiones
     # del Caso C (creadas ocultas: la fixture tiene B/s = 2).
     assert len(escena.caras) == 8
-    assert len(escena.solidos) == 1  # el soporte
+    assert len(escena.solidos) == 2  # los soportes: el fixture es ancho
     assert "Caso A" in escena.titulo
     assert escena.etiquetasEscala
 

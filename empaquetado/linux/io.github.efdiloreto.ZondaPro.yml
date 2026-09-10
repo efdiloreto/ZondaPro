@@ -1,7 +1,7 @@
 # Copyright (c) 2018-2026, Eduardo Di Loreto <efdiloreto@gmail.com>
 # This file is part of Zonda (GPLv3).
 #
-# El bundle (interprete de Python, dependencias y pandoc) lo arma
+# El bundle (interprete de Python y dependencias) lo arma
 # empaquetado/build_bundle.py en el host, igual que para el .msi y el .dmg. Aca
 # solo se empaqueta, asi que este manifiesto no necesita ni red ni uv adentro
 # del sandbox de compilacion. Eso tambien es lo que impide publicarlo en Flathub
@@ -24,10 +24,6 @@ finish-args:
   - --socket=fallback-x11
   # Abrir y guardar proyectos .zda y exportar las memorias de calculo.
   - --filesystem=home
-  # QtWebEngine trae el sandbox de Chromium, que no puede anidarse adentro del
-  # de Flatpak. El aislamiento lo sigue dando bubblewrap, que es la barrera de
-  # afuera y la que realmente contiene a la aplicacion.
-  - --env=QTWEBENGINE_DISABLE_SANDBOX=1
 
 modules:
   - name: zonda

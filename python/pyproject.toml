@@ -24,12 +24,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "jinja2>=3.1.6",
     "numpy>=2.5.2",
     "packaging>=25.0",
-    "pypandoc>=1.17",
     "pyqt6>=6.11.0",
-    "pyqt6-webengine>=6.11.0",
 ]
 
 [project.urls]
@@ -107,10 +104,6 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 # El codigo existente no esta completamente tipado; se ajusta gradualmente.
 check_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = ["pypandoc.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

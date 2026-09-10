@@ -410,6 +410,16 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             return str(self._ruta_archivo)
         return str(Path(carpetas.ultima()) / f"{self.titulo}{proyecto.EXTENSION}")
 
+    def nombre_archivo(self) -> str:
+        """El nombre del archivo abierto, sin extensión.
+
+        Returns:
+            El nombre, o una cadena vacía si el módulo no tiene archivo.
+        """
+        if self._ruta_archivo is not None:
+            return self._ruta_archivo.stem
+        return ""
+
     def _actualizar_titulo(self) -> None:
         nombre = "Sin título" if self._ruta_archivo is None else self._ruta_archivo.name
         self.setWindowTitle(

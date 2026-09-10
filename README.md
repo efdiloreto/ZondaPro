@@ -57,7 +57,7 @@ Podés descargar el instalador ejecutable correspondiente a tu sistema operativo
 - **macOS:** Imagen de disco `.dmg`
 - **Linux:** Paquete `.flatpak` (se instala con `flatpak install --user Zonda-*.flatpak`)
 
-> **Nota:** Los instaladores oficiales ya incluyen todas las herramientas necesarias (incluido Pandoc para la exportación de reportes).
+> **Nota:** Los instaladores oficiales ya incluyen todas las herramientas necesarias: la exportación a PDF la hace Zonda por sí solo.
 
 ---
 
@@ -79,7 +79,7 @@ Requiere [uv](https://docs.astral.sh/uv/getting-started/installation/) y Python 
 
 > `uv sync` creará el entorno virtual e instalará Python 3.13 automáticamente si no está disponible en el sistema.
 >
-> Para exportar reportes a PDF, DOCX u ODT al correr desde el código, se requiere tener [pandoc](https://pandoc.org/installing.html) instalado y disponible en el `PATH` del sistema.
+> No se necesita nada más: la exportación a PDF usa el motor de texto de Qt y viaja con las dependencias del proyecto.
 
 ---
 

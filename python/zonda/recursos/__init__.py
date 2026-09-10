@@ -98,6 +98,19 @@ def directorio(nombre: str) -> Path:
     return ruta_directorio
 
 
+def raiz() -> Path:
+    """La ruta del directorio de recursos, para las url() del QSS.
+
+    La hoja de estilos se carga como texto y Qt resuelve sus url()
+    contra el directorio de trabajo, así que quien la carga tiene que
+    reemplazar el token ``RECURSOS`` por esta ruta.
+
+    Returns:
+        La ruta absoluta al directorio de recursos.
+    """
+    return _DIRECTORIO
+
+
 def texto(clave: str, encoding: str = "utf-8") -> str:
     """Lee un recurso de texto.
 

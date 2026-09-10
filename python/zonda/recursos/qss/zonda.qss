@@ -235,40 +235,93 @@ WidgetPanel[class="patrocinadores"] {
     border-bottom: none;
 }
 
+/* Los botones del panel comparten la píldora gris y el hover apenas la
+   oscurece. Cada clase la viste: los de diálogo y los de la barra de
+   resultados van sin fondo y el borde los dibuja —el marcado se llena
+   de gris—, el CTA va en amarillo y los segmentos del selector de
+   componentes se confunden con su cápsula (el marcado va en blanco). */
 WidgetBotonPanel {
     border: none;
-    background-color: none;
+    background-color: #d2d2d2;
+    border-radius: 3px;
     font-size:   16px;
     font-weight: normal;
     font-family: "Oswald";
-    padding-left: 20px;
-    padding-right: 20px;
+    padding: 6px 20px;
 }
 
 WidgetBotonPanel:hover
 {
-    background-color: #c0c0c0;
+    background-color: #c6c6c6;
 }
 
+/* Los que abren diálogos no llevan fondo: el borde los dibuja —el mismo
+   trazo del CTA— y el gris aparece sólo al pasar el mouse. */
+WidgetBotonPanel.dialogo {
+    background-color: transparent;
+    border: 1px solid #1a1a1a;
+}
+
+WidgetBotonPanel.dialogo:hover {
+    background-color: #c6c6c6;
+}
+
+/* El marcado —la página visible del apilador— se llena como una píldora
+   apretada y sigue gris al pasar el mouse: la regla va después del
+   hover para ganarle. */
+WidgetBotonPanel.dialogo:checked {
+    color: black;
+    background-color: #d2d2d2;
+}
+
+WidgetBotonPanel.dialogo:disabled {
+    color: #a6a6a6;
+}
+
+/* El CTA del panel: el mismo estilo del botón Exportar del reporte, con
+   el radio de las píldoras de la barra. */
 WidgetBotonPanel.accion {
+    color: black;
     background-color: #febe00;
-    border-bottom: 1px solid #a6a6a6;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
 }
 
 WidgetBotonPanel.accion:hover {
+    background-color: #ffcd33;
+}
+
+WidgetBotonPanel.accion:pressed {
     background-color: #e4ab00;
-
 }
 
-WidgetBotonPanel.tab:hover {
-    color: #c0c0c0;
-    background-color: none;
+/* La cápsula agrupa los segmentos del selector de componentes de las
+   páginas de C&R del reporte; los de la barra de resultados van
+   sueltos. */
+QWidget.capsula {
+    background-color: #d2d2d2;
+    border-radius: 3px;
 }
 
-WidgetBotonPanel.tab:checked {
-    color: #1858a8;
-    border-bottom: 5px solid #1858a8;
-    padding-top: 5px;
+/* El selector de componentes del reporte: los segmentos reparten el
+   ancho del desplegable, así que van más bajos y con letra más chica
+   que los del panel. */
+WidgetBotonPanel.segmento[compacto="true"] {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* El marcado sigue blanco al pasar el mouse: la regla :checked gana por
+   especificidad sobre el hover de la base. */
+WidgetBotonPanel.segmento:checked {
+    color:            #1858a8;
+    background-color: white;
+    border: 1px solid #a6a6a6;
+    border-radius: 2px;
+}
+
+WidgetBotonPanel.segmento:disabled {
+    color: #a6a6a6;
 }
 
 .verifica {
@@ -277,4 +330,244 @@ WidgetBotonPanel.tab:checked {
 
 .noverifica {
     color: red;
+}
+
+/* --- El reporte en pantalla ----------------------------------------------
+   El reporte nativo reemplaza al visor web: mismas secciones que la
+   exportación, pero dibujadas con widgets. Los títulos van en Oswald como
+   el resto de la interfaz, las tarjetas y subsecciones son blancas sobre el
+   fondo de la ventana y el resaltado de extremos de las tablas se asigna
+   desde Python (negrita + color), no acá. */
+
+QLabel.reporte-titulo {
+    font-size:   22px;
+    font-family: "Oswald";
+    color: #1a1a1a;
+}
+
+QLabel.reporte-subtitulo {
+    font-size: 12px;
+    color: #606060;
+}
+
+/* La acción principal de la vista: abre el diálogo de exportación. El
+   mismo estilo del botón Calcular del panel. */
+QPushButton.reporte-exportar {
+    color: black;
+    background-color: #febe00;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+    font-size: 16px;
+    font-family: "Oswald";
+    padding: 6px 20px;
+}
+
+QPushButton.reporte-exportar:hover {
+    background-color: #ffcd33;
+}
+
+QPushButton.reporte-exportar:pressed {
+    background-color: #e4ab00;
+}
+
+/* El desplegable de componentes del reporte. El marco es propio; la
+   flecha es un recurso que va en el ::down-arrow, con el marcador de
+   ruta que main.py reemplaza por la real al cargar la hoja. */
+QComboBox.selector-componente {
+    background-color: white;
+    border: 1px solid #a6a6a6;
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 14px;
+    font-family: "Oswald";
+}
+
+QComboBox.selector-componente:hover {
+    border-color: #808080;
+}
+
+QComboBox.selector-componente::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QComboBox.selector-componente::down-arrow {
+    image: url(RECURSOS/iconos/generales/flecha-abajo.png);
+}
+
+QComboBox.selector-componente QAbstractItemView {
+    background-color: white;
+    border: 1px solid #a6a6a6;
+    selection-background-color: #e5ebf3;
+    selection-color: #1a1a1a;
+}
+
+/* La barra vertical de las áreas de scroll de página: fina, con fondo
+   transparente y alejada del borde, para que cuando está presente no le
+   pese al contenido. Alcanza a las páginas del reporte y a los paneles
+   de entrada, que son los únicos QScrollArea del programa. */
+QScrollArea QScrollBar:vertical {
+    background: transparent;
+    width: 9px;
+    margin: 2px 3px 2px 3px;
+}
+
+QScrollArea QScrollBar::handle:vertical {
+    background: #c6c6c6;
+    border-radius: 3px;
+    min-height: 30px;
+}
+
+QScrollArea QScrollBar::handle:vertical:hover {
+    background: #a6a6a6;
+}
+
+QScrollArea QScrollBar::add-line:vertical,
+QScrollArea QScrollBar::sub-line:vertical {
+    height: 0;
+    width: 0;
+}
+
+QScrollArea QScrollBar::add-page:vertical,
+QScrollArea QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* El índice del reporte, a la izquierda. Marca la sección con el mismo azul
+   que las pestañas del panel de resultados. */
+QListWidget.menu-reporte {
+    background-color: #e6e6e6;
+    border: none;
+    font-size: 14px;
+    outline: none;
+}
+
+QListWidget.menu-reporte::item {
+    padding: 6px 9px;
+    border-left: 3px solid transparent;
+}
+
+QListWidget.menu-reporte::item:selected {
+    background-color: #e5ebf3;
+    border-left: 3px solid #1858a8;
+    color: #1a1a1a;
+}
+
+QLabel.seccion {
+    font-size:   19px;
+    font-family: "Oswald";
+    color: #1a1a1a;
+}
+
+QLabel.seccion-descripcion {
+    font-size: 12px;
+    color: #606060;
+}
+
+QFrame.separador {
+    border: none;
+    border-top: 1px solid #d8d8d8;
+}
+
+QFrame.subseccion {
+    background-color: #ffffff;
+    border: 1px solid #d8d8d8;
+    border-radius: 2px;
+}
+
+QLabel.subseccion-titulo {
+    font-size:   15px;
+    font-family: "Oswald";
+    color: #1a1a1a;
+}
+
+QLabel.referencia {
+    font-size: 11px;
+    color: #606060;
+}
+
+QLabel.grupo-tabla {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+QLabel.dato-etiqueta {
+    color: #606060;
+}
+
+QLabel.dato-valor {
+    color: #1a1a1a;
+}
+
+/* Las tarjetas del resumen: un valor por tarjeta, con la etiqueta arriba y
+   la ubicación debajo. Las destacadas —los extremos y la fuerza de diseño—
+   llevan el borde azul de la interfaz. */
+QFrame.tarjeta {
+    background-color: #ffffff;
+    border: 1px solid #d8d8d8;
+    border-radius: 2px;
+}
+
+QFrame.tarjeta[destacada="true"] {
+    border: 2px solid #1858a8;
+}
+
+QLabel.tarjeta-titulo {
+    font-size: 11px;
+    color: #606060;
+}
+
+QLabel.tarjeta-valor {
+    font-size:   21px;
+    font-family: "Oswald";
+    color: #1a1a1a;
+}
+
+QLabel.tarjeta-detalle {
+    font-size: 11px;
+    color: #606060;
+}
+
+/* Las notas del Reglamento: el amarillo de la marca como filete, que
+   acompaña sin tapar los números. */
+QFrame.nota {
+    background-color: #fff8e1;
+    border: 1px solid #f0e0b0;
+    border-left: 3px solid #febe00;
+    border-radius: 2px;
+}
+
+QLabel.nota-titulo {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+QLabel.nota-texto {
+    font-size: 12px;
+    color: #1a1a1a;
+}
+
+QTableWidget.tabla-resultados {
+    background-color: #ffffff;
+    alternate-background-color: #f4f4f4;
+    gridline-color: #d8d8d8;
+    selection-background-color: #e5ebf3;
+    selection-color: #1a1a1a;
+    border: none;
+}
+
+/* El encabezado acompaña a las tarjetas: mismo gris que el panel y las
+   líneas de la grilla. La tipografía va un punto más grande que el
+   cuerpo y en seminegrita, para que encabece sin gritar. El selector es
+   descendiente para no tocar la tabla del diálogo de componentes. */
+QTableWidget.tabla-resultados QHeaderView::section {
+    background-color: #f0f0f0;
+    padding: 4px;
+    border: none;
+    border-right: 1px solid #d8d8d8;
+    border-bottom: 1px solid #d8d8d8;
+    font-size: 14px;
+    font-weight: 600;
 }
