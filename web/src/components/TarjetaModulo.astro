@@ -1,0 +1,72 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+// La tarjeta de módulo de la bienvenida: ícono arriba, título en
+// Oswald y la descripción debajo, sobre el borde fino de las
+// subsecciones del reporte.
+
+interface Props {
+	titulo: string;
+	texto: string;
+	icono: string;
+	enlace?: string;
+	textoEnlace?: string;
+}
+
+const { titulo, texto, icono, enlace, textoEnlace } = Astro.props;
+---
+
+<article class="tarjeta modulo">
+	<img src={icono} width="72" height="72" alt="" />
+	<h3>{titulo}</h3>
+	<p>{texto}</p>
+	{
+		enlace && (
+			<a class="enlace" href={enlace}>
+				{textoEnlace} →
+			</a>
+		)
+	}
+</article>
+
+<style>
+	.modulo {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 24px 20px;
+		text-align: center;
+	}
+
+	.modulo h3 {
+		font-size: 18px;
+		font-weight: 500;
+		margin: 0;
+	}
+
+	.modulo p {
+		margin: 0;
+		font-size: 14px;
+		color: var(--texto-suave);
+		flex-grow: 1;
+	}
+
+	.enlace {
+		font-family: var(--fuente-titulos);
+		font-size: 14px;
+	}
+</style>

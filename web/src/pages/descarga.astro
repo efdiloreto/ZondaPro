@@ -1,0 +1,106 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+
+// Los instaladores de la última release, con la nota del README: viajan
+// completos, la exportación a PDF no necesita nada extra.
+const instaladores = [
+	{ sistema: 'Windows', archivo: '.msi', enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest' },
+	{ sistema: 'macOS', archivo: '.dmg', enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest' },
+	{
+		sistema: 'Linux',
+		archivo: '.flatpak',
+		enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest',
+	},
+];
+---
+
+<Base
+	titulo="Descarga"
+	descripcion="Descargá Zonda para Windows, macOS o Linux."
+>
+	<section class="encabezado-seccion contenedor">
+		<h1>Descarga</h1>
+		<p class="texto-suave">Gratuito y libre, bajo GPLv3.</p>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Instaladores listos para usar</h2>
+		<p>
+			Bajá el instalador de tu sistema operativo desde la
+			<a href="https://github.com/efdiloreto/ZondaPro/releases/latest">última release</a>.
+		</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Plataforma</th>
+					<th>Formato</th>
+					<th>Descarga</th>
+				</tr>
+			</thead>
+			<tbody>
+				{
+					instaladores.map((instalador) => (
+						<tr>
+							<td>{instalador.sistema}</td>
+							<td>{instalador.archivo}</td>
+							<td>
+								<a href={instalador.enlace}>Última release</a>
+							</td>
+						</tr>
+					))
+				}
+			</tbody>
+		</table>
+		<div class="nota">
+			<p>
+				Los instaladores oficiales ya incluyen todas las herramientas necesarias: la exportación
+				a PDF la hace Zonda por sí solo.
+			</p>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.encabezado-seccion {
+		padding-top: 40px;
+	}
+
+	.encabezado-seccion h1 {
+		font-size: 34px;
+		margin-bottom: 4px;
+	}
+
+	.seccion {
+		margin-top: 40px;
+		padding-top: 24px;
+		border-top: 1px solid var(--borde);
+	}
+
+	.seccion h2 {
+		font-size: 22px;
+	}
+
+	.nota {
+		margin-top: 16px;
+	}
+
+	/* La nota va después de la tabla: el margen del párrafo no alcanza. */
+	.seccion table + .nota {
+		margin-top: 16px;
+	}
+</style>

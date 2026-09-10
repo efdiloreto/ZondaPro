@@ -1,0 +1,243 @@
+/*
+  Este archivo es parte de Zonda.
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles: https://www.gnu.org/licenses/gpl-3.0.html
+*/
+
+/*
+  La paleta y las piezas salen de la interfaz de la aplicación
+  (python/zonda/recursos/qss/zonda.qss): los mismos azules, el amarillo
+  de los botones de acción, los grises de las tarjetas y las notas del
+  Reglamento con su filete. El cuerpo va en la tipografía del sistema —
+  como los widgets — y los títulos en Oswald, la fuente de la interfaz.
+*/
+
+@font-face {
+	font-family: 'Oswald';
+	src: url('../fuentes/Oswald-VariableFont_wght.ttf') format('truetype-variations');
+	font-weight: 200 700;
+	font-display: swap;
+}
+
+:root {
+	/* Azules de la marca: enlaces, acentos y bordes destacados. */
+	--azul: #1858a8;
+	--azul-hover: #12417b;
+	/* El celeste del foco de los campos y la selección de listas. */
+	--celeste: #e5ebf3;
+	/* El amarillo del CTA: Calcular, Exportar, y acá Descargar. */
+	--amarillo: #febe00;
+	--amarillo-hover: #ffcd33;
+	--amarillo-pressed: #e4ab00;
+	/* Textos: casi negro para el cuerpo, gris medio para etiquetas. */
+	--texto: #1a1a1a;
+	--texto-suave: #606060;
+	/* Líneas y fondos: bordes de tarjetas, separadores y paneles. */
+	--borde: #d8d8d8;
+	--linea: #a6a6a6;
+	--fondo-panel: #e6e6e6;
+	--fondo-tarjeta: #ffffff;
+	--fondo-fila-alterna: #f4f4f4;
+	--fondo-cabecera-tabla: #f0f0f0;
+	/* Las píldoras grises de la barra de herramientas. */
+	--pildora: #d2d2d2;
+	--pildora-hover: #c6c6c6;
+	/* Las notas del Reglamento: fondo cálido con filete amarillo. */
+	--nota-fondo: #fff8e1;
+	--nota-borde: #f0e0b0;
+	/* Tipografías. */
+	--fuente-titulos: 'Oswald', 'Arial Narrow', sans-serif;
+	--fuente-cuerpo: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	color: var(--texto);
+	background-color: var(--fondo-tarjeta);
+	font-family: var(--fuente-cuerpo);
+	font-size: 16px;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	font-family: var(--fuente-titulos);
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--texto);
+	margin: 0 0 0.6em;
+}
+
+p {
+	margin: 0 0 1em;
+}
+
+a {
+	color: var(--azul);
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--azul-hover);
+	text-decoration: underline;
+}
+
+code,
+pre {
+	font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	font-size: 0.9em;
+}
+
+pre {
+	background-color: var(--celeste);
+	border: 1px solid var(--borde);
+	border-radius: 2px;
+	padding: 0.9em 1.2em;
+	overflow-x: auto;
+}
+
+code {
+	background-color: var(--celeste);
+	padding: 0.1em 0.4em;
+	border-radius: 2px;
+}
+
+pre code {
+	background: none;
+	padding: 0;
+}
+
+/* --- Contenedor ------------------------------------------------------- */
+
+.contenedor {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: 0 24px;
+}
+
+/* --- Botones ----------------------------------------------------------
+   El CTA es el botón Calcular/Exportar del panel: amarillo con borde
+   negro y radio 3. El secundario es el botón de diálogo: sin fondo y
+   el borde lo dibuja; el gris aparece al pasar el mouse. */
+
+.boton {
+	display: inline-block;
+	font-family: var(--fuente-titulos);
+	font-size: 16px;
+	line-height: 1.4;
+	padding: 6px 20px;
+	border-radius: 3px;
+	border: 1px solid #1a1a1a;
+	cursor: pointer;
+}
+
+.boton-accion {
+	color: black;
+	background-color: var(--amarillo);
+}
+
+.boton-accion:hover {
+	color: black;
+	background-color: var(--amarillo-hover);
+}
+
+.boton-accion:active {
+	background-color: var(--amarillo-pressed);
+}
+
+.boton-dialogo {
+	color: var(--texto);
+	background-color: transparent;
+}
+
+.boton-dialogo:hover {
+	color: var(--texto);
+	background-color: var(--pildora-hover);
+}
+
+/* --- Tarjetas ---------------------------------------------------------
+   Blancas con el borde fino de las subsecciones del reporte; las
+   destacadas llevan el borde azul de la interfaz. */
+
+.tarjeta {
+	background-color: var(--fondo-tarjeta);
+	border: 1px solid var(--borde);
+	border-radius: 2px;
+}
+
+.tarjeta-destacada {
+	border: 2px solid var(--azul);
+}
+
+/* --- Notas ------------------------------------------------------------
+   El amarillo de la marca como filete, que acompaña sin gritar. */
+
+.nota {
+	background-color: var(--nota-fondo);
+	border: 1px solid var(--nota-borde);
+	border-left: 3px solid var(--amarillo);
+	border-radius: 2px;
+	padding: 0.8em 1.1em;
+}
+
+.nota p {
+	margin: 0;
+}
+
+/* --- Tablas -----------------------------------------------------------
+   Cabecera gris en seminegrita, filas alternas y grilla fina, como la
+   tabla de resultados. */
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	background-color: var(--fondo-tarjeta);
+}
+
+thead th {
+	background-color: var(--fondo-cabecera-tabla);
+	border-right: 1px solid var(--borde);
+	border-bottom: 1px solid var(--borde);
+	padding: 6px 10px;
+	text-align: left;
+	font-size: 0.95em;
+	font-weight: 600;
+}
+
+tbody td {
+	border-right: 1px solid var(--borde);
+	border-bottom: 1px solid var(--borde);
+	padding: 6px 10px;
+}
+
+tbody tr:nth-child(even) {
+	background-color: var(--fondo-fila-alterna);
+}
+
+/* --- Textos de apoyo ---------------------------------------------------
+   La etiqueta gris de los datos del reporte y el subtítulo chico. */
+
+.texto-suave {
+	color: var(--texto-suave);
+}
+
+.subtitulo {
+	font-size: 12px;
+	color: var(--texto-suave);
+}

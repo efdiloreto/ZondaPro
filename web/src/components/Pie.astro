@@ -1,0 +1,46 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+// El pie cierra la ventana en la aplicación: mismo gris de panel, pero
+// con la línea arriba. Acá van los accesos generales y la firma.
+
+const anio = new Date().getFullYear();
+---
+
+<footer class="pie">
+	<div class="contenedor">
+		<p class="firma">
+			Copyright © 2018–{anio} Eduardo Di Loreto y Natalia Alvarado · Software libre bajo
+			<a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE">GPLv3</a>
+		</p>
+	</div>
+</footer>
+
+<style>
+	.pie {
+		background-color: var(--fondo-panel);
+		border-top: 1px solid var(--linea);
+		margin-top: 48px;
+		padding: 18px 0;
+	}
+
+	.firma {
+		margin: 0;
+		font-size: 13px;
+		color: var(--texto-suave);
+		text-align: center;
+	}
+</style>

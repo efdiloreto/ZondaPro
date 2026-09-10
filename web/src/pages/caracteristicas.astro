@@ -1,0 +1,167 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+import Captura from '../components/Captura.astro';
+
+// El cálculo reglamentario, tal como lo lista el README: cada ítem es
+// una fila del Reglamento que Zonda resuelve.
+const calculo = [
+	'Determinación de presiones dinámicas q<sub>z</sub> y q<sub>h</sub>.',
+	'Factores de ráfaga (G), direccionalidad (K<sub>d</sub>), altitud (K<sub>e</sub>) y efecto topográfico (K<sub>zt</sub>).',
+	'Coeficientes de presión externa (C<sub>p</sub>) e interna (GC<sub>pi</sub>).',
+	'Cargas en el Sistema Principal Resistente a la Fuerza del Viento (SPRFV) y en Componentes y Revestimientos (C&R).',
+];
+
+const capturas = [
+	{ titulo: 'Módulo Carteles' },
+	{ titulo: 'Módulo Cubiertas Aisladas' },
+	{ titulo: 'Visor 3D y exportación de reportes' },
+];
+---
+
+<Base
+	titulo="Características"
+	descripcion="Cálculo reglamentario, tipologías estructurales, visualización 3D y memorias de cálculo según CIRSOC 102-2025."
+>
+	<section class="encabezado-seccion contenedor">
+		<h1>Características</h1>
+		<p class="texto-suave">Todo lo que Zonda resuelve, sección por sección.</p>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Cálculo reglamentario (CIRSOC 102-2025)</h2>
+		<ul>
+			<li set:html={calculo[0]} />
+			<li set:html={calculo[1]} />
+			<li set:html={calculo[2]} />
+			<li set:html={calculo[3]} />
+		</ul>
+		<div class="nota">
+			<p>
+				Cada valor sale de una figura o tabla del Reglamento: el reporte indica la referencia
+				exacta que se aplicó en cada sección del cálculo.
+			</p>
+		</div>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Tipologías estructurales</h2>
+		<div class="grilla">
+			<div class="tarjeta tipologia">
+				<h3>Edificios</h3>
+				<p>Cerrados y parcialmente cerrados, cubiertas planas, a un agua y a dos aguas, con o sin parapetos.</p>
+			</div>
+			<div class="tarjeta tipologia">
+				<h3>Carteles y muros</h3>
+				<p>Sobre terreno o elevados, con soporte estructural.</p>
+			</div>
+			<div class="tarjeta tipologia">
+				<h3>Cubiertas aisladas</h3>
+				<p>A un agua, dos aguas y abovedadas, abiertas o con obstrucciones.</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Visualización 3D interactiva</h2>
+		<ul>
+			<li>Mapeo de presiones con escala de colores en tiempo real.</li>
+			<li>Vectores y etiquetas de presión direccionales con control de oclusión.</li>
+			<li>Vistas ortogonales fijas, perspectiva cónica/ortográfica y herramienta de medición de distancias entre vértices.</li>
+		</ul>
+		<Captura titulo="Vista 3D con presiones mapeadas por colores" />
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Memorias de cálculo técnicas</h2>
+		<ul>
+			<li>Generación de informes completos y detallados, sección por sección.</li>
+			<li>Exportación directa a PDF desde la propia aplicación.</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Gestión de proyectos</h2>
+		<ul>
+			<li>Guardado y apertura del estado de trabajo en el formato nativo <code>.zda</code>.</li>
+			<li>Proyectos recientes en la pantalla de inicio.</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Capturas</h2>
+		<div class="grilla-capturas">
+			{capturas.map((captura) => <Captura titulo={captura.titulo} />)}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.encabezado-seccion {
+		padding-top: 40px;
+	}
+
+	.encabezado-seccion h1 {
+		font-size: 34px;
+		margin-bottom: 4px;
+	}
+
+	.seccion {
+		margin-top: 40px;
+		padding-top: 24px;
+		border-top: 1px solid var(--borde);
+	}
+
+	.seccion > :global(.captura),
+	.seccion > :global(figure) {
+		margin-top: 16px;
+	}
+
+	.seccion h2 {
+		font-size: 22px;
+	}
+
+	ul {
+		margin: 0 0 1em;
+		padding-left: 20px;
+	}
+
+	li {
+		margin-bottom: 6px;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 16px;
+	}
+
+	.tipologia {
+		padding: 16px 18px;
+	}
+
+	.tipologia h3 {
+		font-size: 16px;
+		margin-bottom: 4px;
+	}
+
+	.tipologia p {
+		margin: 0;
+		font-size: 14px;
+		color: var(--texto-suave);
+	}
+</style>

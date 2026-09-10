@@ -1,0 +1,167 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+import TarjetaModulo from '../components/TarjetaModulo.astro';
+import Captura from '../components/Captura.astro';
+import iconoEdificio from '../assets/edificio.png';
+import iconoCubierta from '../assets/cubierta-aislada.png';
+import iconoCartel from '../assets/cartel.png';
+
+// El base no termina en barra y las rutas vienen con la inicial: se
+// concatenan directo para que respeten /ZondaPro/.
+const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+---
+
+<Base titulo="Inicio">
+	<section class="hero">
+		<div class="contenedor">
+			<h1>Cargas de viento según CIRSOC 102-2025</h1>
+			<p class="bajada">
+				Zonda es software libre de escritorio para el cálculo de cargas y presiones de viento en
+				estructuras según el reglamento argentino <strong>CIRSOC 102-2025</strong>.
+			</p>
+			<div class="acciones">
+				<a class="boton boton-accion" href={rutaDe('/descarga/')}>Descargar</a>
+				<a class="boton boton-dialogo" href={rutaDe('/caracteristicas/')}>Ver características</a>
+			</div>
+		</div>
+	</section>
+
+	<section class="modulos">
+		<div class="contenedor">
+			<h2>Elegí la tipología de tu estructura</h2>
+			<p class="texto-suave">Tres módulos, el mismo motor de cálculo reglamentario.</p>
+			<div class="grilla">
+				<TarjetaModulo
+					titulo="Edificios"
+					texto="Cerrados y parcialmente cerrados, cubiertas planas, a un agua y a dos aguas, con o sin parapetos."
+					icono={iconoEdificio.src}
+				/>
+				<TarjetaModulo
+					titulo="Cubiertas aisladas"
+					texto="A un agua, dos aguas y abovedadas, abiertas o con obstrucciones."
+					icono={iconoCubierta.src}
+				/>
+				<TarjetaModulo
+					titulo="Carteles y muros"
+					texto="Sobre terreno o elevados, con soporte estructural."
+					icono={iconoCartel.src}
+				/>
+			</div>
+		</div>
+	</section>
+
+	<section class="destacados">
+		<div class="contenedor">
+			<h2>Lo que trae</h2>
+			<div class="grilla">
+				<div class="tarjeta destacado">
+					<h3>Visualización 3D interactiva</h3>
+					<p>
+						Mapeo de presiones con escala de colores en tiempo real, vectores direccionales y
+						herramienta de medición, con vistas ortogonales y perspectiva.
+					</p>
+				</div>
+				<div class="tarjeta destacado">
+					<h3>Memorias de cálculo</h3>
+					<p>
+						Reportes completos y detallados con los valores del Reglamento, exportables
+						directamente a PDF.
+					</p>
+				</div>
+				<div class="tarjeta destacado">
+					<h3>Gestión de proyectos</h3>
+					<p>
+						Guardado y apertura del estado de trabajo en el formato nativo <code>.zda</code>,
+						con los proyectos recientes siempre a mano.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="capturas">
+		<div class="contenedor">
+			<h2>La aplicación</h2>
+			<div class="grilla-capturas">
+				<Captura titulo="Selección de módulo" />
+				<Captura titulo="Módulo Edificios" />
+			</div>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.hero {
+		background-color: var(--fondo-panel);
+		border-bottom: 1px solid var(--linea);
+		padding: 72px 0 64px;
+	}
+
+	.hero h1 {
+		font-size: clamp(30px, 5vw, 44px);
+		max-width: 720px;
+	}
+
+	.hero p {
+		max-width: 640px;
+		font-size: 18px;
+		color: var(--texto-suave);
+	}
+
+	.acciones {
+		display: flex;
+		gap: 12px;
+		flex-wrap: wrap;
+		margin-top: 24px;
+	}
+
+	section + section {
+		margin-top: 56px;
+	}
+
+	section h2 {
+		font-size: 24px;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 16px;
+	}
+
+	.grilla-capturas {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+		gap: 20px;
+	}
+
+	.destacado {
+		padding: 20px;
+	}
+
+	.destacado h3 {
+		font-size: 17px;
+		margin-bottom: 6px;
+	}
+
+	.destacado p {
+		margin: 0;
+		font-size: 14px;
+		color: var(--texto-suave);
+	}
+</style>

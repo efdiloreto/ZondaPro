@@ -1,0 +1,77 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+// El marco de una captura de pantalla. Mientras no haya imágenes
+// locales, dibuja el lugar que van a ocupar: celeste de foco, borde
+// fino y el texto que dice qué va ahí.
+
+interface Props {
+	titulo: string;
+	imagen?: string;
+}
+
+const { titulo, imagen } = Astro.props;
+---
+
+<figure class="captura">
+	{
+		imagen ? (
+			<img src={imagen} alt={titulo} loading="lazy" />
+		) : (
+			<div class="marcador" aria-hidden="true">
+				<span>Captura pendiente</span>
+				<span class="texto-suave">{titulo}</span>
+			</div>
+		)
+	}
+	<figcaption>{titulo}</figcaption>
+</figure>
+
+<style>
+	.captura {
+		margin: 0;
+	}
+
+	.captura img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border: 1px solid var(--borde);
+		border-radius: 2px;
+	}
+
+	/* El lugar reservado: celeste suave como los campos con foco. */
+	.marcador {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		aspect-ratio: 16 / 9;
+		background-color: var(--celeste);
+		border: 1px dashed var(--linea);
+		border-radius: 2px;
+		font-family: var(--fuente-titulos);
+		font-size: 15px;
+	}
+
+	figcaption {
+		margin-top: 6px;
+		font-size: 12px;
+		color: var(--texto-suave);
+		text-align: center;
+	}
+</style>

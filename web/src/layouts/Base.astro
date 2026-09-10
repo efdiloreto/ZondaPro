@@ -1,0 +1,50 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import '../styles/global.css';
+import Encabezado from '../components/Encabezado.astro';
+import Pie from '../components/Pie.astro';
+
+interface Props {
+	titulo: string;
+	descripcion?: string;
+}
+
+const { titulo, descripcion = 'Software libre para el cálculo de cargas de viento según CIRSOC 102-2025.' } = Astro.props;
+
+// Las rutas internas llevan el prefijo de base: GitHub Pages publica el
+// sitio bajo /ZondaPro/.
+const tituloCompleto = `${titulo} · Zonda`;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} sizes="any" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={descripcion} />
+		<title>{tituloCompleto}</title>
+	</head>
+	<body>
+		<Encabezado />
+		<main>
+			<slot />
+		</main>
+		<Pie />
+	</body>
+</html>
