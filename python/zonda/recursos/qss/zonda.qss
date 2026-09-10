@@ -62,28 +62,6 @@ QPushButton.salir:hover
                                       stop: 0 #d9d9d9, stop: 1 #d9d9d9);
 }
 
-/* El boton de apoyo al proyecto usa la forma del de salir con el amarillo de
-   la marca: tiene que verse, que es todo el punto de que este ahi. */
-QPushButton.apoyo
-{
-    color: black;
-    background-color: #febe00;
-    font-size: 11px;
-    border: 1px solid #1a1a1a;
-    border-radius: 2px;
-    padding: 5px;
-}
-
-QPushButton.apoyo:hover
-{
-    background-color: #ffcd33;
-}
-
-QPushButton.apoyo:hover:pressed
-{
-    background-color: #e4ab00;
-}
-
 QPushButton.modulo {
     border: none;
     background-color: none;
@@ -191,23 +169,6 @@ QPushButton.enlace:hover {
     text-decoration: underline;
 }
 
-/* Los logos de patrocinadores son botones para que se llegue con el tabulador.
-   El foco tiene que verse: sin este borde, la hoja de estilo tapa el que dibuja
-   el sistema y quien navega con teclado no sabe dónde está parado. */
-QPushButton.logo {
-    border: 1px solid transparent;
-    background: none;
-    padding: 3px;
-}
-
-QPushButton.logo:hover {
-    background-color: #e5ebf3;
-}
-
-QPushButton.logo:focus {
-    border: 1px solid #1858a8;
-}
-
 QPushButton.reciente {
     border: none;
     background: none;
@@ -219,19 +180,11 @@ QPushButton.reciente:hover {
     background-color: #e5ebf3;
 }
 
-/* La columna de proyectos es el espejo de la de patrocinadores: misma forma,
-   la linea del lado que la separa del centro. */
+/* La columna de proyectos va al costado del bloque de modulos, asi que su
+   linea es la que la separa del centro. */
 WidgetPanel[class="proyectos"] {
     background-color: #ffffff;
     border-right: 1px solid #a6a6a6;
-    border-bottom: none;
-}
-
-/* La columna de patrocinadores va al costado, asi que su linea es la que la
-   separa del bloque de modulos. */
-WidgetPanel[class="patrocinadores"] {
-    background-color: #ffffff;
-    border-left: 1px solid #a6a6a6;
     border-bottom: none;
 }
 

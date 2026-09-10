@@ -20,7 +20,6 @@
         <file alias="carpeta.png">iconos/generales/carpeta.png</file>
         <file alias="ayuda.png">iconos/generales/ayuda.png</file>
         <file alias="informacion.png">iconos/generales/informacion.png</file>
-        <file alias="apoyo.png">iconos/generales/apoyo.png</file>
         <file alias="cerrar-sesion.png">iconos/generales/cerrar-sesion.png</file>
         <file alias="actualizar.png">iconos/generales/actualizar.png</file>
         <file alias="flecha-abajo.png">iconos/generales/flecha-abajo.png</file>

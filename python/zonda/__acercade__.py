@@ -55,9 +55,5 @@ __autores__ = (
 )
 __autor_email__ = "efdiloreto@gmail.com, mnaa85@gmail.com"
 __autor_web__ = "https://github.com/efdiloreto"
-# Adónde lleva el enlace de la columna de patrocinadores. Los niveles, los
-# montos y las condiciones viven en el repositorio y no en el programa:
-# cambiarlos no puede obligar a publicar una versión nueva.
-__apoyo__ = "https://github.com/efdiloreto/ZondaPro/blob/master/PATROCINIO.md"
 __licencia__ = "GPLv3"
 __licencia_url__ = "https://www.gnu.org/licenses/gpl-3.0-standalone.html"

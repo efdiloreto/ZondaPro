@@ -274,16 +274,3 @@ class ZonaPresionCubiertaAislada(Enum):
     HASTA_H = "x ≤ h"
     ENTRE_H_Y_2H = "h < x ≤ 2h"
     MAYOR_2H = "x > 2h"
-
-
-class NivelPatrocinio(Enum):
-    """Los niveles con los que se puede apoyar el proyecto.
-
-    El orden de declaración es el de importancia: es el que usa la pantalla de
-    apoyo para ordenar la lista y decidir a quién le toca la franja de la
-    bienvenida.
-    """
-
-    ORO = "oro"
-    PLATA = "plata"
-    BRONCE = "bronce"

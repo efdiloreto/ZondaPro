@@ -18,7 +18,7 @@
 import webbrowser
 from collections.abc import Callable
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from zonda import __acercade__, recursos
 from zonda.enums import (
@@ -29,6 +29,39 @@ from zonda.enums import (
     TipoTerrenoTopografia,
 )
 from zonda.widgets import dialogos
+
+
+def abrir_enlace(url: str) -> None:
+    """Abre un enlace en el navegador del sistema.
+
+    Args:
+        url: La dirección a abrir.
+    """
+    # Igual que en el aviso de actualizaciones: se lo pide al sistema
+    # operativo, que es lo único que funciona en las tres plataformas.
+    QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+
+
+def fuente_de_rotulo(widget: QtWidgets.QWidget, mayusculas: bool = True) -> QtGui.QFont:
+    """La fuente de los rótulos chicos, derivada de la del sistema.
+
+    Se deriva en lugar de fijar un tamaño en píxeles para que la interfaz siga
+    la escala de fuentes del sistema operativo: con "texto grande" activado, un
+    tamaño fijo en px no crece y el rótulo queda ilegible.
+
+    Args:
+        widget: De quién se toma la fuente base.
+        mayusculas: Si el texto va en versalitas. Va en ``False`` cuando el
+            texto lleva nombres propios o siglas —"GPLv3" en mayúsculas se lee
+            mal—.
+
+    Returns: La fuente del rótulo.
+    """
+    fuente = widget.font()
+    fuente.setPointSize(max(7, fuente.pointSize() - 2))
+    if mayusculas:
+        fuente.setCapitalization(QtGui.QFont.Capitalization.AllUppercase)
+    return fuente
 
 
 class WidgetBotonModulo(QtWidgets.QWidget):
@@ -456,10 +489,6 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         boton_licencia.clicked.connect(
             lambda _=False: webbrowser.open(__acercade__.__licencia_url__)
         )
-        boton_agradecimientos = botones.addButton(
-            "Agradecimientos", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
-        )
-        boton_agradecimientos.clicked.connect(lambda _=False: self._agradecimientos())
         botones.rejected.connect(self.reject)
 
         layout_principal = QtWidgets.QVBoxLayout()
@@ -489,16 +518,6 @@ class WidgetAcercaDe(QtWidgets.QDialog):
 
         self.setWindowTitle("Acerca de Zonda")
         self.show()
-
-    def _agradecimientos(self) -> None:
-        """Abre la ventana con los patrocinadores y los colaboradores.
-
-        El import va acá adentro porque ``apoyo`` importa este módulo para el
-        panel, y al revés en el encabezado sería un ciclo.
-        """
-        from zonda.widgets.apoyo import DialogoAgradecimientos
-
-        DialogoAgradecimientos(self)
 
 
 def _label_autores() -> QtWidgets.QLabel:
