@@ -134,3 +134,5 @@ launcher/src/recursos.generado.rc
 
 # Notas de trabajo personales, no forman parte del proyecto
 NOTAS.md
+
+opencode.json

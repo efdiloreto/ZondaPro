@@ -31,6 +31,29 @@ import iconoCartel from '../assets/cartel.png';
 // concatenan directo para que respeten /ZondaPro/.
 const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 
+// La URL absoluta de una página, para los esquemas JSON-LD.
+const urlSitio = new URL(import.meta.env.BASE_URL, Astro.site).href;
+
+// Las preguntas frecuentes: se muestran en la página y viajan al
+// esquema FAQPage, con la misma redacción para que no se desientan.
+const frecuentes = [
+	{
+		pregunta: '¿Qué es Zonda?',
+		respuesta:
+			'Zonda es un programa libre y gratuito de escritorio que calcula cargas y presiones de viento en estructuras según el Reglamento Argentino CIRSOC 102-2025: de la geometría de la estructura a la memoria de cálculo en PDF, con la visualización 3D de las presiones sobre cada zona.',
+	},
+	{
+		pregunta: '¿Cuánto cuesta Zonda?',
+		respuesta:
+			'Nada. Zonda es software libre bajo licencia GPLv3: se descarga gratis para Windows, macOS y Linux, y se puede usar, estudiar, modificar y compartir sin restricciones más allá de las de la licencia.',
+	},
+	{
+		pregunta: '¿Qué estructuras puede calcular?',
+		respuesta:
+			'Edificios, tanto el sistema principal resistente a la fuerza del viento (SPRFV) como componentes y revestimientos; cubiertas aisladas; y carteles y muros. En todos los casos calcula el factor de ráfaga, el factor topográfico, la clasificación de cerramiento y las presiones por zona, con el reporte detallado de cada valor.',
+	},
+];
+
 // Las capturas del carousel, en el orden en que se muestran.
 const capturas = [
 	{
@@ -64,15 +87,56 @@ const capturas = [
 		texto: 'El cartel, con su fuerza total',
 	},
 ];
+
+// Los esquemas de la portada: el sitio, la aplicación y las preguntas.
+const esquemas = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		name: 'Zonda',
+		url: urlSitio,
+		description: 'Software libre para el cálculo de cargas de viento según CIRSOC 102-2025.',
+		inLanguage: 'es-AR',
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'SoftwareApplication',
+		name: 'Zonda',
+		url: urlSitio,
+		description:
+			'Programa libre de escritorio que calcula cargas y presiones de viento en estructuras según el Reglamento Argentino CIRSOC 102-2025, con visualización 3D y reportes exportables a PDF.',
+		applicationCategory: 'EngineeringApplication',
+		operatingSystem: 'Windows, macOS, Linux',
+		isAccessibleForFree: true,
+		license: 'https://www.gnu.org/licenses/gpl-3.0.html',
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'ARS' },
+		screenshot: new URL(capturaBienvenida.src, Astro.site).href,
+		publisher: { '@type': 'Organization', name: 'Zonda', url: urlSitio },
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'FAQPage',
+		mainEntity: frecuentes.map(({ pregunta, respuesta }) => ({
+			'@type': 'Question',
+			name: pregunta,
+			acceptedAnswer: { '@type': 'Answer', text: respuesta },
+		})),
+	},
+];
 ---
 
-<Base titulo="Inicio">
+<Base
+	titulo="Cálculo de cargas de viento según CIRSOC 102-2025 — Zonda"
+	descripcion="Zonda calcula cargas y presiones de viento según el Reglamento Argentino CIRSOC 102-2025: edificios, cubiertas aisladas y carteles, con visualización 3D y reporte en PDF. Software libre y gratuito."
+	esquemas={esquemas}
+>
 	<section class="hero">
 		<div class="contenedor">
 			<h1>Cargas de viento según CIRSOC 102-2025</h1>
 			<p class="bajada">
 				Zonda es software libre de escritorio para el cálculo de cargas y presiones de viento en
-				estructuras según el Reglamento Argentino <strong>CIRSOC 102-2025</strong>.
+				estructuras según el Reglamento Argentino <strong>CIRSOC 102-2025</strong>, el reglamento
+				basado en el estándar internacional ASCE 7.
 			</p>
 			<div class="acciones">
 				<a class="boton boton-accion" href={rutaDe('/descarga/')}>Descargar</a>
@@ -133,7 +197,7 @@ const capturas = [
 
 	<section class="capturas">
 		<div class="contenedor">
-			<h2>Screenshots</h2>
+			<h2>Capturas de pantalla</h2>
 			<div class="envoltura-carousel">
 				<div class="carousel" tabindex="0" role="region" aria-label="Capturas de pantalla de Zonda">
 					{
@@ -156,6 +220,20 @@ const capturas = [
 					</svg>
 				</button>
 			</div>
+		</div>
+	</section>
+
+	<section class="frecuentes">
+		<div class="contenedor">
+			<h2>Preguntas frecuentes</h2>
+			{
+				frecuentes.map(({ pregunta, respuesta }) => (
+					<details class="frecuente">
+						<summary>{pregunta}</summary>
+						<p>{respuesta}</p>
+					</details>
+				))
+			}
 		</div>
 	</section>
 </Base>
@@ -305,6 +383,30 @@ const capturas = [
 
 	.flecha.siguiente {
 		right: 10px;
+	}
+
+	/* Las preguntas frecuentes, como los acordeones del reporte: el
+	   borde fino separa cada una y el signo abre por defecto el ítem
+	   para que el buscador y el lector vean la respuesta. */
+	.frecuente {
+		border-bottom: 1px solid var(--borde);
+		padding: 4px 0;
+	}
+
+	.frecuente summary {
+		cursor: pointer;
+		font-family: var(--fuente-titulos);
+		font-size: 17px;
+		font-weight: 600;
+		padding: 8px 0;
+	}
+
+	.frecuente[open] summary {
+		color: var(--azul);
+	}
+
+	.frecuente p {
+		margin-top: 8px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

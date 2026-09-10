@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
@@ -7,4 +8,5 @@ export default defineConfig({
 	// la URL depende del usuario y el repositorio (guides/deploy/github).
 	site: 'https://efdiloreto.github.io',
 	base: '/ZondaPro',
+	integrations: [sitemap()],
 });

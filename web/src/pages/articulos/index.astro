@@ -1,0 +1,117 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../../layouts/Base.astro';
+
+const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+
+// Los artículos publicados: una fila por cada uno, para el índice.
+const articulos = [
+	{
+		ruta: '/articulos/cirsoc-102-2025-vs-2005/',
+		titulo: 'CIRSOC 102-2025 vs CIRSOC 102-2005: los cambios más importantes',
+		resumen:
+			'Reorganización de los métodos, fin del factor de importancia, Kz recalibrado, coeficientes de componentes y revestimientos nuevos y más: qué cambió entre las dos ediciones del Reglamento Argentino de Acción del Viento.',
+	},
+	{
+		ruta: '/articulos/cirsoc-102-2025-vs-asce-7/',
+		titulo: 'CIRSOC 102-2025 vs ASCE 7: en qué se basa y en qué se diferencia',
+		resumen:
+			'El Reglamento Argentino adoptó como base los capítulos de viento de ASCE/SEI 7 y luego tomó su propio camino: equivalencias de capítulos y de conceptos, y las diferencias entre las dos normas.',
+	},
+];
+---
+
+<Base
+	titulo="Artículos sobre cargas de viento — CIRSOC 102-2025"
+	descripcion="Artículos y comparaciones sobre el cálculo de cargas de viento según CIRSOC 102-2025: los cambios respecto de la edición 2005 y su relación con el ASCE 7."
+>
+	<section class="contenedor encabezado-seccion">
+		<h1>Artículos sobre cargas de viento</h1>
+		<p class="bajada">
+			Explicaciones prácticas sobre el Reglamento Argentino CIRSOC 102-2025: qué cambió entre
+			ediciones, cómo se relaciona con el ASCE 7 y cómo aplicar los conceptos al cálculo.
+		</p>
+	</section>
+
+	<section class="contenedor grilla">
+		{
+			articulos.map(({ ruta, titulo, resumen }) => (
+				<a class="tarjeta articulo" href={rutaDe(ruta)}>
+					<h2>{titulo}</h2>
+					<p>{resumen}</p>
+					<span class="leer">Leer el artículo →</span>
+				</a>
+			))
+		}
+	</section>
+</Base>
+
+<style>
+	.encabezado-seccion {
+		padding-top: 40px;
+	}
+
+	.encabezado-seccion h1 {
+		font-size: 34px;
+		margin-bottom: 4px;
+	}
+
+	.bajada {
+		color: var(--texto-suave);
+		max-width: 640px;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 16px;
+		margin-top: 24px;
+		padding-bottom: 8px;
+	}
+
+	/* Cada artículo, como una tarjeta del reporte: blanca con el borde
+	   fino, el título azul y el borde que se destaca al pasar. */
+	.articulo {
+		display: block;
+		padding: 20px;
+		color: var(--texto);
+	}
+
+	.articulo:hover {
+		color: var(--texto);
+		text-decoration: none;
+		border-color: var(--azul);
+	}
+
+	.articulo h2 {
+		font-size: 19px;
+		margin-bottom: 8px;
+		color: var(--azul);
+	}
+
+	.articulo p {
+		font-size: 15px;
+		color: var(--texto-suave);
+		margin-bottom: 12px;
+	}
+
+	.leer {
+		font-family: var(--fuente-titulos);
+		font-size: 14px;
+		color: var(--azul);
+	}
+</style>

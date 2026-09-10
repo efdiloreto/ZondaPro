@@ -1,0 +1,193 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import type { MarkdownLayoutProps } from 'astro';
+import Base from './Base.astro';
+import ogImagen from '../assets/og.png';
+
+// El layout de los artículos en Markdown: el cuerpo vive en el .md y
+// acá van el envoltorio, la fecha y el esquema del artículo, armado
+// desde el frontmatter para que cada uno no repita ni una línea de
+// JSON.
+interface Entradilla {
+	titulo: string;
+	descripcion: string;
+	fecha: string;
+	fechaIso: string;
+	entradilla: string;
+}
+
+type Props = MarkdownLayoutProps<Entradilla>;
+
+const { frontmatter } = Astro.props;
+const { titulo, descripcion, fecha, fechaIso, entradilla } = frontmatter;
+
+// El base no termina en barra y las rutas vienen con la inicial.
+const urlDescarga = `${import.meta.env.BASE_URL}/descarga/`;
+
+// El artículo se describe con su URL absoluta y la imagen social del
+// sitio; la autoría no se publica: la firma es del proyecto.
+const urlPagina = new URL(Astro.url.pathname, Astro.site).href;
+const urlImagen = new URL(ogImagen.src, Astro.site).href;
+
+const esquemas = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'BlogPosting',
+		headline: titulo,
+		description: descripcion,
+		image: urlImagen,
+		datePublished: fechaIso,
+		dateModified: fechaIso,
+		mainEntityOfPage: { '@type': 'WebPage', '@id': urlPagina },
+		publisher: { '@type': 'Organization', name: 'Zonda', url: new URL(import.meta.env.BASE_URL, Astro.site).href },
+		inLanguage: 'es-AR',
+		license: 'https://www.gnu.org/licenses/gpl-3.0.html',
+	},
+];
+---
+
+<Base titulo={titulo} descripcion={descripcion} esquemas={esquemas}>
+	<article class="contenedor articulo">
+		<header>
+			<p class="meta">Artículo · Actualizado: {fecha}</p>
+			<h1>{titulo}</h1>
+			<div class="entradilla">
+				<p>{entradilla}</p>
+			</div>
+		</header>
+		<div class="cuerpo">
+			<slot />
+		</div>
+		<div class="cta">
+			<p>Probalo con tu próxima estructura:</p>
+			<a class="boton boton-accion" href={urlDescarga}>Descargá Zonda</a>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.articulo {
+		max-width: 780px;
+		padding-top: 40px;
+		padding-bottom: 8px;
+	}
+
+	.meta {
+		font-family: var(--fuente-titulos);
+		font-size: 13px;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		color: var(--texto-apagado);
+		margin-bottom: 8px;
+	}
+
+	.articulo h1 {
+		font-size: clamp(28px, 4vw, 38px);
+		margin-bottom: 0.5em;
+	}
+
+	.entradilla {
+		font-size: 18px;
+		color: var(--texto-suave);
+		margin-bottom: 32px;
+	}
+
+	.cta {
+		margin-top: 40px;
+		padding: 20px;
+		border: 1px solid var(--borde);
+		border-left: 3px solid var(--amarillo);
+		border-radius: 2px;
+		background-color: var(--nota-fondo);
+	}
+
+	.cta p {
+		margin: 0 0 12px;
+		font-family: var(--fuente-titulos);
+		font-size: 17px;
+	}
+</style>
+
+<style>
+	/* El cuerpo del artículo llega renderizado desde Markdown: los
+	   estilos van con :global y repiten la paleta del reporte. La
+	   prosa va justificada con silabeo, como los documentos
+	   técnicos: el idioma del documento habilita el corte. Las citas
+	   de la documentación se visten como las notas del Reglamento,
+	   con el filete amarillo. */
+	.cuerpo :global(p),
+	.cuerpo :global(li),
+	.entradilla :global(p) {
+		text-align: justify;
+		hyphens: auto;
+	}
+
+	.cuerpo :global(h2) {
+		font-size: 22px;
+		margin-top: 36px;
+	}
+
+	.cuerpo :global(h3) {
+		font-size: 18px;
+		margin-top: 28px;
+	}
+
+	.cuerpo :global(li) {
+		margin-bottom: 0.4em;
+	}
+
+	.cuerpo :global(td),
+	.cuerpo :global(th) {
+		vertical-align: top;
+	}
+
+	/* Las tablas de equivalencias: columnas iguales al 50 % con
+	   layout fijo, para que una celda larga no apriete la otra. El
+	   contenido envuelve y el texto baja un punto. */
+	.cuerpo :global(table) {
+		table-layout: fixed;
+		width: 100%;
+		font-size: 0.95em;
+		line-height: 1.5;
+		margin-bottom: 1.2em;
+	}
+
+	.cuerpo :global(blockquote) {
+		margin: 0 0 1.2em;
+		padding: 0.8em 1.1em;
+		border: 1px solid var(--nota-borde);
+		border-left: 3px solid var(--amarillo);
+		border-radius: 2px;
+		background-color: var(--nota-fondo);
+	}
+
+	.cuerpo :global(blockquote p) {
+		margin: 0;
+	}
+
+	/* El párrafo de referencias: lo marca el último h2 del documento. */
+	.cuerpo :global(hr) {
+		margin: 36px 0 20px;
+		border: none;
+		border-top: 1px solid var(--borde);
+	}
+
+	.cuerpo :global(small) {
+		font-size: 14px;
+		color: var(--texto-suave);
+	}
+</style>
