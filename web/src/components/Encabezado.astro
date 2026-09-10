@@ -23,10 +23,6 @@ import logo from '../assets/logo.png';
 
 const enlaces = [
 	{ ruta: '/', texto: 'Inicio' },
-	{ ruta: '/caracteristicas/', texto: 'Características' },
-	{ ruta: '/edificio/', texto: 'Edificio' },
-	{ ruta: '/cartel/', texto: 'Cartel' },
-	{ ruta: '/cubierta-aislada/', texto: 'Cubierta aislada' },
 	{ ruta: '/descarga/', texto: 'Descarga' },
 	{ ruta: '/acerca/', texto: 'Acerca de' },
 ];
@@ -88,12 +84,13 @@ const estaActiva = (ruta: string) =>
 		flex-wrap: wrap;
 	}
 
-	/* Los enlaces del pie de la ventana: azules, subrayados al pasar. */
+	/* Los enlaces del pie de la ventana: azules, subrayados al pasar.
+	   El padding alto deja el área táctil en más de 40px. */
 	.enlace {
 		font-family: var(--fuente-titulos);
 		font-size: 15px;
 		color: var(--azul);
-		padding: 4px 10px;
+		padding: 8px 10px;
 		border-radius: 3px;
 	}
 

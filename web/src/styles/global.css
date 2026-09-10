@@ -36,9 +36,11 @@
 	--amarillo: #febe00;
 	--amarillo-hover: #ffcd33;
 	--amarillo-pressed: #e4ab00;
-	/* Textos: casi negro para el cuerpo, gris medio para etiquetas. */
+	/* Textos: casi negro para el cuerpo, gris medio para etiquetas,
+	   gris de línea para los metadatos. */
 	--texto: #1a1a1a;
 	--texto-suave: #606060;
+	--texto-apagado: #a6a6a6;
 	/* Líneas y fondos: bordes de tarjetas, separadores y paneles. */
 	--borde: #d8d8d8;
 	--linea: #a6a6a6;
@@ -82,10 +84,17 @@ h4 {
 	line-height: 1.2;
 	color: var(--texto);
 	margin: 0 0 0.6em;
+	/* Los títulos grandes aprietan el tracking; el cuerpo lo suelta. */
+	text-wrap: balance;
+}
+
+h1 {
+	letter-spacing: -0.01em;
 }
 
 p {
 	margin: 0 0 1em;
+	text-wrap: pretty;
 }
 
 a {
@@ -96,6 +105,15 @@ a {
 a:hover {
 	color: var(--azul-hover);
 	text-decoration: underline;
+}
+
+/* El foco por teclado se ve como el foco de los campos de la
+   aplicación: el anillo celeste con la línea azul. El foco por mouse
+   no lo dibuja. */
+:focus-visible {
+	outline: 2px solid var(--azul);
+	outline-offset: 2px;
+	border-radius: 2px;
 }
 
 code,
@@ -145,6 +163,22 @@ pre code {
 	border-radius: 3px;
 	border: 1px solid #1a1a1a;
 	cursor: pointer;
+	transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1),
+		transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.boton:active {
+	transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.boton {
+		transition: none;
+	}
+
+	.boton:active {
+		transform: none;
+	}
 }
 
 .boton-accion {
@@ -201,8 +235,9 @@ pre code {
 }
 
 /* --- Tablas -----------------------------------------------------------
-   Cabecera gris en seminegrita, filas alternas y grilla fina, como la
-   tabla de resultados. */
+   Cabecera gris en seminegrita y mayúscula con tracking, filas
+   alternas y grilla fina, como la tabla de resultados. Los números
+   van tabulares para que las columnas no tiemble. */
 
 table {
 	width: 100%;
@@ -216,22 +251,32 @@ thead th {
 	border-bottom: 1px solid var(--borde);
 	padding: 6px 10px;
 	text-align: left;
-	font-size: 0.95em;
+	font-family: var(--fuente-titulos);
+	font-size: 0.9em;
 	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
 }
 
 tbody td {
 	border-right: 1px solid var(--borde);
 	border-bottom: 1px solid var(--borde);
 	padding: 6px 10px;
+	font-variant-numeric: tabular-nums;
 }
 
 tbody tr:nth-child(even) {
 	background-color: var(--fondo-fila-alterna);
 }
 
+/* El hover de fila repite la selección de la tabla de resultados. */
+tbody tr:hover {
+	background-color: var(--celeste);
+}
+
 /* --- Textos de apoyo ---------------------------------------------------
-   La etiqueta gris de los datos del reporte y el subtítulo chico. */
+   La etiqueta gris de los datos del reporte y el subtítulo chico. Los
+   tres niveles de texto: cuerpo, apoyo y metadatos apagados. */
 
 .texto-suave {
 	color: var(--texto-suave);
@@ -240,4 +285,8 @@ tbody tr:nth-child(even) {
 .subtitulo {
 	font-size: 12px;
 	color: var(--texto-suave);
+}
+
+.texto-apagado {
+	color: var(--texto-apagado);
 }

@@ -14,35 +14,35 @@
   License para más detalles.
 */
 
-// La tarjeta de módulo de la bienvenida: ícono arriba y título en
-// Oswald, sobre el borde fino de las subsecciones del reporte.
+// La tarjeta chica de característica del home: título en Oswald y una
+// línea de texto debajo, sobre la tarjeta de borde fino de la interfaz.
 
 interface Props {
 	titulo: string;
-	icono: string;
+	texto: string;
 }
 
-const { titulo, icono } = Astro.props;
+const { titulo, texto } = Astro.props;
 ---
 
-<article class="tarjeta modulo">
-	<img src={icono} width="72" height="72" alt="" />
+<article class="tarjeta caracteristica">
 	<h3>{titulo}</h3>
+	<p>{texto}</p>
 </article>
 
 <style>
-	.modulo {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 8px;
-		padding: 24px 20px;
-		text-align: center;
+	.caracteristica {
+		padding: 16px 18px;
 	}
 
-	.modulo h3 {
-		font-size: 18px;
-		font-weight: 500;
+	.caracteristica h3 {
+		font-size: 16px;
+		margin-bottom: 4px;
+	}
+
+	.caracteristica p {
 		margin: 0;
+		font-size: 14px;
+		color: var(--texto-suave);
 	}
 </style>

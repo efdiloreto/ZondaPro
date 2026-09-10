@@ -16,7 +16,13 @@
 
 import Base from '../layouts/Base.astro';
 import TarjetaModulo from '../components/TarjetaModulo.astro';
-import Captura from '../components/Captura.astro';
+import TarjetaCaracteristica from '../components/TarjetaCaracteristica.astro';
+import capturaBienvenida from '../assets/capturas/bienvenida.png';
+import capturaEdificioEntrada from '../assets/capturas/edificio-entrada.png';
+import capturaEdificioSprfv from '../assets/capturas/edificio-sprfv.png';
+import capturaEdificioCyr from '../assets/capturas/edificio-cyr.png';
+import capturaEdificioReporte from '../assets/capturas/edificio-reporte.png';
+import capturaCartel from '../assets/capturas/cartel-3d.png';
 import iconoEdificio from '../assets/edificio.png';
 import iconoCubierta from '../assets/cubierta-aislada.png';
 import iconoCartel from '../assets/cartel.png';
@@ -24,6 +30,40 @@ import iconoCartel from '../assets/cartel.png';
 // El base no termina en barra y las rutas vienen con la inicial: se
 // concatenan directo para que respeten /ZondaPro/.
 const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+
+// Las capturas del carousel, en el orden en que se muestran.
+const capturas = [
+	{
+		imagen: capturaBienvenida,
+		alt: 'La pantalla de bienvenida, con los tres módulos y los proyectos recientes',
+		texto: 'La bienvenida',
+	},
+	{
+		imagen: capturaEdificioEntrada,
+		alt: 'El módulo Edificio con la geometría cargada y la vista 3D dibujada',
+		texto: 'La geometría se dibuja en 3D mientras escribís',
+	},
+	{
+		imagen: capturaEdificioSprfv,
+		alt: 'Las presiones del SPRFV coloreadas sobre la estructura en 3D',
+		texto: 'Las presiones del SPRFV, coloreadas sobre la estructura',
+	},
+	{
+		imagen: capturaEdificioCyr,
+		alt: 'Las presiones de componentes y revestimientos sobre la estructura en 3D',
+		texto: 'Componentes y revestimientos, zona por zona',
+	},
+	{
+		imagen: capturaEdificioReporte,
+		alt: 'La página de resumen del reporte, con los valores extremos destacados',
+		texto: 'El reporte, con los extremos destacados',
+	},
+	{
+		imagen: capturaCartel,
+		alt: 'Las presiones sobre la cara de un cartel en 3D',
+		texto: 'El cartel, con su fuerza total',
+	},
+];
 ---
 
 <Base titulo="Inicio">
@@ -32,94 +72,120 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 			<h1>Cargas de viento según CIRSOC 102-2025</h1>
 			<p class="bajada">
 				Zonda es software libre de escritorio para el cálculo de cargas y presiones de viento en
-				estructuras según el reglamento argentino <strong>CIRSOC 102-2025</strong>.
+				estructuras según el Reglamento Argentino <strong>CIRSOC 102-2025</strong>.
 			</p>
 			<div class="acciones">
 				<a class="boton boton-accion" href={rutaDe('/descarga/')}>Descargar</a>
-				<a class="boton boton-dialogo" href={rutaDe('/caracteristicas/')}>Ver características</a>
 			</div>
 		</div>
 	</section>
 
 	<section class="modulos">
 		<div class="contenedor">
-			<h2>Elegí la tipología de tu estructura</h2>
-			<p class="texto-suave">Tres módulos, el mismo motor de cálculo reglamentario.</p>
+			<h2>Módulos de cálculo</h2>
 			<div class="grilla">
-				<TarjetaModulo
-					titulo="Edificios"
-					texto="Cerrados y parcialmente cerrados, cubiertas planas, a un agua y a dos aguas, con o sin parapetos."
-					icono={iconoEdificio.src}
-					enlace={rutaDe('/edificio/')}
-					textoEnlace="Ver el módulo"
-				/>
-				<TarjetaModulo
-					titulo="Cubiertas aisladas"
-					texto="A un agua, dos aguas y abovedadas, abiertas o con obstrucciones."
-					icono={iconoCubierta.src}
-					enlace={rutaDe('/cubierta-aislada/')}
-					textoEnlace="Ver el módulo"
-				/>
-				<TarjetaModulo
-					titulo="Carteles y muros"
-					texto="Sobre terreno o elevados, con soporte estructural."
-					icono={iconoCartel.src}
-					enlace={rutaDe('/cartel/')}
-					textoEnlace="Ver el módulo"
-				/>
+				<TarjetaModulo titulo="Edificios" icono={iconoEdificio.src} />
+				<TarjetaModulo titulo="Cubiertas aisladas" icono={iconoCubierta.src} />
+				<TarjetaModulo titulo="Carteles y muros" icono={iconoCartel.src} />
 			</div>
 		</div>
 	</section>
 
-	<section class="destacados">
+	<section class="caracteristicas">
 		<div class="contenedor">
-			<h2>Lo que trae</h2>
+			<h2>Características</h2>
 			<div class="grilla">
-				<div class="tarjeta destacado">
-					<h3>29 ciudades precargadas</h3>
-					<p>
-						Elegís la ciudad y Zonda completa la velocidad básica del viento según el mapa
-						isoceraúnico del Reglamento, con la altitud y la topografía del sitio.
-					</p>
-				</div>
-				<div class="tarjeta destacado">
-					<h3>Visor 3D con el detalle del cálculo</h3>
-					<p>
-						Tocás una zona y el panel muestra el desglose completo: factores, coeficientes y la
-						referencia del Reglamento que se aplicó.
-					</p>
-				</div>
-				<div class="tarjeta destacado">
-					<h3>Reporte a PDF</h3>
-					<p>
-						El reporte completo con la referencia de cada valor, listo para el pliego y
-						exportable a PDF.
-					</p>
-				</div>
-				<div class="tarjeta destacado">
-					<h3>Cerramiento verificado</h3>
-					<p>
-						Ingresás las aberturas y el programa clasifica el edificio y define la presión
-						interna, con las condiciones del Reglamento en pantalla.
-					</p>
-				</div>
+				<TarjetaCaracteristica
+					titulo="Cálculo de factor de ráfaga"
+					texto="Para estructuras rígidas y flexibles, resuelto según el Reglamento."
+				/>
+				<TarjetaCaracteristica
+					titulo="Cálculo de factor topográfico"
+					texto="Loma, escarpa y colina, con la verificación de si corresponde aplicarlo."
+				/>
+				<TarjetaCaracteristica
+					titulo="Visualización 3D de presiones"
+					texto="El modelo 3D con cada zona coloreada según su succión o presión."
+				/>
+				<TarjetaCaracteristica
+					titulo="Reportes detallados"
+					texto="Cada valor con la referencia del Reglamento que lo dio, exportable a PDF."
+				/>
+				<TarjetaCaracteristica
+					titulo="Componentes y revestimientos"
+					texto="Para edificios y cubiertas aisladas: zonas y coeficientes según el área efectiva de viento."
+				/>
+				<TarjetaCaracteristica
+					titulo="Verificación de cerramiento"
+					texto="Según las aberturas del edificio, clasifica el cerramiento y define la presión interna."
+				/>
+				<TarjetaCaracteristica
+					titulo="Unidades a elegir"
+					texto="Presión y fuerza en N, kN o kG."
+				/>
+				<TarjetaCaracteristica
+					titulo="Multiplataforma"
+					texto="Windows, macOS y Linux."
+				/>
 			</div>
-			<p class="ver-mas">
-				<a href={rutaDe('/caracteristicas/')}>Ver todas las características →</a>
-			</p>
 		</div>
 	</section>
 
 	<section class="capturas">
 		<div class="contenedor">
-			<h2>La aplicación</h2>
-			<div class="grilla-capturas">
-				<Captura titulo="Selección de módulo" />
-				<Captura titulo="Módulo Edificios" />
+			<h2>Screenshots</h2>
+			<div class="envoltura-carousel">
+				<div class="carousel" tabindex="0" role="region" aria-label="Capturas de pantalla de Zonda">
+					{
+						capturas.map(({ imagen, alt, texto }) => (
+							<figure class="slide">
+								<img src={imagen.src} alt={alt} loading="lazy" width="1440" height="861" />
+								<figcaption>{texto}</figcaption>
+							</figure>
+						))
+					}
+				</div>
+				<button class="flecha anterior" type="button" aria-label="Captura anterior">
+					<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+						<path d="M10.5 3 5.5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+				<button class="flecha siguiente" type="button" aria-label="Captura siguiente">
+					<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+						<path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
 			</div>
 		</div>
 	</section>
 </Base>
+
+<script>
+	// Las flechas del carousel muestran una captura por clic. Con
+	// `scroll-snap-type: mandatory` un scrollBy suave vuelve al punto de
+	// snap de donde partió: se va al índice y se hace scrollTo al slide,
+	// que ya es un punto de snap válido y no discute con el CSS.
+	const carousel = document.querySelector<HTMLElement>('.carousel');
+	const anterior = document.querySelector<HTMLButtonElement>('.flecha.anterior');
+	const siguiente = document.querySelector<HTMLButtonElement>('.flecha.siguiente');
+
+	if (carousel && anterior && siguiente) {
+		const comportamiento = matchMedia('(prefers-reduced-motion: reduce)').matches
+			? ('auto' as ScrollBehavior)
+			: ('smooth' as ScrollBehavior);
+
+		const slides = carousel.querySelectorAll<HTMLElement>('.slide');
+		let indice = 0;
+
+		const ir = (nuevo: number) => {
+			indice = Math.max(0, Math.min(slides.length - 1, nuevo));
+			carousel.scrollTo({ left: slides[indice].offsetLeft, behavior: comportamiento });
+		};
+
+		anterior.addEventListener('click', () => ir(indice - 1));
+		siguiente.addEventListener('click', () => ir(indice + 1));
+	}
+</script>
 
 <style>
 	.hero {
@@ -139,6 +205,12 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 	.hero p {
 		font-size: 18px;
 		color: var(--texto-suave);
+	}
+
+	/* El botón del hero, más presente que el resto de los botones. */
+	.hero .boton {
+		font-size: 20px;
+		padding: 10px 32px;
 	}
 
 	/* Los botones centrados: el flex del bloque de acciones los alinea. */
@@ -164,31 +236,88 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 		gap: 16px;
 	}
 
-	.grilla-capturas {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	/* El carousel de screenshots: una pista con scroll y cada slide
+	   encajada al centro, como la barra de miniaturas de la
+	   aplicación. Las flechas van superpuestas y el scroll nativo
+	   completa el movimiento. */
+	.envoltura-carousel {
+		position: relative;
+	}
+
+	.carousel {
+		display: flex;
+		overflow-x: auto;
 		gap: 20px;
+		scroll-snap-type: x mandatory;
+		padding-bottom: 8px;
 	}
 
-	.destacado {
-		padding: 20px;
-	}
-
-	.destacado h3 {
-		font-size: 17px;
-		margin-bottom: 6px;
-	}
-
-	.destacado p {
+	.slide {
+		flex: 0 0 100%;
+		scroll-snap-align: center;
 		margin: 0;
+	}
+
+	.slide img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border: 1px solid var(--borde);
+		border-radius: 2px;
+	}
+
+	.slide figcaption {
+		margin-top: 8px;
+		font-family: var(--fuente-titulos);
 		font-size: 14px;
 		color: var(--texto-suave);
+		text-align: center;
 	}
 
-	.ver-mas {
-		margin-top: 20px;
-		text-align: right;
-		font-family: var(--fuente-titulos);
-		font-size: 16px;
+	/* Las flechas, como los botones de diálogo: blancas con el borde
+	   fino y el celeste al pasar. Sobre la imagen van a los costados,
+	   centradas contra ella; el chevron es SVG y el flex lo centra. */
+	.flecha {
+		position: absolute;
+		top: calc(50% - 22px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 1px solid var(--borde);
+		border-radius: 50%;
+		background-color: var(--fondo-tarjeta);
+		color: var(--texto);
+		cursor: pointer;
+		opacity: 0.9;
+		transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1);
+	}
+
+	.flecha:hover {
+		background-color: var(--celeste);
+	}
+
+	.flecha.anterior {
+		left: 10px;
+	}
+
+	.flecha.siguiente {
+		right: 10px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.flecha {
+			transition: none;
+		}
+	}
+
+	/* En pantalla táctil el gesto de deslizar es el natural y la
+	   flecha tapa captura: no se dibuja. */
+	@media (hover: none) {
+		.flecha {
+			display: none;
+		}
 	}
 </style>
