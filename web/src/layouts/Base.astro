@@ -1,0 +1,88 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import '../styles/global.css';
+import Encabezado from '../components/Encabezado.astro';
+import Pie from '../components/Pie.astro';
+import ogImagen from '../assets/og.png';
+
+interface Props {
+	titulo: string;
+	descripcion?: string;
+	/** Los bloques JSON-LD de la página, ya armados (schema.org). */
+	esquemas?: Record<string, unknown>[];
+}
+
+const { titulo, descripcion = 'Software libre para el cálculo de cargas de viento según CIRSOC 102-2025.', esquemas = [] } = Astro.props;
+
+// Las rutas internas llevan el prefijo de base: GitHub Pages publica el
+// sitio bajo /ZondaPro/. El título completo evita la firma doble cuando
+// la página ya cierra con la marca.
+const tituloCompleto = titulo.endsWith('Zonda') ? titulo : `${titulo} · Zonda`;
+
+// El canonical se arma con la ruta actual contra el dominio publicado:
+// en GitHub Pages es lo que separa al contenido de los duplicados de
+// trailing slash. La imagen de OG viaja en URL absoluta, como pide la
+// especificación.
+const urlCanonica = new URL(Astro.url.pathname, Astro.site).href;
+const urlSitemap = `${import.meta.env.BASE_URL}/sitemap-index.xml`;
+const urlOg = new URL(ogImagen.src, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} sizes="any" />
+		<link rel="sitemap" href={urlSitemap} />
+		<link rel="canonical" href={urlCanonica} />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={descripcion} />
+		<title>{tituloCompleto}</title>
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Zonda" />
+		<meta property="og:locale" content="es_AR" />
+		<meta property="og:title" content={tituloCompleto} />
+		<meta property="og:description" content={descripcion} />
+		<meta property="og:url" content={urlCanonica} />
+		<meta property="og:image" content={urlOg} />
+		<meta property="og:image:alt" content="Zonda: cargas de viento según CIRSOC 102-2025" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={tituloCompleto} />
+		<meta name="twitter:description" content={descripcion} />
+		<meta name="twitter:image" content={urlOg} />
+		{
+			esquemas.map((esquema) => (
+				<script type="application/ld+json" set:html={JSON.stringify(esquema)} />
+			))
+		}
+		{
+			import.meta.env.PROD && (
+				<script data-goatcounter="https://zonda.goatcounter.com/count" async src="//gc.zgo.at/count.js" />
+			)
+		}
+	</head>
+	<body>
+		<Encabezado />
+		<main>
+			<slot />
+		</main>
+		<Pie />
+	</body>
+</html>

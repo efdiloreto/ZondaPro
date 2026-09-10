@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Los buscadores con IA citan lo que pueden leer: no bloquear a los
+# crawlers de búsqueda generativa (GPTBot, PerplexityBot, ClaudeBot,
+# Google-Extended, Applebot-Extended, etc.).
+
+Sitemap: https://efdiloreto.github.io/ZondaPro/sitemap-index.xml

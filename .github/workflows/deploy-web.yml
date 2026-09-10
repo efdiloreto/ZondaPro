@@ -1,0 +1,50 @@
+name: Desplegar sitio web
+
+# El sitio vive en web/ y se publica en GitHub Pages cuando lo que entra a
+# master lo toca: master es la rama de release, igual que los instaladores.
+# El filtro de rutas evita re-deployar el sitio cuando el cambio es sólo de
+# la aplicación; la acción oficial de Astro compila y publica.
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - web/**
+      - .github/workflows/deploy-web.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una sola publicación a la vez: la corrida anterior, ya superada, no
+# interesa y sólo roba runner.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    name: Construir sitio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v7
+      - name: Instalar, construir y publicar el sitio
+        uses: withastro/action@v6
+        with:
+          # El proyecto Astro vive en la carpeta web/ del monorepo.
+          path: web
+
+  publicar:
+    name: Publicar en GitHub Pages
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacion.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: publicacion
+        uses: actions/deploy-pages@v5

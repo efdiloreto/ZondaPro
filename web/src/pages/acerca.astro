@@ -1,0 +1,69 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+	titulo="Acerca de Zonda — Software libre de cargas de viento"
+	descripcion="Zonda es software libre de cálculo de cargas de viento según CIRSOC 102-2025, la norma argentina basada en ASCE 7, distribuido bajo licencia GPLv3."
+>
+	<section class="contenedor seccion">
+		<h2>El proyecto</h2>
+		<p>
+			Zonda nació para resolver el cálculo de cargas de viento del Reglamento Argentino <strong>CIRSOC 102-2025</strong> de forma rápida y confiable: de la geometría de la
+			estructura a la memoria de cálculo lista para el pliego, sin planillas ni
+			interpolaciones a mano. Es software libre: podés usarlo, estudiarlo, modificarlo y
+			compartirlo.
+		</p>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Autores</h2>
+		<p>Copyright © 2018–2026</p>
+		<ul>
+			<li>Eduardo Di Loreto &lt;<a href="mailto:efdiloreto@gmail.com">efdiloreto@gmail.com</a>&gt;</li>
+			<li>Natalia Alvarado &lt;<a href="mailto:mnaa85@gmail.com">mnaa85@gmail.com</a>&gt;</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Licencia</h2>
+		<p>
+			Zonda se distribuye bajo la <a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE">Licencia Pública General de GNU, versión 3 o posterior</a>,
+			publicada por la Free Software Foundation.
+		</p>
+	</section>
+</Base>
+
+<style>
+	.seccion {
+		margin-top: 40px;
+	}
+
+	.seccion h2 {
+		font-size: 22px;
+	}
+
+	ul {
+		margin: 0 0 1em;
+		padding-left: 20px;
+	}
+
+	li {
+		margin-bottom: 6px;
+	}
+</style>

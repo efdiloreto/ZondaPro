@@ -31,7 +31,7 @@
             <li>Coeficientes de presión externa e interna, para el SPRFV y para Componentes y Revestimientos.</li>
             <li>Edificios cerrados y parcialmente cerrados, carteles y muros, y cubiertas aisladas.</li>
             <li>Visualización 3D interactiva con mapeo de presiones en tiempo real.</li>
-            <li>Memorias de cálculo exportables a PDF, Word, LibreOffice y Markdown.</li>
+            <li>Memorias de cálculo exportables a PDF.</li>
         </ul>
     </description>
 
@@ -93,6 +93,7 @@
     <content_rating type="oars-1.1"/>
 
     <releases>
+        <release version="2.0.0" date="2026-09-10"/>
         <release version="1.1.1" date="2026-09-01">
             <description>
                 <p>Corrección en el instalador de macOS: el bundle ahora se firma al empaquetarlo. Sin esa firma macOS lo rechazaba al abrirlo, avisando que la aplicación estaba dañada.</p>
