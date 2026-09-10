@@ -17,96 +17,85 @@
 import Base from '../layouts/Base.astro';
 import Captura from '../components/Captura.astro';
 
-// El cálculo reglamentario, tal como lo lista el README: cada ítem es
-// una fila del Reglamento que Zonda resuelve.
-const calculo = [
-	'Determinación de presiones dinámicas q<sub>z</sub> y q<sub>h</sub>.',
-	'Factores de ráfaga (G), direccionalidad (K<sub>d</sub>), altitud (K<sub>e</sub>) y efecto topográfico (K<sub>zt</sub>).',
-	'Coeficientes de presión externa (C<sub>p</sub>) e interna (GC<sub>pi</sub>).',
-	'Cargas en el Sistema Principal Resistente a la Fuerza del Viento (SPRFV) y en Componentes y Revestimientos (C&R).',
-];
+// Lo que tienen los tres módulos. Las features de cada tipología viven
+// en su propia página: edificio, cartel y cubierta aislada.
 
-const capturas = [
-	{ titulo: 'Módulo Carteles' },
-	{ titulo: 'Módulo Cubiertas Aisladas' },
-	{ titulo: 'Visor 3D y exportación de reportes' },
+// El base no termina en barra y las rutas vienen con la inicial: se
+// concatenan directo para que respeten /ZondaPro/.
+const ruta = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+
+const secciones = [
+	{
+		titulo: 'El viento de diseño',
+		items: [
+			'Velocidad básica precargada para 29 ciudades argentinas, con los mapas isoceraúnicos del Reglamento según la categoría de riesgo (Figuras 1.5-1A, 1.5-1B y 1.5-1C).',
+			'Factor de exposición Kz según el terreno: categorías B, C y D (Art. 1.7).',
+			'Factor topográfico Kzt para loma, escarpa y colina (Figura 1.8-1), con la verificación automática de si corresponde aplicarlo.',
+			'Factor de altitud Ke según la elevación del sitio (Art. 1.12).',
+			'Factor de ráfaga G = 0,85 simplificado, o calculado para estructuras rígidas y flexibles con su frecuencia natural (Art. 1.9).',
+			'Factor de direccionalidad Kd (Art. 1.7) y presión de velocidad q a cada altura.',
+		],
+	},
+	{
+		titulo: 'Resultados con referencias',
+		items: [
+			'Cada valor de tabla y cada zona del visor cita la figura, tabla o artículo del Reglamento que le dio origen.',
+			'Máximo empuje y máxima succión resaltados en las tablas.',
+			'Tarjetas de resumen con la velocidad, los factores y las presiones extremas con su ubicación.',
+		],
+	},
+	{
+		titulo: 'Visor 3D',
+		items: [
+			'Mapeo de presiones por colores sobre la estructura, con flechas y etiquetas de valor.',
+			'Selección de una zona al tocarla: el panel de detalle muestra el desglose del cálculo (q, Kz, Kzt, Ke, Cp, G, GCpi) y su referencia.',
+			'Medición de distancias entre vértices con regla graduada.',
+			'Vistas de cámara fijas, perspectiva u ortográfica, zoom y captura de imagen.',
+		],
+	},
 ];
 ---
 
 <Base
 	titulo="Características"
-	descripcion="Cálculo reglamentario, tipologías estructurales, visualización 3D y memorias de cálculo según CIRSOC 102-2025."
+	descripcion="Lo que tienen todos los módulos de Zonda: el viento de diseño, resultados con referencias del Reglamento, visor 3D, reporte a PDF y unidades a elegir."
 >
 	<section class="encabezado-seccion contenedor">
 		<h1>Características</h1>
-		<p class="texto-suave">Todo lo que Zonda resuelve, sección por sección.</p>
+		<p class="texto-suave">
+			Lo que tienen los tres módulos. Cada tipología suma lo propio en su página:
+			<a href={ruta('/edificio/')}>Edificio</a>,
+			<a href={ruta('/cartel/')}>Cartel</a> y
+			<a href={ruta('/cubierta-aislada/')}>Cubierta aislada</a>.
+		</p>
 	</section>
 
+	{
+		secciones.map((seccion) => (
+			<section class="contenedor seccion">
+				<h2>{seccion.titulo}</h2>
+				<ul>
+					{seccion.items.map((item) => <li set:html={item} />)}
+				</ul>
+			</section>
+		))
+	}
+
 	<section class="contenedor seccion">
-		<h2>Cálculo reglamentario (CIRSOC 102-2025)</h2>
+		<h2>Reporte</h2>
 		<ul>
-			<li set:html={calculo[0]} />
-			<li set:html={calculo[1]} />
-			<li set:html={calculo[2]} />
-			<li set:html={calculo[3]} />
+			<li>Exportación del reporte a PDF, con elección de papel y orientación.</li>
+			<li>Notas del Reglamento incluidas: mínimos de diseño, parapetos y consideraciones de cada figura.</li>
 		</ul>
-		<div class="nota">
-			<p>
-				Cada valor sale de una figura o tabla del Reglamento: el reporte indica la referencia
-				exacta que se aplicó en cada sección del cálculo.
-			</p>
-		</div>
+		<Captura titulo="Reporte y exportación a PDF" />
 	</section>
 
 	<section class="contenedor seccion">
-		<h2>Tipologías estructurales</h2>
-		<div class="grilla">
-			<div class="tarjeta tipologia">
-				<h3>Edificios</h3>
-				<p>Cerrados y parcialmente cerrados, cubiertas planas, a un agua y a dos aguas, con o sin parapetos.</p>
-			</div>
-			<div class="tarjeta tipologia">
-				<h3>Carteles y muros</h3>
-				<p>Sobre terreno o elevados, con soporte estructural.</p>
-			</div>
-			<div class="tarjeta tipologia">
-				<h3>Cubiertas aisladas</h3>
-				<p>A un agua, dos aguas y abovedadas, abiertas o con obstrucciones.</p>
-			</div>
-		</div>
-	</section>
-
-	<section class="contenedor seccion">
-		<h2>Visualización 3D interactiva</h2>
+		<h2>Unidades a elegir</h2>
 		<ul>
-			<li>Mapeo de presiones con escala de colores en tiempo real.</li>
-			<li>Vectores y etiquetas de presión direccionales con control de oclusión.</li>
-			<li>Vistas ortogonales fijas, perspectiva cónica/ortográfica y herramienta de medición de distancias entre vértices.</li>
+			<li>Presión en N/m², kN/m² o kG/m²; fuerza en N, kN o kG.</li>
+			<li>La unidad elegida se aplica al instante en las tablas, el visor 3D y el PDF.</li>
 		</ul>
-		<Captura titulo="Vista 3D con presiones mapeadas por colores" />
-	</section>
-
-	<section class="contenedor seccion">
-		<h2>Memorias de cálculo técnicas</h2>
-		<ul>
-			<li>Generación de informes completos y detallados, sección por sección.</li>
-			<li>Exportación directa a PDF desde la propia aplicación.</li>
-		</ul>
-	</section>
-
-	<section class="contenedor seccion">
-		<h2>Gestión de proyectos</h2>
-		<ul>
-			<li>Guardado y apertura del estado de trabajo en el formato nativo <code>.zda</code>.</li>
-			<li>Proyectos recientes en la pantalla de inicio.</li>
-		</ul>
-	</section>
-
-	<section class="contenedor seccion">
-		<h2>Capturas</h2>
-		<div class="grilla-capturas">
-			{capturas.map((captura) => <Captura titulo={captura.titulo} />)}
-		</div>
 	</section>
 </Base>
 
@@ -126,11 +115,6 @@ const capturas = [
 		border-top: 1px solid var(--borde);
 	}
 
-	.seccion > :global(.captura),
-	.seccion > :global(figure) {
-		margin-top: 16px;
-	}
-
 	.seccion h2 {
 		font-size: 22px;
 	}
@@ -142,26 +126,5 @@ const capturas = [
 
 	li {
 		margin-bottom: 6px;
-	}
-
-	.grilla {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-		gap: 16px;
-	}
-
-	.tipologia {
-		padding: 16px 18px;
-	}
-
-	.tipologia h3 {
-		font-size: 16px;
-		margin-bottom: 4px;
-	}
-
-	.tipologia p {
-		margin: 0;
-		font-size: 14px;
-		color: var(--texto-suave);
 	}
 </style>

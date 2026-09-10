@@ -15,42 +15,42 @@
 */
 
 import Base from '../layouts/Base.astro';
+import Captura from '../components/Captura.astro';
 ---
 
 <Base
-	titulo="Acerca de"
-	descripcion="Zonda es software libre de cálculo de cargas de viento según CIRSOC 102-2025, bajo licencia GPLv3."
+	titulo="Módulo Cartel"
+	descripcion="Fuerzas de viento sobre carteles y muros según la Figura 4.4-1: casos A, B y C, doble cara, aberturas y esquina de retorno."
 >
 	<section class="encabezado-seccion contenedor">
-		<h1>Acerca de</h1>
-		<p class="texto-suave">Quiénes lo hacemos y bajo qué condiciones se comparte.</p>
+		<h1>Módulo Cartel</h1>
+		<p class="texto-suave">Fuerzas de viento sobre carteles y muros, sobre terreno o elevados (Figura 4.4-1).</p>
 	</section>
 
 	<section class="contenedor seccion">
-		<h2>El proyecto</h2>
-		<p>
-			Zonda nació para resolver el cálculo de cargas de viento del reglamento argentino <strong>CIRSOC 102-2025</strong> de forma rápida y confiable: de la geometría de la
-			estructura a la memoria de cálculo lista para el pliego, sin planillas ni
-			interpolaciones a mano. Es software libre: podés usarlo, estudiarlo, modificarlo y
-			compartirlo.
-		</p>
-	</section>
-
-	<section class="contenedor seccion">
-		<h2>Autores</h2>
-		<p>Copyright © 2018–2026</p>
+		<h2>La geometría</h2>
 		<ul>
-			<li>Eduardo Di Loreto &lt;<a href="mailto:efdiloreto@gmail.com">efdiloreto@gmail.com</a>&gt;</li>
-			<li>Natalia Alvarado &lt;<a href="mailto:mnaa85@gmail.com">mnaa85@gmail.com</a>&gt;</li>
+			<li>Cartel sobre terreno o elevado, con sus alturas, ancho y profundidad.</li>
+			<li>Cartel de doble cara con los factores de reducción correspondientes.</li>
+			<li>Esquina de retorno Lr con su reducción.</li>
 		</ul>
 	</section>
 
 	<section class="contenedor seccion">
-		<h2>Licencia</h2>
-		<p>
-			Zonda se distribuye bajo la <a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE">Licencia Pública General de GNU, versión 3 o posterior</a>,
-			publicada por la Free Software Foundation.
-		</p>
+		<h2>Lo que calcula</h2>
+		<ul>
+			<li>
+				<strong>Tres casos de fuerza</strong> (A, B y C), con las regiones horizontales del
+				Caso C cuando corresponde, y el caso que gobierna el diseño indicado.
+			</li>
+			<li>Reducción por aberturas del cartel: relación entre área sólida y área bruta.</li>
+			<li>Fuerza total por caso y fuerza mínima reglamentaria aplicada automáticamente.</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>La aplicación</h2>
+		<Captura titulo="Módulo Cartel" />
 	</section>
 </Base>
 

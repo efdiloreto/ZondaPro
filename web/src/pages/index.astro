@@ -50,16 +50,22 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 					titulo="Edificios"
 					texto="Cerrados y parcialmente cerrados, cubiertas planas, a un agua y a dos aguas, con o sin parapetos."
 					icono={iconoEdificio.src}
+					enlace={rutaDe('/edificio/')}
+					textoEnlace="Ver el módulo"
 				/>
 				<TarjetaModulo
 					titulo="Cubiertas aisladas"
 					texto="A un agua, dos aguas y abovedadas, abiertas o con obstrucciones."
 					icono={iconoCubierta.src}
+					enlace={rutaDe('/cubierta-aislada/')}
+					textoEnlace="Ver el módulo"
 				/>
 				<TarjetaModulo
 					titulo="Carteles y muros"
 					texto="Sobre terreno o elevados, con soporte estructural."
 					icono={iconoCartel.src}
+					enlace={rutaDe('/cartel/')}
+					textoEnlace="Ver el módulo"
 				/>
 			</div>
 		</div>
@@ -70,27 +76,37 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 			<h2>Lo que trae</h2>
 			<div class="grilla">
 				<div class="tarjeta destacado">
-					<h3>Visualización 3D interactiva</h3>
+					<h3>29 ciudades precargadas</h3>
 					<p>
-						Mapeo de presiones con escala de colores en tiempo real, vectores direccionales y
-						herramienta de medición, con vistas ortogonales y perspectiva.
+						Elegís la ciudad y Zonda completa la velocidad básica del viento según el mapa
+						isoceraúnico del Reglamento, con la altitud y la topografía del sitio.
 					</p>
 				</div>
 				<div class="tarjeta destacado">
-					<h3>Memorias de cálculo</h3>
+					<h3>Visor 3D con el detalle del cálculo</h3>
 					<p>
-						Reportes completos y detallados con los valores del Reglamento, exportables
-						directamente a PDF.
+						Tocás una zona y el panel muestra el desglose completo: factores, coeficientes y la
+						referencia del Reglamento que se aplicó.
 					</p>
 				</div>
 				<div class="tarjeta destacado">
-					<h3>Gestión de proyectos</h3>
+					<h3>Reporte a PDF</h3>
 					<p>
-						Guardado y apertura del estado de trabajo en el formato nativo <code>.zda</code>,
-						con los proyectos recientes siempre a mano.
+						El reporte completo con la referencia de cada valor, listo para el pliego y
+						exportable a PDF.
+					</p>
+				</div>
+				<div class="tarjeta destacado">
+					<h3>Cerramiento verificado</h3>
+					<p>
+						Ingresás las aberturas y el programa clasifica el edificio y define la presión
+						interna, con las condiciones del Reglamento en pantalla.
 					</p>
 				</div>
 			</div>
+			<p class="ver-mas">
+				<a href={rutaDe('/caracteristicas/')}>Ver todas las características →</a>
+			</p>
 		</div>
 	</section>
 
@@ -112,19 +128,23 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 		padding: 72px 0 64px;
 	}
 
+	.hero .contenedor {
+		text-align: center;
+	}
+
 	.hero h1 {
 		font-size: clamp(30px, 5vw, 44px);
-		max-width: 720px;
 	}
 
 	.hero p {
-		max-width: 640px;
 		font-size: 18px;
 		color: var(--texto-suave);
 	}
 
+	/* Los botones centrados: el flex del bloque de acciones los alinea. */
 	.acciones {
 		display: flex;
+		justify-content: center;
 		gap: 12px;
 		flex-wrap: wrap;
 		margin-top: 24px;
@@ -163,5 +183,12 @@ const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
 		margin: 0;
 		font-size: 14px;
 		color: var(--texto-suave);
+	}
+
+	.ver-mas {
+		margin-top: 20px;
+		text-align: right;
+		font-family: var(--fuente-titulos);
+		font-size: 16px;
 	}
 </style>

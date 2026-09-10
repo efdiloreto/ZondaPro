@@ -17,14 +17,15 @@
 // El pie cierra la ventana en la aplicación: mismo gris de panel, pero
 // con la línea arriba. Acá van los accesos generales y la firma.
 
+import gplv3 from '../assets/gplv3.png';
+
 const anio = new Date().getFullYear();
 ---
 
 <footer class="pie">
 	<div class="contenedor">
 		<p class="firma">
-			Copyright © 2018–{anio} Eduardo Di Loreto y Natalia Alvarado · Software libre bajo
-			<a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE">GPLv3</a>
+			Copyright © 2018–{anio} Eduardo Di Loreto y Natalia Alvarado · Software libre bajo <a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE"><img class="logo-licencia" src={gplv3.src} alt="Licencia GPLv3" width="48" height="24" /></a>
 		</p>
 	</div>
 </footer>
@@ -42,5 +43,11 @@ const anio = new Date().getFullYear();
 		font-size: 13px;
 		color: var(--texto-suave);
 		text-align: center;
+	}
+
+	.logo-licencia {
+		vertical-align: middle;
+		margin-left: 4px;
+		border-radius: 2px;
 	}
 </style>

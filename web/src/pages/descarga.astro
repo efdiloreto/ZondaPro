@@ -15,17 +15,15 @@
 */
 
 import Base from '../layouts/Base.astro';
+import iconoWindows from '../assets/windows.svg';
+import iconoApple from '../assets/apple.svg';
+import iconoLinux from '../assets/linux.svg';
 
-// Los instaladores de la última release, con la nota del README: viajan
-// completos, la exportación a PDF no necesita nada extra.
+// Los instaladores de la última release, uno por sistema operativo.
 const instaladores = [
-	{ sistema: 'Windows', archivo: '.msi', enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest' },
-	{ sistema: 'macOS', archivo: '.dmg', enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest' },
-	{
-		sistema: 'Linux',
-		archivo: '.flatpak',
-		enlace: 'https://github.com/efdiloreto/ZondaPro/releases/latest',
-	},
+	{ sistema: 'Windows', icono: iconoWindows, archivo: '.msi' },
+	{ sistema: 'macOS', icono: iconoApple, archivo: '.dmg' },
+	{ sistema: 'Linux', icono: iconoLinux, archivo: '.flatpak' },
 ];
 ---
 
@@ -33,45 +31,27 @@ const instaladores = [
 	titulo="Descarga"
 	descripcion="Descargá Zonda para Windows, macOS o Linux."
 >
-	<section class="encabezado-seccion contenedor">
-		<h1>Descarga</h1>
-		<p class="texto-suave">Gratuito y libre, bajo GPLv3.</p>
-	</section>
-
-	<section class="contenedor seccion">
+	<section class="contenedor encabezado-seccion">
 		<h2>Instaladores listos para usar</h2>
-		<p>
-			Bajá el instalador de tu sistema operativo desde la
-			<a href="https://github.com/efdiloreto/ZondaPro/releases/latest">última release</a>.
-		</p>
+		<p>Bajá el instalador de tu sistema operativo desde la <a href="https://github.com/efdiloreto/ZondaPro/releases/latest">última release</a>.</p>
 		<table>
 			<thead>
 				<tr>
 					<th>Plataforma</th>
 					<th>Formato</th>
-					<th>Descarga</th>
 				</tr>
 			</thead>
 			<tbody>
 				{
 					instaladores.map((instalador) => (
 						<tr>
-							<td>{instalador.sistema}</td>
+							<td><img class="icono" src={instalador.icono.src} alt="" width="16" height="16" /> {instalador.sistema}</td>
 							<td>{instalador.archivo}</td>
-							<td>
-								<a href={instalador.enlace}>Última release</a>
-							</td>
 						</tr>
 					))
 				}
 			</tbody>
 		</table>
-		<div class="nota">
-			<p>
-				Los instaladores oficiales ya incluyen todas las herramientas necesarias: la exportación
-				a PDF la hace Zonda por sí solo.
-			</p>
-		</div>
 	</section>
 </Base>
 
@@ -95,12 +75,8 @@ const instaladores = [
 		font-size: 22px;
 	}
 
-	.nota {
-		margin-top: 16px;
-	}
-
-	/* La nota va después de la tabla: el margen del párrafo no alcanza. */
-	.seccion table + .nota {
-		margin-top: 16px;
+	.icono {
+		vertical-align: -3px;
+		margin-right: 6px;
 	}
 </style>

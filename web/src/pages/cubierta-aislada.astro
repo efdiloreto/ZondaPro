@@ -1,0 +1,92 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+import Captura from '../components/Captura.astro';
+---
+
+<Base
+	titulo="Módulo Cubierta Aislada"
+	descripcion="Presiones netas sobre cubiertas aisladas a un agua y a dos aguas: cuatro direcciones de viento, bloqueo del flujo, fricción y C&R."
+>
+	<section class="encabezado-seccion contenedor">
+		<h1>Módulo Cubierta Aislada</h1>
+		<p class="texto-suave">
+			Presiones netas sobre cubiertas aisladas a un agua y a dos aguas, abiertas o con
+			obstrucciones.
+		</p>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>La geometría</h2>
+		<ul>
+			<li>Cubierta a un agua o a dos aguas, con sus alturas de alero y cumbrera.</li>
+			<li>Porcentaje de bloqueo del flujo bajo la cubierta (0–100 %).</li>
+			<li>Tipo de superficie para las fuerzas de fricción: lisa, con ondulaciones o con nervaduras transversales.</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>Lo que calcula</h2>
+		<ul>
+			<li>
+				<strong>Presiones normales netas</strong> para cuatro direcciones de viento y dos casos
+				de carga, por zonas según la dirección.
+			</li>
+			<li>Fuerzas de fricción sobre la cubierta según el tipo de superficie.</li>
+			<li>Cargas laterales de cenefas, parapetos y tímpanos.</li>
+			<li>
+				<strong>Componentes y revestimientos:</strong> zonas de cubierta según el área efectiva
+				del componente, con presión mínima incluida.
+			</li>
+		</ul>
+	</section>
+
+	<section class="contenedor seccion">
+		<h2>La aplicación</h2>
+		<Captura titulo="Módulo Cubierta Aislada" />
+	</section>
+</Base>
+
+<style>
+	.encabezado-seccion {
+		padding-top: 40px;
+	}
+
+	.encabezado-seccion h1 {
+		font-size: 34px;
+		margin-bottom: 4px;
+	}
+
+	.seccion {
+		margin-top: 40px;
+		padding-top: 24px;
+		border-top: 1px solid var(--borde);
+	}
+
+	.seccion h2 {
+		font-size: 22px;
+	}
+
+	ul {
+		margin: 0 0 1em;
+		padding-left: 20px;
+	}
+
+	li {
+		margin-bottom: 6px;
+	}
+</style>
