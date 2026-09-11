@@ -28,7 +28,9 @@ from zonda.enums import (
     Flexibilidad,
     TipoTerrenoTopografia,
 )
-from zonda.excepciones import ErrorComponentes, ErrorViento
+from zonda.excepciones import ErrorComponentes, ErrorConfiguracionMCP, ErrorViento
+from zonda.mcp import instalacion
+from zonda.mcp.instalacion import EstadoCliente
 from zonda.widgets import utils_qt
 from zonda.widgets.entrada import WidgetComponentes
 
@@ -987,3 +989,169 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         settings.sync()
 
         super().accept()
+
+
+class DialogoInstalarMCP(QtWidgets.QDialog):
+    """DialogoInstalarMCP.
+
+    Instala, actualiza o desinstala el servidor MCP de Zonda en los clientes
+    LLM locales, y muestra la configuración para los clientes que no están
+    en la lista.
+    """
+
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self._etiquetas_estado: dict[str, QtWidgets.QLabel] = {}
+        self._botones_instalar: dict[str, QtWidgets.QPushButton] = {}
+        self._botones_desinstalar: dict[str, QtWidgets.QPushButton] = {}
+
+        layout_clientes = QtWidgets.QGridLayout()
+        layout_clientes.setColumnStretch(0, 1)
+        for fila, cliente in enumerate(instalacion.CLIENTES):
+            etiqueta_nombre = QtWidgets.QLabel(cliente.nombre)
+            fuente = etiqueta_nombre.font()
+            fuente.setBold(True)
+            etiqueta_nombre.setFont(fuente)
+            etiqueta_estado = QtWidgets.QLabel()
+            boton_instalar = QtWidgets.QPushButton()
+            boton_instalar.clicked.connect(lambda _=False, c=cliente: self._instalar(c))
+            boton_desinstalar = QtWidgets.QPushButton("Desinstalar")
+            boton_desinstalar.clicked.connect(
+                lambda _=False, c=cliente: self._desinstalar(c)
+            )
+            layout_clientes.addWidget(etiqueta_nombre, fila, 0)
+            layout_clientes.addWidget(etiqueta_estado, fila, 1)
+            layout_clientes.addWidget(boton_instalar, fila, 2)
+            layout_clientes.addWidget(boton_desinstalar, fila, 3)
+            self._etiquetas_estado[cliente.nombre] = etiqueta_estado
+            self._botones_instalar[cliente.nombre] = boton_instalar
+            self._botones_desinstalar[cliente.nombre] = boton_desinstalar
+        nota = QtWidgets.QLabel(
+            "Después de instalar, reiniciá el cliente para que cargue el"
+            " servidor. La instalación apunta al intérprete con el que corre"
+            " Zonda; si movés el proyecto, volvé a instalar."
+        )
+        nota.setWordWrap(True)
+        layout_clientes.addWidget(nota, len(instalacion.CLIENTES), 0, 1, 4)
+        groupbox_clientes = QtWidgets.QGroupBox("Clientes locales")
+        groupbox_clientes.setLayout(layout_clientes)
+
+        texto_chatgpt = QtWidgets.QLabel(instalacion.CHATGPT_NO_LOCAL)
+        texto_chatgpt.setWordWrap(True)
+        groupbox_chatgpt = QtWidgets.QGroupBox("ChatGPT")
+        layout_chatgpt = QtWidgets.QVBoxLayout()
+        layout_chatgpt.addWidget(texto_chatgpt)
+        groupbox_chatgpt.setLayout(layout_chatgpt)
+
+        self._texto_prompt = QtWidgets.QPlainTextEdit(instalacion.prompt_instalacion())
+        self._texto_prompt.setReadOnly(True)
+        boton_copiar = QtWidgets.QPushButton("Copiar prompt")
+        boton_copiar.clicked.connect(self._copiar_prompt)
+        texto_otros = QtWidgets.QLabel(
+            "Para otro cliente, pegale este prompt a un agente (OpenCode,"
+            " Claude Code, Antigravity, ...): se instala el servidor solo y"
+            " verifica la instalación con una llamada de prueba."
+        )
+        texto_otros.setWordWrap(True)
+        groupbox_otros = QtWidgets.QGroupBox("Instalar con un agente")
+        layout_otros = QtWidgets.QVBoxLayout()
+        layout_otros.addWidget(texto_otros)
+        layout_otros.addWidget(self._texto_prompt)
+        layout_otros.addWidget(boton_copiar, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        groupbox_otros.setLayout(layout_otros)
+
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Close
+        )
+        botones.rejected.connect(self.reject)
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.addWidget(groupbox_clientes)
+        layout_principal.addWidget(groupbox_chatgpt)
+        layout_principal.addWidget(groupbox_otros)
+        layout_principal.addWidget(botones)
+
+        self.setLayout(layout_principal)
+        self.setWindowTitle("Instalar servidor MCP")
+        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+
+        self._recargar()
+        self.setFixedSize(self.sizeHint())
+        self.show()
+
+    def _recargar(self) -> None:
+        """Refresca el estado y los botones de cada cliente."""
+        textos = {
+            EstadoCliente.INSTALADO: "instalado",
+            EstadoCliente.DESACTUALIZADO: "desactualizado",
+            EstadoCliente.NO_INSTALADO: "no instalado",
+            EstadoCliente.NO_DETECTADO: "no detectado",
+            EstadoCliente.NO_DISPONIBLE: "no disponible",
+            EstadoCliente.ILEGIBLE: "ilegible: usá el prompt de un agente",
+        }
+        for cliente in instalacion.CLIENTES:
+            estado = instalacion.estado(cliente)
+            self._etiquetas_estado[cliente.nombre].setText(textos[estado])
+            boton_instalar = self._botones_instalar[cliente.nombre]
+            boton_desinstalar = self._botones_desinstalar[cliente.nombre]
+            boton_desinstalar.setEnabled(
+                estado in (EstadoCliente.INSTALADO, EstadoCliente.DESACTUALIZADO)
+            )
+            if estado in (EstadoCliente.NO_DISPONIBLE, EstadoCliente.ILEGIBLE):
+                boton_instalar.setEnabled(False)
+                boton_instalar.setText("Instalar")
+            elif estado == EstadoCliente.DESACTUALIZADO:
+                boton_instalar.setEnabled(True)
+                boton_instalar.setText("Actualizar")
+            else:
+                boton_instalar.setEnabled(True)
+                boton_instalar.setText("Instalar")
+
+    def _instalar(self, cliente: instalacion.Cliente) -> None:
+        """Instala o actualiza el servidor MCP en un cliente.
+
+        Args:
+            cliente: El cliente en el que instalar.
+        """
+        try:
+            instalacion.instalar(cliente)
+        except ErrorConfiguracionMCP as error:
+            QtWidgets.QMessageBox.warning(self, cliente.nombre, str(error))
+            return
+        self._recargar()
+        QtWidgets.QMessageBox.information(
+            self,
+            cliente.nombre,
+            "Instalado. Reiniciá el cliente para que cargue el servidor de Zonda.",
+        )
+
+    def _desinstalar(self, cliente: instalacion.Cliente) -> None:
+        """Desinstala el servidor MCP de un cliente, con confirmación.
+
+        Args:
+            cliente: El cliente del que desinstalar.
+        """
+        respuesta = QtWidgets.QMessageBox.question(
+            self,
+            cliente.nombre,
+            f"¿Quitá el servidor MCP de Zonda de {cliente.nombre}?",
+        )
+        if respuesta != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        try:
+            instalacion.desinstalar(cliente)
+        except ErrorConfiguracionMCP as error:
+            QtWidgets.QMessageBox.warning(self, cliente.nombre, str(error))
+            return
+        self._recargar()
+
+    def _copiar_prompt(self) -> None:
+        """Copia el prompt de instalación al portapapeles."""
+        portapapeles = QtWidgets.QApplication.clipboard()
+        assert portapapeles is not None
+        portapapeles.setText(self._texto_prompt.toPlainText())
+        QtWidgets.QMessageBox.information(
+            self, "Prompt de instalación", "Prompt copiado al portapapeles."
+        )
