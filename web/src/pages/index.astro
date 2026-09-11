@@ -1,0 +1,434 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+import TarjetaModulo from '../components/TarjetaModulo.astro';
+import TarjetaCaracteristica from '../components/TarjetaCaracteristica.astro';
+import capturaBienvenida from '../assets/capturas/bienvenida.png';
+import capturaEdificioEntrada from '../assets/capturas/edificio-entrada.png';
+import capturaEdificioSprfv from '../assets/capturas/edificio-sprfv.png';
+import capturaEdificioCyr from '../assets/capturas/edificio-cyr.png';
+import capturaEdificioReporte from '../assets/capturas/edificio-reporte.png';
+import capturaCartel from '../assets/capturas/cartel-3d.png';
+import iconoEdificio from '../assets/edificio.png';
+import iconoCubierta from '../assets/cubierta-aislada.png';
+import iconoCartel from '../assets/cartel.png';
+
+// El base no termina en barra y las rutas vienen con la inicial: se
+// concatenan directo para que respeten /ZondaPro/.
+const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+
+// La URL absoluta de una página, para los esquemas JSON-LD.
+const urlSitio = new URL(import.meta.env.BASE_URL, Astro.site).href;
+
+// Las preguntas frecuentes: se muestran en la página y viajan al
+// esquema FAQPage, con la misma redacción para que no se desientan.
+const frecuentes = [
+	{
+		pregunta: '¿Qué es Zonda?',
+		respuesta:
+			'Zonda es un programa libre y gratuito de escritorio que calcula cargas y presiones de viento en estructuras según el Reglamento Argentino CIRSOC 102-2025: de la geometría de la estructura a la memoria de cálculo en PDF, con la visualización 3D de las presiones sobre cada zona.',
+	},
+	{
+		pregunta: '¿Cuánto cuesta Zonda?',
+		respuesta:
+			'Nada. Zonda es software libre bajo licencia GPLv3: se descarga gratis para Windows, macOS y Linux, y se puede usar, estudiar, modificar y compartir sin restricciones más allá de las de la licencia.',
+	},
+	{
+		pregunta: '¿Qué estructuras puede calcular?',
+		respuesta:
+			'Edificios, tanto el sistema principal resistente a la fuerza del viento (SPRFV) como componentes y revestimientos; cubiertas aisladas; y carteles y muros. En todos los casos calcula el factor de ráfaga, el factor topográfico, la clasificación de cerramiento y las presiones por zona, con el reporte detallado de cada valor.',
+	},
+	{
+		pregunta: '¿Puedo usar Zonda desde mi asistente de IA?',
+		respuesta:
+			'Sí. Zonda trae un servidor MCP que expone el cálculo del Reglamento a clientes como Claude, Antigravity u OpenCode: el asistente calcula las presiones, lee cada zona con sus coordenadas y sus referencias, y puede armar reportes a tu medida o llevar los resultados a otros servidores MCP de software de cálculo estructural.',
+	},
+];
+
+// Las capturas del carousel, en el orden en que se muestran.
+const capturas = [
+	{
+		imagen: capturaBienvenida,
+		alt: 'La pantalla de bienvenida, con los tres módulos y los proyectos recientes',
+		texto: 'La bienvenida',
+	},
+	{
+		imagen: capturaEdificioEntrada,
+		alt: 'El módulo Edificio con la geometría cargada y la vista 3D dibujada',
+		texto: 'La geometría se dibuja en 3D mientras escribís',
+	},
+	{
+		imagen: capturaEdificioSprfv,
+		alt: 'Las presiones del SPRFV coloreadas sobre la estructura en 3D',
+		texto: 'Las presiones del SPRFV, coloreadas sobre la estructura',
+	},
+	{
+		imagen: capturaEdificioCyr,
+		alt: 'Las presiones de componentes y revestimientos sobre la estructura en 3D',
+		texto: 'Componentes y revestimientos, zona por zona',
+	},
+	{
+		imagen: capturaEdificioReporte,
+		alt: 'La página de resumen del reporte, con los valores extremos destacados',
+		texto: 'El reporte, con los extremos destacados',
+	},
+	{
+		imagen: capturaCartel,
+		alt: 'Las presiones sobre la cara de un cartel en 3D',
+		texto: 'El cartel, con su fuerza total',
+	},
+];
+
+// Los esquemas de la portada: el sitio, la aplicación y las preguntas.
+const esquemas = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		name: 'Zonda',
+		url: urlSitio,
+		description: 'Software libre para el cálculo de cargas de viento según CIRSOC 102-2025.',
+		inLanguage: 'es-AR',
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'SoftwareApplication',
+		name: 'Zonda',
+		url: urlSitio,
+		description:
+			'Programa libre de escritorio que calcula cargas y presiones de viento en estructuras según el Reglamento Argentino CIRSOC 102-2025, con visualización 3D y reportes exportables a PDF.',
+		applicationCategory: 'EngineeringApplication',
+		operatingSystem: 'Windows, macOS, Linux',
+		isAccessibleForFree: true,
+		license: 'https://www.gnu.org/licenses/gpl-3.0.html',
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'ARS' },
+		screenshot: new URL(capturaBienvenida.src, Astro.site).href,
+		publisher: { '@type': 'Organization', name: 'Zonda', url: urlSitio },
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'FAQPage',
+		mainEntity: frecuentes.map(({ pregunta, respuesta }) => ({
+			'@type': 'Question',
+			name: pregunta,
+			acceptedAnswer: { '@type': 'Answer', text: respuesta },
+		})),
+	},
+];
+---
+
+<Base
+	titulo="Cálculo de cargas de viento según CIRSOC 102-2025 — Zonda"
+	descripcion="Zonda calcula cargas y presiones de viento según el Reglamento Argentino CIRSOC 102-2025: edificios, cubiertas aisladas y carteles, con visualización 3D y reporte en PDF. Software libre y gratuito."
+	esquemas={esquemas}
+>
+	<section class="hero">
+		<div class="contenedor">
+			<h1>Cargas de viento según CIRSOC 102-2025</h1>
+			<p class="bajada">
+				Zonda es software libre de escritorio para el cálculo de cargas y presiones de viento en
+				estructuras según el Reglamento Argentino <strong>CIRSOC 102-2025</strong>, el reglamento
+				basado en el estándar internacional ASCE 7.
+			</p>
+			<div class="acciones">
+				<a class="boton boton-accion" href={rutaDe('/descarga/')}>Descargar</a>
+			</div>
+		</div>
+	</section>
+
+	<section class="modulos">
+		<div class="contenedor">
+			<h2>Módulos de cálculo</h2>
+			<div class="grilla">
+				<TarjetaModulo titulo="Edificios" icono={iconoEdificio.src} />
+				<TarjetaModulo titulo="Cubiertas aisladas" icono={iconoCubierta.src} />
+				<TarjetaModulo titulo="Carteles y muros" icono={iconoCartel.src} />
+			</div>
+		</div>
+	</section>
+
+	<section class="caracteristicas">
+		<div class="contenedor">
+			<h2>Características</h2>
+			<div class="grilla">
+				<TarjetaCaracteristica
+					titulo="Cálculo de factor de ráfaga"
+					texto="Para estructuras rígidas y flexibles, resuelto según el Reglamento."
+				/>
+				<TarjetaCaracteristica
+					titulo="Cálculo de factor topográfico"
+					texto="Loma, escarpa y colina, con la verificación de si corresponde aplicarlo."
+				/>
+				<TarjetaCaracteristica
+					titulo="Visualización 3D de presiones"
+					texto="El modelo 3D con cada zona coloreada según su succión o presión."
+				/>
+				<TarjetaCaracteristica
+					titulo="Reportes detallados"
+					texto="Cada valor con la referencia del Reglamento que lo dio, exportable a PDF."
+				/>
+				<TarjetaCaracteristica
+					titulo="Componentes y revestimientos"
+					texto="Para edificios y cubiertas aisladas: zonas y coeficientes según el área efectiva de viento."
+				/>
+				<TarjetaCaracteristica
+					titulo="Verificación de cerramiento"
+					texto="Según las aberturas del edificio, clasifica el cerramiento y define la presión interna."
+				/>
+				<TarjetaCaracteristica
+					titulo="Unidades a elegir"
+					texto="Presión y fuerza en N, kN o kG."
+				/>
+				<TarjetaCaracteristica
+					titulo="Multiplataforma"
+					texto="Windows, macOS y Linux."
+				/>
+				<TarjetaCaracteristica
+					titulo="Servidor MCP"
+					texto="Calculá con Zonda desde tu asistente de IA: generá tus propios reportes y combiná sus resultados con otros servidores MCP de software de cálculo estructural."
+				/>
+		</div>
+	</div>
+	</section>
+
+	<section class="capturas">
+		<div class="contenedor">
+			<h2>Capturas de pantalla</h2>
+			<div class="envoltura-carousel">
+				<div class="carousel" tabindex="0" role="region" aria-label="Capturas de pantalla de Zonda">
+					{
+						capturas.map(({ imagen, alt, texto }) => (
+							<figure class="slide">
+								<img src={imagen.src} alt={alt} loading="lazy" width="1440" height="861" />
+								<figcaption>{texto}</figcaption>
+							</figure>
+						))
+					}
+				</div>
+				<button class="flecha anterior" type="button" aria-label="Captura anterior">
+					<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+						<path d="M10.5 3 5.5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+				<button class="flecha siguiente" type="button" aria-label="Captura siguiente">
+					<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+						<path d="M5.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+			</div>
+		</div>
+	</section>
+
+	<section class="frecuentes">
+		<div class="contenedor">
+			<h2>Preguntas frecuentes</h2>
+			{
+				frecuentes.map(({ pregunta, respuesta }) => (
+					<details class="frecuente">
+						<summary>{pregunta}</summary>
+						<p>{respuesta}</p>
+					</details>
+				))
+			}
+		</div>
+	</section>
+</Base>
+
+<script>
+	// Las flechas del carousel muestran una captura por clic. Con
+	// `scroll-snap-type: mandatory` un scrollBy suave vuelve al punto de
+	// snap de donde partió: se va al índice y se hace scrollTo al slide,
+	// que ya es un punto de snap válido y no discute con el CSS.
+	const carousel = document.querySelector<HTMLElement>('.carousel');
+	const anterior = document.querySelector<HTMLButtonElement>('.flecha.anterior');
+	const siguiente = document.querySelector<HTMLButtonElement>('.flecha.siguiente');
+
+	if (carousel && anterior && siguiente) {
+		const comportamiento = matchMedia('(prefers-reduced-motion: reduce)').matches
+			? ('auto' as ScrollBehavior)
+			: ('smooth' as ScrollBehavior);
+
+		const slides = carousel.querySelectorAll<HTMLElement>('.slide');
+		let indice = 0;
+
+		const ir = (nuevo: number) => {
+			indice = Math.max(0, Math.min(slides.length - 1, nuevo));
+			carousel.scrollTo({ left: slides[indice].offsetLeft, behavior: comportamiento });
+		};
+
+		anterior.addEventListener('click', () => ir(indice - 1));
+		siguiente.addEventListener('click', () => ir(indice + 1));
+	}
+</script>
+
+<style>
+	.hero {
+		background-color: var(--fondo-panel);
+		border-bottom: 1px solid var(--linea);
+		padding: 72px 0 64px;
+	}
+
+	.hero .contenedor {
+		text-align: center;
+	}
+
+	.hero h1 {
+		font-size: clamp(30px, 5vw, 44px);
+	}
+
+	.hero p {
+		font-size: 18px;
+		color: var(--texto-suave);
+	}
+
+	/* El botón del hero, más presente que el resto de los botones. */
+	.hero .boton {
+		font-size: 20px;
+		padding: 10px 32px;
+	}
+
+	/* Los botones centrados: el flex del bloque de acciones los alinea. */
+	.acciones {
+		display: flex;
+		justify-content: center;
+		gap: 12px;
+		flex-wrap: wrap;
+		margin-top: 24px;
+	}
+
+	section + section {
+		margin-top: 56px;
+	}
+
+	section h2 {
+		font-size: 24px;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 16px;
+	}
+
+	/* El carousel de screenshots: una pista con scroll y cada slide
+	   encajada al centro, como la barra de miniaturas de la
+	   aplicación. Las flechas van superpuestas y el scroll nativo
+	   completa el movimiento. */
+	.envoltura-carousel {
+		position: relative;
+	}
+
+	.carousel {
+		display: flex;
+		overflow-x: auto;
+		gap: 20px;
+		scroll-snap-type: x mandatory;
+		padding-bottom: 8px;
+	}
+
+	.slide {
+		flex: 0 0 100%;
+		scroll-snap-align: center;
+		margin: 0;
+	}
+
+	.slide img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border: 1px solid var(--borde);
+		border-radius: 2px;
+	}
+
+	.slide figcaption {
+		margin-top: 8px;
+		font-family: var(--fuente-titulos);
+		font-size: 14px;
+		color: var(--texto-suave);
+		text-align: center;
+	}
+
+	/* Las flechas, como los botones de diálogo: blancas con el borde
+	   fino y el celeste al pasar. Sobre la imagen van a los costados,
+	   centradas contra ella; el chevron es SVG y el flex lo centra. */
+	.flecha {
+		position: absolute;
+		top: calc(50% - 22px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 1px solid var(--borde);
+		border-radius: 50%;
+		background-color: var(--fondo-tarjeta);
+		color: var(--texto);
+		cursor: pointer;
+		opacity: 0.9;
+		transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1);
+	}
+
+	.flecha:hover {
+		background-color: var(--celeste);
+	}
+
+	.flecha.anterior {
+		left: 10px;
+	}
+
+	.flecha.siguiente {
+		right: 10px;
+	}
+
+	/* Las preguntas frecuentes, como los acordeones del reporte: el
+	   borde fino separa cada una y el signo abre por defecto el ítem
+	   para que el buscador y el lector vean la respuesta. */
+	.frecuente {
+		border-bottom: 1px solid var(--borde);
+		padding: 4px 0;
+	}
+
+	.frecuente summary {
+		cursor: pointer;
+		font-family: var(--fuente-titulos);
+		font-size: 17px;
+		font-weight: 600;
+		padding: 8px 0;
+	}
+
+	.frecuente[open] summary {
+		color: var(--azul);
+	}
+
+	.frecuente p {
+		margin-top: 8px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.flecha {
+			transition: none;
+		}
+	}
+
+	/* En pantalla táctil el gesto de deslizar es el natural y la
+	   flecha tapa captura: no se dibuja. */
+	@media (hover: none) {
+		.flecha {
+			display: none;
+		}
+	}
+</style>

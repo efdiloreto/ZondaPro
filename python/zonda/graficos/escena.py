@@ -89,7 +89,15 @@ class Escena3D(QObject):
         super().__init__(parent)
         self.camara = Camara()
         self._actores: list[Any] = []
-        self._malla_flecha = mallas.MallaFlecha()
+        self._malla_vastago_flecha = mallas.MallaVastagoFlecha()
+        self._malla_punta_flecha = mallas.MallaPuntaFlecha()
+        self._aristas_vastago_flecha = mallas.MallaAristasVastagoFlecha()
+        self._aristas_punta_flecha = mallas.MallaAristasPuntaFlecha()
+        # La silueta de la flecha para el glow: los cantos del vastago y de la
+        # punta, y el perímetro de la base de la punta. Sin los cuadrados de
+        # unión, que quedan adentro del conjunto cara + flecha.
+        self._trazo_vastago_flecha = mallas.MallaTrazoVastagoFlecha()
+        self._trazo_punta_flecha = mallas.MallaTrazoPuntaFlecha()
         self._titulo = ""
         self._tabla: TablaColores | None = None
         self._unidad = Unidad.N
@@ -164,7 +172,9 @@ class Escena3D(QObject):
         """
         partes = [actor.puntos for actor in self._actores if hasattr(actor, "puntos")]
         for actor in self.actores_presion:
-            alcance = actor.centro + actor.normal * actor.flecha._escala_base
+            alcance = actor.centro + actor.normal * (
+                actor.flecha._escala_base + mallas.LARGO_PUNTA_FLECHA
+            )
             partes.append(np.array((alcance,)))
         if not partes:
             return np.zeros((1, 3))
@@ -189,8 +199,28 @@ class Escena3D(QObject):
         return [actor.flecha for actor in self.actores_presion]
 
     @pyqtProperty(QObject, constant=True)
-    def mallaFlecha(self):
-        return self._malla_flecha
+    def mallaVastagoFlecha(self):
+        return self._malla_vastago_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def mallaPuntaFlecha(self):
+        return self._malla_punta_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def aristasVastagoFlecha(self):
+        return self._aristas_vastago_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def aristasPuntaFlecha(self):
+        return self._aristas_punta_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def trazoVastagoFlecha(self):
+        return self._trazo_vastago_flecha
+
+    @pyqtProperty(QObject, constant=True)
+    def trazoPuntaFlecha(self):
+        return self._trazo_punta_flecha
 
     @pyqtProperty(str, notify=tituloCambiado)
     def titulo(self) -> str:

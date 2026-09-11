@@ -10,8 +10,8 @@
     <id>io.github.efdiloreto.ZondaPro</id>
 
     <name>Zonda</name>
-    <summary>Cálculo de cargas de viento según CIRSOC 102-2005</summary>
-    <summary xml:lang="es">Cálculo de cargas de viento según CIRSOC 102-2005</summary>
+    <summary>Cálculo de cargas de viento según CIRSOC 102-2025</summary>
+    <summary xml:lang="es">Cálculo de cargas de viento según CIRSOC 102-2025</summary>
 
     <metadata_license>CC0-1.0</metadata_license>
     <project_license>GPL-3.0-or-later</project_license>
@@ -23,15 +23,15 @@
     <description>
         <p>
             Zonda calcula cargas y presiones de viento sobre estructuras según el
-            reglamento argentino CIRSOC 102-2005.
+            reglamento argentino CIRSOC 102-2025.
         </p>
         <p>Incluye:</p>
         <ul>
-            <li>Presiones dinámicas y factores de ráfaga, direccionalidad, importancia y efecto topográfico.</li>
+            <li>Presiones dinámicas y factores de ráfaga, direccionalidad, altitud y efecto topográfico.</li>
             <li>Coeficientes de presión externa e interna, para el SPRFV y para Componentes y Revestimientos.</li>
             <li>Edificios cerrados y parcialmente cerrados, carteles y muros, y cubiertas aisladas.</li>
             <li>Visualización 3D interactiva con mapeo de presiones en tiempo real.</li>
-            <li>Memorias de cálculo exportables a PDF, Word, LibreOffice y Markdown.</li>
+            <li>Memorias de cálculo exportables a PDF.</li>
         </ul>
     </description>
 
@@ -93,6 +93,7 @@
     <content_rating type="oars-1.1"/>
 
     <releases>
+        <release version="2.0.0" date="2026-09-10"/>
         <release version="1.1.1" date="2026-09-01">
             <description>
                 <p>Corrección en el instalador de macOS: el bundle ahora se firma al empaquetarlo. Sin esa firma macOS lo rechazaba al abrirlo, avisando que la aplicación estaba dañada.</p>

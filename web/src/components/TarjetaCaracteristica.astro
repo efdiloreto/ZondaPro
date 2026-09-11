@@ -1,0 +1,48 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+// La tarjeta chica de característica del home: título en Oswald y una
+// línea de texto debajo, sobre la tarjeta de borde fino de la interfaz.
+
+interface Props {
+	titulo: string;
+	texto: string;
+}
+
+const { titulo, texto } = Astro.props;
+---
+
+<article class="tarjeta caracteristica">
+	<h3>{titulo}</h3>
+	<p>{texto}</p>
+</article>
+
+<style>
+	.caracteristica {
+		padding: 16px 18px;
+	}
+
+	.caracteristica h3 {
+		font-size: 16px;
+		margin-bottom: 4px;
+	}
+
+	.caracteristica p {
+		margin: 0;
+		font-size: 14px;
+		color: var(--texto-suave);
+	}
+</style>

@@ -20,10 +20,6 @@
 # launcher/: adentro del contenedor la ubicacion de todo es fija, asi que no
 # hace falta que nadie salga a adivinar donde quedo el interprete.
 
-# pandoc viaja en el bundle y es lo que exporta los reportes a PDF, DOCX y ODT.
-PATH="/app/zonda/tools/pandoc:${PATH}"
-export PATH
-
 # Se agrega el paquete al path de imports en vez de hacer un cd: el .desktop
 # pasa la ruta del proyecto con %f y un cd romperia las rutas relativas.
 PYTHONPATH="/app/zonda/app${PYTHONPATH:+:${PYTHONPATH}}"

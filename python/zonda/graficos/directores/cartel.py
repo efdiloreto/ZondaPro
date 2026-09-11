@@ -31,6 +31,10 @@ if TYPE_CHECKING:
     from zonda.graficos.colores import TablaColores
     from zonda.graficos.escena import Camara, Escena3D
 
+# El cartel se apoya en una pata central; si el ancho pasa de este
+# valor, en dos repartidas a lo largo del ancho.
+ANCHO_DOS_SOPORTES = 7.5
+
 
 class Geometria:
     """Geometria.
@@ -165,12 +169,14 @@ class Geometria:
     def _crear_soportes(self):
         if self.altura_inferior > 0:
             radio = min(self.ancho, abs(self.profundidad)) / 4
-            cilindro(
-                self.escena,
-                radio,
-                self.altura_inferior,
-                (self.ancho / 2, self.profundidad / 2),
-            )
+            centro_z = self.profundidad / 2
+            if self.ancho > ANCHO_DOS_SOPORTES:
+                cuarto = self.ancho / 4
+                centros_xz = ((cuarto, centro_z), (3 * cuarto, centro_z))
+            else:
+                centros_xz = ((self.ancho / 2, centro_z),)
+            for centro_xz in centros_xz:
+                cilindro(self.escena, radio, self.altura_inferior, centro_xz)
 
 
 class Presiones(Geometria):
@@ -184,6 +190,7 @@ class Presiones(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         cartel: Cartel,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -191,6 +198,8 @@ class Presiones(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             cartel: Una instancia de Cartel.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         super().__init__(
             escena,
@@ -199,13 +208,19 @@ class Presiones(Geometria):
             cartel.altura_inferior,
             cartel.altura_superior,
         )
+        self.cartel = cartel
         self.tabla_colores = tabla_colores
 
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
     def obtener_actores(self):
         # Se genera al inicializar la función cara_barlovento
         return self.actores_cara_barlovento
+
+    def obtener_regiones(self):
+        # Se genera al inicializar la función regiones_caso_c
+        return self.actores_regiones_caso_c
 
     @actores_poligonos(crear_atributo=False, presion=False, mostrar=True)
     def caras(self):
@@ -215,8 +230,32 @@ class Presiones(Geometria):
     def cara_barlovento(self):
         return super().cara_barlovento.__wrapped__(self)
 
+    @actores_poligonos(crear_atributo=True, presion=True, mostrar=False)
+    def regiones_caso_c(self):
+        """Genera un actor por cada región del Caso C de la Figura 4.4-1.
+
+        Son franjas verticales de la cara a barlovento, medidas desde el borde
+        de barlovento según los límites que expone el cálculo. Se crean ocultos:
+        los muestra la escena cuando se selecciona el Caso C.
+
+        Returns:
+            Las coordenadas de cada región, indexadas por región.
+        """
+        return {
+            region: coords_pared_rectangular(
+                fin - inicio,
+                self.altura_superior,
+                self.altura_superior,
+                x0=inicio,
+                elevacion=self.altura_inferior,
+                invertir_sentido=True,
+            )
+            for region, (inicio, fin) in self.cartel.cf.limites_regiones.items()
+        }
+
     def inicializar_actores(self) -> None:
         """Elimina los actores existentes y genera y añade los actores generados por cada función."""
         self.caras()
         self.cara_barlovento()
+        self.regiones_caso_c()
         self._crear_soportes()

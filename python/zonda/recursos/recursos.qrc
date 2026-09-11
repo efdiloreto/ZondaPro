@@ -20,35 +20,24 @@
         <file alias="carpeta.png">iconos/generales/carpeta.png</file>
         <file alias="ayuda.png">iconos/generales/ayuda.png</file>
         <file alias="informacion.png">iconos/generales/informacion.png</file>
-        <file alias="apoyo.png">iconos/generales/apoyo.png</file>
         <file alias="cerrar-sesion.png">iconos/generales/cerrar-sesion.png</file>
         <file alias="actualizar.png">iconos/generales/actualizar.png</file>
+        <file alias="flecha-abajo.png">iconos/generales/flecha-abajo.png</file>
         <file alias="edificio.png">iconos/modulos/edificio.png</file>
         <file alias="cartel.png">iconos/modulos/cartel.png</file>
         <file alias="cubierta-aislada.png">iconos/modulos/cubierta-aislada.png</file>
-        <file alias="viento.png">iconos/modulos/viento.png</file>
-        <file alias="topografia.png">iconos/modulos/topografia.png</file>
-        <file alias="componentes.png">iconos/modulos/componentes.png</file>
         <file alias="zonda.ico">iconos/zonda.ico</file>
     </qresource>
     <qresource prefix="imagenes">
-        <file alias="mapa-viento.png">imagenes/mapa-viento.png</file>
+        <file alias="figura-1-5-1a.png">imagenes/figura-1-5-1a.png</file>
+        <file alias="figura-1-5-1b.png">imagenes/figura-1-5-1b.png</file>
+        <file alias="figura-1-5-1c.png">imagenes/figura-1-5-1c.png</file>
         <file alias="escarpa.jpg">imagenes/escarpa.jpg</file>
         <file alias="loma.jpg">imagenes/loma.jpg</file>
         <file alias="logo.png">imagenes/logo.png</file>
         <file alias="logo-secundario.png">imagenes/logo-secundario.png</file>
         <file alias="logo-login.png">imagenes/logo-login.png</file>
         <file alias="gplv3.png">imagenes/gplv3-with-text-84x42.png</file>
-    </qresource>
-    <qresource prefix="plantillas">
-        <file alias="base.md">plantillas/base.md</file>
-        <file alias="edificio.md">plantillas/edificio.md</file>
-        <file alias="cubierta-aislada.md">plantillas/cubierta-aislada.md</file>
-        <file alias="cartel.md">plantillas/cartel.md</file>
-        <file alias="macros.md">plantillas/macros.md</file>
-    </qresource>
-    <qresource prefix="css">
-        <file alias="github-pandoc.css">css/github-pandoc.css</file>
     </qresource>
     <qresource prefix="fuentes">
         <file alias="Oswald-VariableFont_wght.ttf">fuentes/Oswald-VariableFont_wght.ttf</file>

@@ -269,14 +269,24 @@ class WidgetGraficoEdificioPresiones(WidgetPresiones):
 class WidgetGraficoCubiertaAisladaPresiones(WidgetPresiones):
     """Vista 3D de las presiones de viento sobre una cubierta aislada."""
 
-    def __init__(self, cubierta_aislada: CubiertaAislada) -> None:
+    def __init__(
+        self, cubierta_aislada: CubiertaAislada, sistema_resistente: SistemaResistente
+    ) -> None:
         """
         Args:
             cubierta_aislada: Una instancia de CubiertaAislada.
+            sistema_resistente: El sistema resistente con el que se calcularon
+                las presiones.
         """
         super().__init__()
 
-        self.escena = escena_aisladas.Presiones(
+        self.sistema_resistente = sistema_resistente
+        escenas = {
+            SistemaResistente.SPRFV: escena_aisladas.Presiones,
+            SistemaResistente.COMPONENTES: escena_aisladas.Componentes,
+        }
+
+        self.escena = escenas[sistema_resistente](
             self.escena3d, cubierta_aislada, Unidad(self._unidad_presion)
         )
         self._crear_comandos_presiones()

@@ -1,0 +1,80 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+// El pie cierra la ventana en la aplicación: mismo gris de panel, pero
+// con la línea arriba. Acá van los accesos generales y la firma.
+
+import gplv3 from '../assets/gplv3.png';
+
+const anio = new Date().getFullYear();
+
+// El base no termina en barra y las rutas vienen con la inicial: se
+// concatenan directo para que respeten /ZondaPro/.
+const rutaDe = (ruta: string) => `${import.meta.env.BASE_URL}${ruta}`;
+---
+
+<footer class="pie">
+	<div class="contenedor">
+		<nav class="enlaces" aria-label="Navegación del pie">
+			<a href={rutaDe('/')}>Inicio</a>
+			<a href={rutaDe('/articulos/')}>Artículos</a>
+			<a href={rutaDe('/articulos/cirsoc-102-2025-vs-2005/')}>Cambios del CIRSOC 102-2025</a>
+			<a href={rutaDe('/articulos/cirsoc-102-2025-vs-asce-7/')}>CIRSOC 102-2025 vs ASCE 7</a>
+			<a href={rutaDe('/articulos/servidor-mcp/')}>Zonda como servidor MCP</a>
+			<a href={rutaDe('/descarga/')}>Descarga</a>
+			<a href={rutaDe('/acerca/')}>Acerca de</a>
+			<a href="https://github.com/efdiloreto/ZondaPro">GitHub</a>
+		</nav>
+		<p class="firma">
+			Copyright © 2018–{anio} Eduardo Di Loreto y Natalia Alvarado · Software libre bajo <a href="https://github.com/efdiloreto/ZondaPro/blob/master/LICENSE"><img class="logo-licencia" src={gplv3.src} alt="Licencia GPLv3" width="48" height="24" /></a>
+		</p>
+	</div>
+</footer>
+
+<style>
+	.pie {
+		background-color: var(--fondo-panel);
+		border-top: 1px solid var(--linea);
+		margin-top: 48px;
+		padding: 18px 0;
+	}
+
+	.enlaces {
+		display: flex;
+		justify-content: center;
+		gap: 6px 18px;
+		flex-wrap: wrap;
+		margin-bottom: 10px;
+	}
+
+	.enlaces a {
+		font-family: var(--fuente-titulos);
+		font-size: 14px;
+	}
+
+	.firma {
+		margin: 0;
+		font-size: 13px;
+		color: var(--texto-suave);
+		text-align: center;
+	}
+
+	.logo-licencia {
+		vertical-align: middle;
+		margin-left: 4px;
+		border-radius: 2px;
+	}
+</style>

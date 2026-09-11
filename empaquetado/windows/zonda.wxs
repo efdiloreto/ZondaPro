@@ -12,7 +12,7 @@
              Scope="perMachine"
              Compressed="yes">
 
-        <SummaryInformation Description="Instalador de Zonda - Cargas de viento CIRSOC 102-2005" />
+        <SummaryInformation Description="Instalador de Zonda - Cargas de viento CIRSOC 102-2025" />
 
         <!--
           AllowSameVersionUpgrades evita que reinstalar un build de la misma
@@ -49,7 +49,7 @@
                 <Shortcut Id="ApplicationStartMenuShortcut"
                           Directory="ApplicationProgramsFolder"
                           Name="Zonda"
-                          Description="Calculo de cargas de viento segun CIRSOC 102-2005"
+                          Description="Calculo de cargas de viento segun CIRSOC 102-2025"
                           WorkingDirectory="INSTALLFOLDER"
                           Icon="ZondaIcon.ico"
                           Advertise="yes" />
@@ -57,7 +57,7 @@
                 <Shortcut Id="ApplicationDesktopShortcut"
                           Directory="DesktopFolder"
                           Name="Zonda"
-                          Description="Calculo de cargas de viento segun CIRSOC 102-2005"
+                          Description="Calculo de cargas de viento segun CIRSOC 102-2025"
                           WorkingDirectory="INSTALLFOLDER"
                           Icon="ZondaIcon.ico"
                           Advertise="yes" />

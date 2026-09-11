@@ -41,7 +41,7 @@ import sys
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QFontDatabase
 
-from zonda import __acercade__, actualizaciones, proyecto, recursos
+from zonda import __acercade__, actualizaciones, proyecto, recursos, telemetria
 from zonda.widgets.zonda import WidgetBienvenida
 
 _UTF8 = 0x08000100
@@ -189,7 +189,7 @@ def instalar_traducciones(app: QtWidgets.QApplication) -> None:
     ruta = QtCore.QLibraryInfo.path(QtCore.QLibraryInfo.LibraryPath.TranslationsPath)
     espanol = QtCore.QLocale(QtCore.QLocale.Language.Spanish)
 
-    for catalogo in ("qtbase", "qtwebengine"):
+    for catalogo in ("qtbase",):
         # Qt se queda con una referencia al traductor, no con una copia: si se
         # lo lleva el recolector de basura los textos vuelven al inglés. El
         # padre lo mantiene vivo mientras viva la aplicación.
@@ -203,13 +203,6 @@ def main():
     # escribirlo antes de que exista la QApplication.
     nombrar_la_aplicacion_en_macos(__acercade__.__nombre__)
 
-    # QtWebEngine (lo usa el visor de reportes) exige contextos OpenGL
-    # compartidos, y el atributo tiene que fijarse antes de instanciar la
-    # QApplication. Dejarlo explícito evita depender del orden de los imports.
-    QtWidgets.QApplication.setAttribute(
-        QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts
-    )
-
     app = Aplicacion(sys.argv)
     app.setOrganizationName(__acercade__.__compania__)
     app.setOrganizationDomain(__acercade__.__web_compania__)
@@ -220,9 +213,7 @@ def main():
     # Zonda se dibuja siempre en claro, siga el sistema el tema que siga: la
     # hoja de estilo y la vista 3D tienen los colores escritos a mano —fondo
     # #ededed, tinta negra— y con la paleta oscura del sistema quedaban textos
-    # claros sobre fondos claros. Fijar el esquema acá alcanza para todo,
-    # incluido el visor de reportes: es la paleta lo que ve QtWebEngine para
-    # resolver ``prefers-color-scheme``.
+    # claros sobre fondos claros. Fijar el esquema acá alcanza para todo.
     app.styleHints().setColorScheme(QtCore.Qt.ColorScheme.Light)
 
     # Antes de armar cualquier widget: los textos se resuelven al construirlos.
@@ -232,7 +223,11 @@ def main():
         str(recursos.ruta("fuentes/Oswald-VariableFont_wght.ttf"))
     )
 
-    app.setStyleSheet(recursos.texto("qss/zonda.qss"))
+    # Qt resuelve las url() de la hoja contra el directorio de trabajo,
+    # así que el token RECURSOS va con la ruta real de los recursos.
+    app.setStyleSheet(
+        recursos.texto("qss/zonda.qss").replace("RECURSOS", recursos.raiz().as_posix())
+    )
 
     # La consulta a GitHub sale ya, mientras se arma la interfaz, para que el
     # resultado esté listo cuando se abra el primer módulo, que es donde se
@@ -245,6 +240,12 @@ def main():
     # ventana apenas termina esta función.
     bienvenida = WidgetBienvenida(buscador)
     app.archivoPedido.connect(bienvenida.abrir_proyecto)
+
+    # El ping del arranque. Sin receptor desplegado o si el usuario la
+    # desactivó en Configuración, registrar_sesion() no hace nada. La
+    # referencia vive toda la sesión: sostiene el pedido asincrónico.
+    _rastreador = telemetria.Telemetria(bienvenida)
+    _rastreador.registrar_sesion()
 
     ruta = app.tomar_pendiente() or _archivo_de_los_argumentos(app.arguments())
     if ruta is None or not bienvenida.abrir_proyecto(ruta):

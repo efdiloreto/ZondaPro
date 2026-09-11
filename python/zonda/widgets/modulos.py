@@ -51,12 +51,12 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import __acercade__, proyecto, recientes, recursos
+from zonda import __acercade__, carpetas, proyecto, recientes, recursos
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 from zonda.enums import Estructura
 from zonda.excepciones import ErrorArchivo, ErrorEstructura, ErrorLineamientos
 from zonda.widgets.custom import WidgetAcercaDe, WidgetPanelEntrada
-from zonda.widgets.dialogos import DialogoConfiguracion
+from zonda.widgets.dialogos import DialogoConfiguracion, DialogoInstalarMCP
 from zonda.widgets.entrada import (
     WidgetEstructuraCartel,
     WidgetEstructuraCubiertaAislada,
@@ -156,7 +156,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             atajos.New,
         )
         self._accion_abrir = self._crear_accion(
-            "Abrir...",
+            "Abrir",
             self.pedir_abrir,
             _icono_estandar("document-open", estandar.SP_DirOpenIcon),
             atajos.Open,
@@ -168,7 +168,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             atajos.Save,
         )
         self._accion_guardar_como = self._crear_accion(
-            "Guardar Como...",
+            "Guardar Como",
             self._guardar_como,
             _icono_estandar("document-save-as", estandar.SP_DialogSaveButton),
             atajos.SaveAs,
@@ -178,11 +178,15 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         )
 
         self._accion_configuracion = self._crear_accion(
-            "Configuración...",
+            "Configuración",
             self._dialogo_configuracion,
             recursos.icono("iconos/configuracion.png"),
             atajos.Preferences,
             rol=roles.PreferencesRole,
+        )
+        self._accion_instalar_mcp = self._crear_accion(
+            "Instalar servidor MCP",
+            self._dialogo_instalar_mcp,
         )
         self._accion_ayuda = self._crear_accion(
             "Ayuda de Zonda",
@@ -230,6 +234,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         menu_archivo.addAction(self._accion_guardar_como)
         menu_archivo.addSeparator()
         menu_archivo.addAction(self._accion_configuracion)
+        menu_archivo.addAction(self._accion_instalar_mcp)
         menu_archivo.addSeparator()
         menu_archivo.addAction(self._accion_cerrar)
 
@@ -246,6 +251,9 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
 
     def _dialogo_configuracion(self):
         DialogoConfiguracion(self)
+
+    def _dialogo_instalar_mcp(self):
+        DialogoInstalarMCP(self)
 
     # --- El archivo de proyecto -------------------------------------------
 
@@ -333,6 +341,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         # Abrir y guardar son los dos momentos en que alguien eligió este
         # archivo, así que son los dos que lo anotan como reciente.
         recientes.registrar(self._ruta_archivo)
+        carpetas.recordar(self._ruta_archivo)
         self._estado_guardado = self._estado()
         self._actualizar_titulo()
 
@@ -389,20 +398,35 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             return False
         self._ruta_archivo = ruta
         recientes.registrar(ruta)
+        carpetas.recordar(ruta)
         self._estado_guardado = estado
         self._actualizar_titulo()
         return True
 
     def _carpeta_inicial(self) -> str:
-        """Vacío deja que Qt use la última carpeta visitada."""
-        if self._ruta_archivo is None:
-            return ""
-        return str(self._ruta_archivo.parent)
+        """La carpeta donde se abre el diálogo de abrir.
+
+        Si el módulo ya tiene un archivo, su carpeta; si no, la última carpeta
+        usada, que es la de Documentos la primera vez.
+        """
+        if self._ruta_archivo is not None:
+            return str(self._ruta_archivo.parent)
+        return carpetas.ultima()
 
     def _ruta_sugerida(self) -> str:
         if self._ruta_archivo is not None:
             return str(self._ruta_archivo)
-        return str(Path.home() / f"{self.titulo}{proyecto.EXTENSION}")
+        return str(Path(carpetas.ultima()) / f"{self.titulo}{proyecto.EXTENSION}")
+
+    def nombre_archivo(self) -> str:
+        """El nombre del archivo abierto, sin extensión.
+
+        Returns:
+            El nombre, o una cadena vacía si el módulo no tiene archivo.
+        """
+        if self._ruta_archivo is not None:
+            return self._ruta_archivo.stem
+        return ""
 
     def _actualizar_titulo(self) -> None:
         nombre = "Sin título" if self._ruta_archivo is None else self._ruta_archivo.name
@@ -465,7 +489,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         edificio = Edificio(
             **self._widget_estructura.parametros(),
@@ -475,9 +499,11 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         )
         return WidgetResultadosEdificio(edificio)
 
-    @staticmethod
-    def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada(componentes=True)
+    def _generar_widget_panel_entrada(self):
+        return WidgetPanelEntrada(
+            componentes=True,
+            hay_parapeto=self._widget_estructura.hay_parapeto_plana,
+        )
 
     @staticmethod
     def _generar_widget_estructura():
@@ -490,7 +516,7 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
 
     @staticmethod
     def _generar_widget_panel_entrada():
-        return WidgetPanelEntrada()
+        return WidgetPanelEntrada(componentes=True, solo_cubierta=True)
 
     @staticmethod
     def _generar_widget_estructura():
@@ -500,12 +526,13 @@ class WidgetModuloCubiertaAislada(WidgetModuloEdificio):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad", "factor_g_simplificado")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         cubierta_aislada = CubiertaAislada(
             **self._widget_estructura.parametros(),
             **parametros_viento,
             **self._widget_panel_entrada.parametros_topografia,
+            componentes=self._widget_panel_entrada.componentes["componentes_cubierta"],
         )
         return WidgetResultadosCubiertaAislada(cubierta_aislada)
 
@@ -515,6 +542,10 @@ class WidgetModuloCartel(WidgetModuloCubiertaAislada):
     estructura = Estructura.CARTEL
 
     @staticmethod
+    def _generar_widget_panel_entrada():
+        return WidgetPanelEntrada()
+
+    @staticmethod
     def _generar_widget_estructura():
         return WidgetEstructuraCartel()
 
@@ -522,7 +553,7 @@ class WidgetModuloCartel(WidgetModuloCubiertaAislada):
         parametros_viento = {
             key: value
             for key, value in self._widget_panel_entrada.parametros_viento.items()
-            if key not in ("ciudad", "editar_velocidad")
+            if key not in ("ciudad", "editar_velocidad", "categoria_riesgo_viento")
         }
         cartel = Cartel(
             **self._widget_estructura.parametros(),

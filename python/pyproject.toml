@@ -3,7 +3,7 @@ name = "zonda"
 # La versión sale de zonda/__acercade__.py, que es la única fuente de verdad
 # del proyecto: de ahí la leen también el empaquetado y la pantalla "Acerca de".
 dynamic = ["version"]
-description = "Cálculo de cargas de viento según CIRSOC 102-2005"
+description = "Cálculo de cargas de viento según CIRSOC 102-2025"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -24,17 +24,20 @@ classifiers = [
 ]
 
 dependencies = [
-    "jinja2>=3.1.6",
+    "fastmcp>=4.0.3",
     "numpy>=2.5.2",
     "packaging>=25.0",
-    "pypandoc>=1.17",
     "pyqt6>=6.11.0",
-    "pyqt6-webengine>=6.11.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/efdiloreto/ZondaPro"
 Issues = "https://github.com/efdiloreto/ZondaPro/issues"
+
+[project.scripts]
+# El servidor MCP corre por stdio: un script de consola garantiza que stdin y
+# stdout quedan conectados a los pipes del cliente.
+zonda-mcp = "zonda.mcp.servidor:principal"
 
 [project.gui-scripts]
 zonda = "zonda.main:main"
@@ -107,10 +110,6 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 # El codigo existente no esta completamente tipado; se ajusta gradualmente.
 check_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = ["pypandoc.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

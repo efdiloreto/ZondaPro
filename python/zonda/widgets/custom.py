@@ -18,16 +18,50 @@
 import webbrowser
 from collections.abc import Callable
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import __acercade__, recursos
+from zonda import __acercade__, recursos, telemetria
 from zonda.enums import (
+    CategoriaEstructura,
     CategoriaExposicion,
     DireccionTopografia,
     Flexibilidad,
     TipoTerrenoTopografia,
 )
 from zonda.widgets import dialogos
+
+
+def abrir_enlace(url: str) -> None:
+    """Abre un enlace en el navegador del sistema.
+
+    Args:
+        url: La dirección a abrir.
+    """
+    # Igual que en el aviso de actualizaciones: se lo pide al sistema
+    # operativo, que es lo único que funciona en las tres plataformas.
+    QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+
+
+def fuente_de_rotulo(widget: QtWidgets.QWidget, mayusculas: bool = True) -> QtGui.QFont:
+    """La fuente de los rótulos chicos, derivada de la del sistema.
+
+    Se deriva en lugar de fijar un tamaño en píxeles para que la interfaz siga
+    la escala de fuentes del sistema operativo: con "texto grande" activado, un
+    tamaño fijo en px no crece y el rótulo queda ilegible.
+
+    Args:
+        widget: De quién se toma la fuente base.
+        mayusculas: Si el texto va en versalitas. Va en ``False`` cuando el
+            texto lleva nombres propios o siglas —"GPLv3" en mayúsculas se lee
+            mal—.
+
+    Returns: La fuente del rótulo.
+    """
+    fuente = widget.font()
+    fuente.setPointSize(max(7, fuente.pointSize() - 2))
+    if mayusculas:
+        fuente.setCapitalization(QtGui.QFont.Capitalization.AllUppercase)
+    return fuente
 
 
 class WidgetBotonModulo(QtWidgets.QWidget):
@@ -104,20 +138,26 @@ class WidgetLogo(QtWidgets.QLabel):
 
 
 class WidgetPanelEntrada(WidgetPanel):
-    def __init__(self, componentes=False):
+    def __init__(self, componentes=False, solo_cubierta=False, hay_parapeto=None):
         super().__init__(altura_fija=57)
 
         self._tiene_componentes = componentes
+        self._solo_cubierta = solo_cubierta
+        # Callable que indica si hay que pedir el área efectiva del parapeto
+        # en el diálogo de componentes; None para los módulos sin parapeto.
+        self._hay_parapeto = hay_parapeto
 
         self.parametros_viento = {
-            "categoria_exp": CategoriaExposicion.A,
-            "velocidad": 45,
+            "categoria_exp": CategoriaExposicion.B,
+            "velocidad": 55.1,
             "frecuencia": 1,
             "beta": 0.02,
             "flexibilidad": Flexibilidad.RIGIDA,
             "ciudad": "Buenos Aires",
             "factor_g_simplificado": True,
             "editar_velocidad": False,
+            "altitud": 0.0,
+            "categoria_riesgo_viento": CategoriaEstructura.II,
         }
 
         self.parametros_topografia = {
@@ -132,40 +172,46 @@ class WidgetPanelEntrada(WidgetPanel):
         widget_logo = WidgetLogo(nombre_archivo="logo-secundario.png")
 
         boton_dialogo_viento = WidgetBotonPanel("VIENTO")
+        boton_dialogo_viento.setProperty("class", "dialogo")
         boton_dialogo_viento.clicked.connect(self._dialogo_viento)
-        boton_dialogo_viento.setIcon(recursos.icono("iconos/viento.png"))
-        boton_dialogo_viento.setIconSize(QtCore.QSize(32, 32))
 
         boton_dialogo_topografia = WidgetBotonPanel("TOPOGRAFIA")
+        boton_dialogo_topografia.setProperty("class", "dialogo")
         boton_dialogo_topografia.clicked.connect(self._dialogo_topografia)
-        boton_dialogo_topografia.setIcon(recursos.icono("iconos/topografia.png"))
-        boton_dialogo_topografia.setIconSize(QtCore.QSize(32, 32))
 
         self.boton_calcular = WidgetBotonPanel("CALCULAR")
         self.boton_calcular.setProperty("class", "accion")
 
         layout_principal = QtWidgets.QHBoxLayout()
-        layout_principal.setSpacing(0)
-        layout_principal.setContentsMargins(11, 0, 0, 0)
+        layout_principal.setSpacing(10)
+        layout_principal.setContentsMargins(11, 0, 11, 0)
         layout_principal.addWidget(widget_logo)
         layout_principal.addStretch()
-        layout_principal.addWidget(boton_dialogo_viento)
-        layout_principal.addWidget(boton_dialogo_topografia)
+        layout_principal.addWidget(
+            boton_dialogo_viento, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        layout_principal.addWidget(
+            boton_dialogo_topografia, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
         if componentes:
             self.componentes = {
                 "componentes_paredes": None,
                 "componentes_cubierta": None,
+                "area_parapeto": None,
             }
             boton_dialogo_componentes = WidgetBotonPanel("C&&R")
+            boton_dialogo_componentes.setProperty("class", "dialogo")
             boton_dialogo_componentes.clicked.connect(self._dialogo_componentes)
-            boton_dialogo_componentes.setIcon(recursos.icono("iconos/componentes.png"))
-            boton_dialogo_componentes.setIconSize(QtCore.QSize(32, 32))
 
-            layout_principal.addWidget(boton_dialogo_componentes)
+            layout_principal.addWidget(
+                boton_dialogo_componentes, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
 
         layout_principal.addStretch()
-        layout_principal.addWidget(self.boton_calcular)
+        layout_principal.addWidget(
+            self.boton_calcular, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.setLayout(layout_principal)
 
@@ -177,22 +223,37 @@ class WidgetPanelEntrada(WidgetPanel):
         }
         if self._tiene_componentes:
             estado["componentes"] = {
-                zona: dict(componentes) if componentes else None
-                for zona, componentes in self.componentes.items()
+                zona: (
+                    valores
+                    if zona == "area_parapeto"
+                    else (dict(valores) if valores else None)
+                )
+                for zona, valores in self.componentes.items()
             }
         return estado
 
     def cargar_estado(self, estado) -> None:
         """Deja el panel como lo dejó ``estado``."""
         self.parametros_viento = dict(estado["viento"])
+        if "altitud" not in self.parametros_viento:
+            self.parametros_viento["altitud"] = 0.0
+        if "categoria_riesgo_viento" not in self.parametros_viento:
+            self.parametros_viento["categoria_riesgo_viento"] = CategoriaEstructura.II
         self.parametros_topografia = dict(estado["topografia"])
         if self._tiene_componentes:
             componentes = estado.get("componentes")
             if componentes is not None:
                 self.componentes = {
-                    zona: dict(valores) if valores else None
+                    zona: (
+                        valores
+                        if zona == "area_parapeto"
+                        else (dict(valores) if valores else None)
+                    )
                     for zona, valores in componentes.items()
                 }
+                # Los proyectos de versiones anteriores no traen el área del
+                # parapeto: falta cargarla antes de calcular.
+                self.componentes.setdefault("area_parapeto", None)
 
     def _dialogo_viento(self):
         dialogo = dialogos.DialogoViento(**self.parametros_viento)
@@ -205,48 +266,122 @@ class WidgetPanelEntrada(WidgetPanel):
             self.parametros_topografia = dialogo.parametros()
 
     def _dialogo_componentes(self):
-        dialogo = dialogos.DialogoComponentes(self.componentes)
+        dialogo = dialogos.DialogoComponentes(
+            self.componentes,
+            solo_cubierta=self._solo_cubierta,
+            con_parapeto=self._hay_parapeto() if self._hay_parapeto else False,
+        )
         if dialogo.exec():
             self.componentes = dialogo.componentes()
 
 
+def crear_segmento(texto: str, clase: str = "segmento") -> WidgetBotonPanel:
+    """Crea un botón segmento, marcable, con la clase del QSS.
+
+    Lo usan la barra de resultados del panel y los selectores de las
+    páginas de componentes del reporte. En la barra van con la clase de
+    los botones de diálogo, porque comparten el look.
+
+    Args:
+        texto: El rótulo del segmento.
+        clase: La clase que viste al botón en el QSS.
+
+    Returns:
+        El botón creado, sin grupo: quien lo usa lo agrega al suyo.
+    """
+    boton = WidgetBotonPanel(texto)
+    boton.setProperty("class", clase)
+    boton.setCheckable(True)
+    return boton
+
+
+def crear_capsula(*botones: WidgetBotonPanel) -> QtWidgets.QWidget:
+    """Arma una cápsula con los segmentos dados.
+
+    El valor de la clase va sin acento porque los selectores del QSS no
+    lo llevan bien.
+
+    Args:
+        *botones: Los segmentos del grupo exclusivo, en orden.
+
+    Returns:
+        El contenedor de la cápsula.
+    """
+    cápsula = QtWidgets.QWidget()
+    cápsula.setProperty("class", "capsula")
+
+    layout = QtWidgets.QHBoxLayout(cápsula)
+    layout.setContentsMargins(3, 3, 3, 3)
+    layout.setSpacing(3)
+
+    for boton in botones:
+        layout.addWidget(boton)
+
+    return cápsula
+
+
 class WidgetPanelResultados(WidgetPanel):
-    def __init__(self, edificio: bool = False):
+    def __init__(self, sistemas: bool = False):
         super().__init__(altura_fija=57)
 
         self.boton_volver = WidgetBotonPanel("VOLVER")
-
-        self.boton_generar_reporte = WidgetBotonPanel("REPORTE")
-        self.boton_generar_reporte.setProperty("class", "accion")
+        self.boton_volver.setProperty("class", "dialogo")
 
         layout_botones = QtWidgets.QHBoxLayout()
-        layout_botones.setContentsMargins(0, 0, 0, 0)
-        layout_botones.addWidget(self.boton_volver)
+        layout_botones.setSpacing(10)
+        layout_botones.setContentsMargins(11, 0, 0, 0)
+        layout_botones.addWidget(
+            self.boton_volver, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         layout_botones.addStretch()
 
-        if edificio:
-            self.boton_sprfv = WidgetBotonPanel("SPRFV")
-            self.boton_sprfv.setProperty("class", "tab")
-            self.boton_sprfv.setCheckable(True)
-            self.boton_sprfv.setChecked(True)
-            layout_botones.addWidget(self.boton_sprfv)
+        # Los botones del panel son un grupo exclusivo: marcan qué página
+        # del apilador de resultados se muestra y hacen de índice del
+        # módulo. Van sueltos, todos con el look de los botones de
+        # diálogo, y el marcado se llena de gris.
+        self.grupo_botones = QtWidgets.QButtonGroup(self)
+        self.grupo_botones.setExclusive(True)
 
-            self.boton_componentes = WidgetBotonPanel("C&&R")
-            self.boton_componentes.setProperty("class", "tab")
+        if sistemas:
+            self.boton_sprfv = self._crear_segmento("3D - SPRFV", 0, chequeada=True)
+            self.boton_componentes = self._crear_segmento("3D - C&&R", 1)
             self.boton_componentes.setEnabled(False)
-            self.boton_componentes.setCheckable(True)
+            layout_botones.addWidget(
+                self.boton_sprfv, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
+            layout_botones.addWidget(
+                self.boton_componentes, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
+        else:
+            self.boton_3d = self._crear_segmento("3D", 0, chequeada=True)
+            layout_botones.addWidget(
+                self.boton_3d, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
 
-            layout_botones.addWidget(self.boton_componentes)
-            layout_botones.addStretch()
+        self.boton_reporte = self._crear_segmento("REPORTE", 2 if sistemas else 1)
+        layout_botones.addWidget(
+            self.boton_reporte, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
 
-            grupo_botones = QtWidgets.QButtonGroup(self)
-            grupo_botones.setExclusive(True)
-            grupo_botones.addButton(self.boton_sprfv, 0)
-            grupo_botones.addButton(self.boton_componentes, 1)
-
-        layout_botones.addWidget(self.boton_generar_reporte)
+        layout_botones.addStretch()
 
         self.setLayout(layout_botones)
+
+    def _crear_segmento(self, texto: str, id: int, chequeada: bool = False):
+        """Crea un segmento del grupo y la agrega a él.
+
+        Args:
+            texto: El rótulo del segmento.
+            id: El id con el que el grupo lo reporta al conmutar.
+            chequeada: Si arranca marcado.
+
+        Returns:
+            El botón creado.
+        """
+        boton = crear_segmento(texto, clase="dialogo")
+        boton.setChecked(chequeada)
+        self.grupo_botones.addButton(boton, id)
+        return boton
 
 
 def enlaces_de_autores(color: str = "#606060") -> str:
@@ -301,7 +436,7 @@ class WidgetAcercaDe(QtWidgets.QDialog):
             "Zonda es un software libre y de código abierto destinado a calcular"
             " las cargas de viento sobre las estructuras de acuerdo al Reglamento"
             " Argentino de Acción del Viento sobre las Construcciones"
-            " CIRSOC 102-2005."
+            " CIRSOC 102-2025."
         )
         label_descripcion.setWordWrap(True)
         # El ancho fijo es el que le da altura al texto: con `SetFixedSize` el
@@ -320,6 +455,20 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         )
         label_copyright.setWordWrap(True)
         label_copyright.setFixedWidth(430)
+
+        # El disclosure de la telemetría, que no se pregunta en ningún
+        # diálogo: acá es donde un usuario curioso puede enterarse de que
+        # existe y de cómo se apaga.
+        label_telemetria: QtWidgets.QLabel | None = None
+        if telemetria.url_ping():
+            label_telemetria = QtWidgets.QLabel(
+                "Zonda envía estadísticas anónimas de uso: la versión, el"
+                " sistema operativo y el país. Sin datos personales ni del"
+                " contenido de los proyectos. Se pueden desactivar en"
+                " Configuración → Telemetría."
+            )
+            label_telemetria.setWordWrap(True)
+            label_telemetria.setFixedWidth(430)
 
         label_logo_gnu = QtWidgets.QLabel()
         label_logo_gnu.setPixmap(recursos.pixmap("imagenes/gplv3.png"))
@@ -354,10 +503,6 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         boton_licencia.clicked.connect(
             lambda _=False: webbrowser.open(__acercade__.__licencia_url__)
         )
-        boton_agradecimientos = botones.addButton(
-            "Agradecimientos", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
-        )
-        boton_agradecimientos.clicked.connect(lambda _=False: self._agradecimientos())
         botones.rejected.connect(self.reject)
 
         layout_principal = QtWidgets.QVBoxLayout()
@@ -369,6 +514,9 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         layout_principal.addSpacing(10)
         layout_principal.addWidget(label_copyright)
         layout_principal.addSpacing(10)
+        if label_telemetria is not None:
+            layout_principal.addWidget(label_telemetria)
+            layout_principal.addSpacing(10)
         layout_principal.addWidget(_linea_horizontal())
         layout_principal.addLayout(layout_info)
         layout_principal.addWidget(_linea_horizontal())
@@ -387,16 +535,6 @@ class WidgetAcercaDe(QtWidgets.QDialog):
 
         self.setWindowTitle("Acerca de Zonda")
         self.show()
-
-    def _agradecimientos(self) -> None:
-        """Abre la ventana con los patrocinadores y los colaboradores.
-
-        El import va acá adentro porque ``apoyo`` importa este módulo para el
-        panel, y al revés en el encabezado sería un ciclo.
-        """
-        from zonda.widgets.apoyo import DialogoAgradecimientos
-
-        DialogoAgradecimientos(self)
 
 
 def _label_autores() -> QtWidgets.QLabel:

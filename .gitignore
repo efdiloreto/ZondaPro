@@ -134,3 +134,9 @@ launcher/src/recursos.generado.rc
 
 # Notas de trabajo personales, no forman parte del proyecto
 NOTAS.md
+
+# Estado local de wrangler, para el receptor de telemetria/
+telemetria/.wrangler/
+node_modules/
+
+opencode.json

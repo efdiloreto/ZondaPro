@@ -39,9 +39,7 @@ def test_el_manifiesto_no_esta_vacio():
     [
         "iconos/zonda.ico",
         "qss/zonda.qss",
-        "css/github-pandoc.css",
         "fuentes/Oswald-VariableFont_wght.ttf",
-        "plantillas/base.md",
     ],
 )
 def test_recursos_clave_disponibles(clave):
@@ -61,10 +59,6 @@ def test_recurso_inexistente_falla_con_mensaje_claro():
 
 def test_leer_texto():
     assert "QPushButton" in recursos.texto("qss/zonda.qss")
-
-
-def test_directorio_de_plantillas():
-    assert recursos.directorio("plantillas").is_dir()
 
 
 def test_directorio_inexistente_falla():

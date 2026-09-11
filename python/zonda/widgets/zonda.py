@@ -38,7 +38,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from zonda import (
     __acercade__,
     actualizaciones,
-    patrocinadores,
+    carpetas,
     proyecto,
     recientes,
     recursos,
@@ -46,19 +46,16 @@ from zonda import (
 from zonda.actualizaciones import Actualizacion, BuscadorActualizaciones
 from zonda.enums import Estructura
 from zonda.excepciones import ErrorArchivo
-from zonda.widgets.apoyo import (
-    WidgetSeccionPatrocinadores,
-    abrir_enlace,
-    fuente_de_rotulo,
-)
 from zonda.widgets.custom import (
     WidgetAcercaDe,
     WidgetBotonModulo,
     WidgetLogo,
     WidgetPanel,
+    abrir_enlace,
     enlaces_de_autores,
+    fuente_de_rotulo,
 )
-from zonda.widgets.dialogos import DialogoConfiguracion
+from zonda.widgets.dialogos import DialogoConfiguracion, DialogoInstalarMCP
 from zonda.widgets.modulos import (
     WidgetModuloCartel,
     WidgetModuloCubiertaAislada,
@@ -76,7 +73,7 @@ URL_REPORTAR = f"{__acercade__.__ayuda__}/new/choose"
 
 
 class WidgetBienvenida(QtWidgets.QWidget):
-    """La ventana desde la que se elige el módulo y se ve quién apoya Zonda.
+    """La ventana desde la que se elige el módulo y se empieza a trabajar.
 
     Es una ventana común del sistema, con su barra de título, sus botones de
     minimizar y cerrar y su posición recordada entre sesiones. Antes era una
@@ -93,13 +90,12 @@ class WidgetBienvenida(QtWidgets.QWidget):
     ANCHO_CARPETA = 190
     """Hasta dónde se muestra la carpeta de un proyecto reciente, en píxeles."""
 
-    TAMANIO_INICIAL = QtCore.QSize(1140, 660)
+    TAMANIO_INICIAL = QtCore.QSize(990, 660)
     """Con qué tamaño abre la primera vez, antes de que haya nada recordado.
 
     Tiene que ser mayor que el mínimo, y el mínimo lo fija el contenido: los
-    tres módulos con su descripción más la columna de patrocinadores. Si se
-    alarga una descripción o se ensancha la columna, esto sube con ellas —hay
-    un test que lo verifica—.
+    tres módulos con su descripción. Si se alarga una descripción, esto sube
+    con ella —hay un test que lo verifica—.
     """
 
     def __init__(self, buscador: BuscadorActualizaciones | None = None):
@@ -115,9 +111,6 @@ class WidgetBienvenida(QtWidgets.QWidget):
         self._modulo: WidgetModuloEdificio | None = None
         self._buscador = buscador
         self._actualizacion: Actualizacion | None = None
-        # Es un JSON chico al lado de los logos: se lee una sola vez, al armar
-        # la ventana, y no vuelve a tocarse en toda la sesion.
-        self._patrocinadores = patrocinadores.cargar()
 
         self._label_actualizacion = QtWidgets.QLabel()
         self._franja_actualizacion = self._crear_franja_actualizacion()
@@ -155,14 +148,13 @@ class WidgetBienvenida(QtWidgets.QWidget):
         centro.addLayout(layout_modulos)
         centro.addStretch()
 
-        # Las dos columnas son fijas y el centro se lleva lo que sobra: al
-        # agrandar la ventana crecen los módulos, no las barras laterales.
+        # La columna de proyectos es fija y el centro se lleva lo que sobra: al
+        # agrandar la ventana crecen los módulos, no la barra lateral.
         cuerpo = QtWidgets.QHBoxLayout()
         cuerpo.setContentsMargins(0, 0, 0, 0)
         cuerpo.setSpacing(0)
         cuerpo.addWidget(self._bloque_proyectos())
         cuerpo.addLayout(centro)
-        cuerpo.addWidget(WidgetSeccionPatrocinadores(self._patrocinadores))
 
         # El encabezado, la franja y el pie cruzan la ventana entera, por
         # encima y por debajo de las dos columnas.
@@ -178,7 +170,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
 
         self.setWindowTitle(f"Zonda {__acercade__.__version__}")
         # El mínimo sale del tamaño que pide el contenido: por debajo de eso los
-        # tres módulos no entran en una fila y la columna se empieza a recortar.
+        # tres módulos no entran en una fila y el pie se empieza a recortar.
         self.setMinimumSize(self.sizeHint())
         self.resize(self.TAMANIO_INICIAL)
         self._restaurar_geometria()
@@ -284,7 +276,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
 
         Returns: El bloque, sin la parte de recientes si no hay ninguno.
         """
-        boton_abrir = QtWidgets.QPushButton("Abrir proyecto...")
+        boton_abrir = QtWidgets.QPushButton("Abrir proyecto")
         boton_abrir.setIcon(recursos.icono("iconos/carpeta.png"))
         boton_abrir.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         boton_abrir.clicked.connect(self._pedir_abrir_proyecto)
@@ -395,7 +387,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
     def _pedir_abrir_proyecto(self) -> None:
         """Pide un archivo y lo abre en el módulo que corresponda."""
         nombre, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Abrir Proyecto", "", proyecto.FILTRO
+            self, "Abrir Proyecto", carpetas.ultima(), proyecto.FILTRO
         )
         if nombre:
             self.abrir_proyecto(nombre)
@@ -425,9 +417,11 @@ class WidgetBienvenida(QtWidgets.QWidget):
         layout.addStretch()
 
         enlaces = (
+            ("Página web", lambda: abrir_enlace(__acercade__.__sitio__)),
             ("Ayuda", lambda: abrir_enlace(__acercade__.__ayuda__)),
             ("Reportar un problema", lambda: abrir_enlace(URL_REPORTAR)),
-            ("Configuración...", lambda: DialogoConfiguracion(self)),
+            ("Configuración", lambda: DialogoConfiguracion(self)),
+            ("Instalar servidor MCP", lambda: DialogoInstalarMCP(self)),
             ("Acerca de", lambda: WidgetAcercaDe(self)),
         )
         for texto, accion in enlaces:
@@ -469,7 +463,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
         """Abre un archivo de proyecto en el módulo que le corresponde.
 
         Vive acá y no en ``zonda.main`` porque la bienvenida es la que abre los
-        módulos, y porque el botón "Abrir proyecto..." de esta misma pantalla la
+        módulos, y porque el botón "Abrir proyecto" de esta misma pantalla la
         necesita: ``main`` importa este módulo, así que no puede ser al revés.
 
         Args:

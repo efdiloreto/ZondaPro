@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Correr verificaciones
         uses: ./.github/actions/verificaciones
@@ -86,10 +86,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Configurar Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -137,10 +137,10 @@ jobs:
 
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Configurar Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -205,7 +205,7 @@ jobs:
 
       # Guardar artefactos
       - name: Subir artefacto de compilación
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: zonda-${{ matrix.platform }}
           path: ${{ matrix.artifact_pattern }}
@@ -228,10 +228,10 @@ jobs:
       actions: read
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Configurar Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -272,7 +272,7 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Descargar los instaladores del pull request
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           run-id: ${{ steps.corrida.outputs.RUN_ID }}
           github-token: ${{ github.token }}
@@ -320,7 +320,7 @@ jobs:
       contents: write
     steps:
       - name: Clonar dev con toda la historia
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: dev
           # El merge tiene que ver las dos historias enteras, no el ultimo commit.

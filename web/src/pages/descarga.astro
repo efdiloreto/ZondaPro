@@ -1,0 +1,90 @@
+---
+/*
+  Este archivo es parte de Zonda, un programa para calcular cargas de
+  viento según CIRSOC 102-2025.
+  Copyright (C) 2018-2026 Eduardo Di Loreto <efdiloreto@gmail.com>
+
+  Zonda es software libre: puede redistribuirse y/o modificarse bajo los
+  términos de la Licencia Pública General de GNU publicada por la Free
+  Software Foundation, versión 3 o posterior.
+
+  Zonda se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+  GARANTÍA; ni siquiera la garantía implícita de COMERCIALIZACIÓN o
+  APTITUD PARA UN PROPÓSITO PARTICULAR. Véase la GNU General Public
+  License para más detalles.
+*/
+
+import Base from '../layouts/Base.astro';
+import iconoWindows from '../assets/windows.svg';
+import iconoApple from '../assets/apple.svg';
+import iconoLinux from '../assets/linux.svg';
+
+// Los instaladores de la última release, uno por sistema operativo.
+const instaladores = [
+	{ sistema: 'Windows', icono: iconoWindows, archivo: '.msi' },
+	{ sistema: 'macOS', icono: iconoApple, archivo: '.dmg' },
+	{ sistema: 'Linux', icono: iconoLinux, archivo: '.flatpak' },
+];
+---
+
+<Base
+	titulo="Descargar Zonda para Windows, macOS y Linux"
+	descripcion="Descargá Zonda gratis para Windows, macOS y Linux: software libre de cálculo de cargas de viento según el Reglamento CIRSOC 102-2025."
+>
+	<section class="contenedor encabezado-seccion">
+		<h1>Descargar Zonda</h1>
+		<p class="bajada">
+			Instaladores listos para usar, gratis y sin registro: el cálculo de cargas de viento
+			según CIRSOC 102-2025 en tu escritorio.
+		</p>
+		<p>Bajá el instalador de tu sistema operativo desde la <a href="https://github.com/efdiloreto/ZondaPro/releases/latest">última release</a>.</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Plataforma</th>
+					<th>Formato</th>
+				</tr>
+			</thead>
+			<tbody>
+				{
+					instaladores.map((instalador) => (
+						<tr>
+							<td><img class="icono" src={instalador.icono.src} alt="" width="16" height="16" /> {instalador.sistema}</td>
+							<td>{instalador.archivo}</td>
+						</tr>
+					))
+				}
+			</tbody>
+		</table>
+	</section>
+</Base>
+
+<style>
+	.encabezado-seccion {
+		padding-top: 40px;
+	}
+
+	.encabezado-seccion h1 {
+		font-size: 34px;
+		margin-bottom: 4px;
+	}
+
+	.bajada {
+		color: var(--texto-suave);
+	}
+
+	.seccion {
+		margin-top: 40px;
+		padding-top: 24px;
+		border-top: 1px solid var(--borde);
+	}
+
+	.seccion h2 {
+		font-size: 22px;
+	}
+
+	.icono {
+		vertical-align: -3px;
+		margin-right: 6px;
+	}
+</style>

@@ -15,14 +15,22 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-__version__ = "1.1.1"
+__version__ = "2.0.0"
 __compania__ = "Eduardo Di Loreto"
 __web_compania__ = "https://github.com/efdiloreto"
 __web__ = "https://github.com/efdiloreto/ZondaPro"
+# El sitio web en GitHub Pages, desplegado desde web/. Si cambia la base de
+# astro.config.mjs, cambiar acá también.
+__sitio__ = "https://efdiloreto.github.io/ZondaPro"
 __ayuda__ = "https://github.com/efdiloreto/ZondaPro/issues"
 __contacto__ = "mailto:efdiloreto@gmail.com"
 __nombre__ = "Zonda"
 __anio_inicio__ = "2018"
+
+# La URL del receptor de telemetría (ver telemetria/ en la raíz del
+# repositorio), o cadena vacía si no hay ninguno desplegado. Mientras esté
+# vacía la telemetría queda desactivada: no sale ningún ping.
+__telemetria__ = "https://zonda-telemetria.efdiloreto.workers.dev"
 
 
 def anios_copyright() -> str:
@@ -44,8 +52,8 @@ def anios_copyright() -> str:
     )
 
 
-__descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2005"
-__reglamento__ = "CIRSOC 102-2005"
+__descripcion__ = "Cálculo de cargas de viento según CIRSOC 102-2025"
+__reglamento__ = "CIRSOC 102-2025"
 __autor__ = "Eduardo Di Loreto, Natalia Alvarado"
 # Nombre y perfil de cada uno, para que la interfaz pueda enlazarlos. El de
 # arriba se conserva porque el aviso de copyright los nombra en una sola línea.
@@ -55,9 +63,5 @@ __autores__ = (
 )
 __autor_email__ = "efdiloreto@gmail.com, mnaa85@gmail.com"
 __autor_web__ = "https://github.com/efdiloreto"
-# Adónde lleva el enlace de la columna de patrocinadores. Los niveles, los
-# montos y las condiciones viven en el repositorio y no en el programa:
-# cambiarlos no puede obligar a publicar una versión nueva.
-__apoyo__ = "https://github.com/efdiloreto/ZondaPro/blob/master/PATROCINIO.md"
 __licencia__ = "GPLv3"
 __licencia_url__ = "https://www.gnu.org/licenses/gpl-3.0-standalone.html"

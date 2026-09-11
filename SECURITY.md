@@ -35,8 +35,8 @@ que la superficie es acotada. Interesan sobre todo:
 
 - **Archivos `.zda` maliciosos:** que abrir un archivo de proyecto pueda
   ejecutar código o escribir fuera del directorio elegido.
-- **Generación de reportes:** que el contenido de un proyecto pueda inyectar
-  algo en la plantilla Jinja2 o en la invocación de pandoc.
+- **Exportación de reportes:** que el contenido de un proyecto pueda
+  inyectar texto enriquecido malintencionado en el PDF exportado.
 - **Instaladores y empaquetado:** problemas de integridad o de permisos en el
   `.msi`, el `.dmg` o el `.flatpak`.
 - **Dependencias:** vulnerabilidades conocidas en las librerías que Zonda

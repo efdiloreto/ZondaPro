@@ -18,7 +18,7 @@
 import math
 from functools import cached_property
 
-from zonda.enums import PosicionBloqueoCubierta, TipoCubierta
+from zonda.enums import TipoCubierta
 
 
 class Cubierta:
@@ -36,8 +36,7 @@ class Cubierta:
         tipo_cubierta: TipoCubierta,
         parapeto: float = 0,
         alero: float = 0,
-        altura_bloqueo: float = 0,
-        posicion_bloqueo: PosicionBloqueoCubierta = PosicionBloqueoCubierta.ALERO_BAJO,
+        bloqueo: float = 0,
     ) -> None:
         """
         Args:
@@ -48,9 +47,8 @@ class Cubierta:
             tipo_cubierta: El tipo de cubierta.
             parapeto: La dimensión del parapeto.
             alero: La dimensión del alero.
-            altura_bloqueo: La altura de bloqueo. Se utiliza en el caso de cubiertas aisladas. Se necesita cuando se usa
-                la cubierta para calcular los coeficientes de presión de cubiertas aisladas.
-            posicion_bloqueo: La posicion de bloqueo. Se utiliza en el caso de cubiertas aisladas a un agua.
+            bloqueo: El porcentaje de bloqueo del flujo de viento bajo la cubierta. Se utiliza en el caso de
+                cubiertas aisladas.
         """
         self.ancho = ancho
         self.longitud = longitud
@@ -62,24 +60,19 @@ class Cubierta:
             self.altura_cumbrera = altura_cumbrera
         self.parapeto = parapeto
         self.alero = alero
-        self.altura_bloqueo = altura_bloqueo
-        self.posicion_bloqueo = posicion_bloqueo
+        self.bloqueo = bloqueo
 
-    @cached_property
-    def relacion_bloqueo(self) -> float:
-        """Calcula la relación de bloqueo de la cubierta.
+    @property
+    def con_bloqueo(self) -> bool:
+        """Indica si el flujo de viento bajo la cubierta está obstruido.
+
+        Con un bloqueo mayor al 50 % los objetos bajo el techo inhiben el
+        flujo de viento (nota 2 de las Figuras 2.4-4 a 2.4-6).
 
         Returns:
-            La relación de bloqueo. (Valor entre 0 y 1)
+            Verdadero si el bloqueo es mayor al 50 %.
         """
-        if (
-            self.tipo_cubierta == TipoCubierta.PLANA
-            or self.posicion_bloqueo == PosicionBloqueoCubierta.ALERO_BAJO
-        ):
-            altura = self.altura_alero
-        else:
-            altura = self.altura_cumbrera
-        return min(self.altura_bloqueo / altura, 1)
+        return self.bloqueo > 50
 
     @cached_property
     def angulo(self) -> float:

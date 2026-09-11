@@ -44,7 +44,7 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName",      "Eduardo Di Loreto\0"
-            VALUE "FileDescription",  "Zonda - Cargas de viento CIRSOC 102-2005\0"
+            VALUE "FileDescription",  "Zonda - Cargas de viento CIRSOC 102-2025\0"
             VALUE "FileVersion",      "@VERSION_PUNTO@\0"
             VALUE "InternalName",     "Zonda\0"
             VALUE "LegalCopyright",   "Copyright (c) 2018-2026 Eduardo Di Loreto (GPLv3)\0"

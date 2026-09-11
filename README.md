@@ -1,6 +1,6 @@
 ![Zonda](https://imgur.com/WJDyN6A.png)
 
-Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2005**.
+Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2025**.
 
 [![Licencia: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python: >=3.13](https://img.shields.io/badge/Python->=3.13-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -10,9 +10,9 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 ## Características
 
-- **Cálculo reglamentario (CIRSOC 102-2005):**
+- **Cálculo reglamentario (CIRSOC 102-2025):**
   - Determinación de presiones dinámicas $q_z$ y $q_h$.
-  - Factores de ráfaga ($G$), direccionalidad ($K_d$), importancia ($I$) y efecto topográfico ($K_{zt}$).
+  - Factores de ráfaga ($G$), direccionalidad ($K_d$), altitud ($K_e$) y efecto topográfico ($K_{zt}$).
   - Coeficientes de presión externa ($C_p$) e interna ($GC_{pi}$).
   - Cargas en el Sistema Principal Resistente a la Fuerza del Viento (SPRFV) y en Componentes y Revestimientos (C&R).
 - **Tipologías estructurales:**
@@ -57,7 +57,7 @@ Podés descargar el instalador ejecutable correspondiente a tu sistema operativo
 - **macOS:** Imagen de disco `.dmg`
 - **Linux:** Paquete `.flatpak` (se instala con `flatpak install --user Zonda-*.flatpak`)
 
-> **Nota:** Los instaladores oficiales ya incluyen todas las herramientas necesarias (incluido Pandoc para la exportación de reportes).
+> **Nota:** Los instaladores oficiales ya incluyen todas las herramientas necesarias: la exportación a PDF la hace Zonda por sí solo.
 
 ---
 
@@ -79,7 +79,7 @@ Requiere [uv](https://docs.astral.sh/uv/getting-started/installation/) y Python 
 
 > `uv sync` creará el entorno virtual e instalará Python 3.13 automáticamente si no está disponible en el sistema.
 >
-> Para exportar reportes a PDF, DOCX u ODT al correr desde el código, se requiere tener [pandoc](https://pandoc.org/installing.html) instalado y disponible en el `PATH` del sistema.
+> No se necesita nada más: la exportación a PDF usa el motor de texto de Qt y viaja con las dependencias del proyecto.
 
 ---
 
@@ -98,6 +98,20 @@ Para más detalles sobre la arquitectura interna, el motor de cálculo y la capa
 
 ---
 
+## Privacidad
+
+Zonda envía estadísticas anónimas de uso **activadas por defecto** (modelo [Homebrew](https://docs.brew.sh/Analytics)). Cada vez que se abre el programa sale **un único pedido** con:
+
+- la versión de Zonda y el sistema operativo,
+- un número aleatorio generado en tu máquina que identifica la instalación, sin ningún vínculo con tu persona,
+- el país aproximado, que el servidor deduce de la IP. La IP **no se guarda**.
+
+Nunca se envían datos personales ni del contenido de tus proyectos, ni siquiera los nombres de los archivos. Los números agregados sirven para saber cuánta gente usa Zonda y decidir con evidencia dónde poner el esfuerzo en el futuro del proyecto.
+
+Si preferís no participar, desactivá la casilla en **Configuración → Telemetría**. También se puede arrancar sin telemetría con la variable de entorno `ZONDA_SIN_TELEMETRIA=1`.
+
+---
+
 ## Contribuir
 
 Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento, mejorar la interfaz o sumar código.
@@ -106,20 +120,6 @@ Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento,
 - **[Reportar un error o proponer una funcionalidad](https://github.com/efdiloreto/ZondaPro/issues/new/choose):** si un número no coincide con lo que da el Reglamento a mano, ese es el reporte más valioso que podés hacer.
 - **[Código de Conducta](.github/CODE_OF_CONDUCT.md)**
 - **[Política de seguridad](SECURITY.md):** las vulnerabilidades se reportan en privado, no como issue.
-
----
-
-## Apoyá el proyecto
-
-Zonda es libre y gratuito, y lo va a seguir siendo. Lo mantiene muy poca gente, en el tiempo que le queda libre, y le ahorra horas de cálculo y verificación a cada profesional que lo usa.
-
-Los estudios que lo patrocinan aparecen en la columna lateral de la pantalla de inicio del programa. Hay tres niveles —oro, plata y bronce—, y quienes se sumen en los primeros meses conservan el distintivo de **Fundador**.
-
-**[Cómo patrocinar el proyecto →](PATROCINIO.md)**
-
-### Patrocinadores
-
-Todavía no hay ninguno. **Tu estudio puede ser el primero.**
 
 ---
 

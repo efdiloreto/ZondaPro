@@ -133,10 +133,9 @@ def test_olvidar_todo(qapp, tmp_path):
 def test_la_ventana_no_exige_mas_de_lo_que_abre(qtbot):
     """El mínimo lo fija el contenido y el inicial está escrito a mano.
 
-    Si alguien alarga una descripción de módulo, ensancha la columna de
-    patrocinadores o suma texto largo al pie, el mínimo sube y la ventana
-    abriría más chica de lo que su propio contenido exige. Qt la agranda sola,
-    pero el tamaño escrito deja de significar nada.
+    Si alguien alarga una descripción de módulo o suma texto largo al pie, el
+    mínimo sube y la ventana abriría más chica de lo que su propio contenido
+    exige. Qt la agranda sola, pero el tamaño escrito deja de significar nada.
     """
     from zonda.widgets.zonda import WidgetBienvenida
 

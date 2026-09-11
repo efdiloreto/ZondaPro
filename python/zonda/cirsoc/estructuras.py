@@ -21,9 +21,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from zonda.cirsoc import cp, geometria, presiones, resultados
+from zonda.cirsoc import cp, factores, geometria, presiones, resultados
 from zonda.cirsoc.factores import Rafaga, Topografia
 from zonda.enums import (
+    CategoriaEstructura,
     DireccionTopografia,
     Flexibilidad,
     MetodoSprfv,
@@ -34,23 +35,19 @@ from zonda.enums import (
 if TYPE_CHECKING:
     from zonda.cirsoc.resultados import (
         FilaCartel,
+        FilaComponentesCubiertaAislada,
         FilaCubiertaAislada,
         FilaEdificio,
         Tabla,
     )
-    from zonda.enums import (
-        CategoriaEstructura,
-        CategoriaExposicion,
-        Cerramiento,
-        PosicionBloqueoCubierta,
-    )
+    from zonda.enums import CategoriaExposicion, Cerramiento
 
 
 class Cartel:
     """Cartel.
 
     Calcula las presiones sobre un cartel y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
@@ -60,12 +57,12 @@ class Cartel:
         altura_inferior: float,
         altura_superior: float,
         velocidad: float,
-        categoria: CategoriaEstructura,
         factor_g_simplificado: bool,
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
-        es_parapeto: bool = False,
-        alturas_personalizadas: Sequence[float] | None = None,
+        epsilon: float = 1.0,
+        doble_cara: bool = False,
+        esquina_retorno: float = 0.0,
         frecuencia: float = 1,
         beta: float = 0.02,
         flexibilidad: Flexibilidad = Flexibilidad.RIGIDA,
@@ -74,6 +71,8 @@ class Cartel:
         distancia_cresta: float = 50,
         distancia_barlovento_sotavento: float = 50,
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
     ) -> None:
         """
 
@@ -83,12 +82,15 @@ class Cartel:
             altura_inferior: La altura desde el suelo desde donde se consideran las presiones del viento sobre el cartel.
             altura_superior: La altura superior del cartel.
             velocidad: La velocidad del viento en m/s.
-            categoria: La categoría de la estructura.
             factor_g_simplificado: Indica si se debe usar 0.85 como valor del factor de ráfaga.
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
-            es_parapeto: Si es True, se considera que el cartel actua como parapeto de edificio.
-            alturas_personalizadas: Las alturas sobre las que se calcularán las presiones de viento.
+            epsilon: La relación entre el área sólida y el área bruta del cartel (Nota 1
+                de la Figura 4.4-1). El valor 1.0 es un cartel sin aberturas.
+            doble_cara: Si es True, el cartel es de doble cara con todos los lados
+                cerrados y aplican las reducciones de Rmin y Rmax de la Nota 2.
+            esquina_retorno: La dimensión horizontal Lr de la esquina de retorno, en
+                metros. El valor 0 indica que no hay.
             frecuencia: La frecuencia natural de la estructura en hz.
             beta: La relación de amortiguamiento crítico.
             flexibilidad: La flexibilidad de la estructura.
@@ -97,18 +99,20 @@ class Cartel:
             distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
             distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            factor_altitud: Factor de altitud Ke explícito. Si es None, se calcula a partir de altitud.
         """
         self.profundidad = profundidad
         self.ancho = ancho
         self.altura_inferior = altura_inferior
         self.altura_superior = altura_superior
         self.velocidad = velocidad
-        self.categoria = categoria
         self.factor_g_simplificado = factor_g_simplificado
         self.considerar_topografia = considerar_topografia
         self.categoria_exp = categoria_exp
-        self.es_parapeto = es_parapeto
-        self.alturas_personalizadas = alturas_personalizadas
+        self.epsilon = epsilon
+        self.doble_cara = doble_cara
+        self.esquina_retorno = esquina_retorno
         self.frecuencia = frecuencia
         self.beta = beta
         self.flexibilidad = flexibilidad
@@ -117,11 +121,22 @@ class Cartel:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
 
         self.geometria = geometria.Cartel(
-            profundidad, ancho, altura_inferior, altura_superior, alturas_personalizadas
+            profundidad, ancho, altura_inferior, altura_superior
         )
-        self.cf = cp.Cartel.desde_cartel(self.geometria, es_parapeto)
+        self.cf = cp.Cartel.desde_cartel(
+            self.geometria,
+            epsilon,
+            doble_cara,
+            esquina_retorno,
+        )
         self.rafaga = Rafaga(
             ancho,
             profundidad,
@@ -146,12 +161,12 @@ class Cartel:
         )
         self.presiones = presiones.Cartel.desde_cartel(
             self.geometria,
-            categoria,
             velocidad,
             self.rafaga,
-            self.topografia.factor,
+            self.topografia.factor[0],
             self.cf,
             categoria_exp,
+            factor_altitud=self.factor_altitud,
         )
 
     @cached_property
@@ -159,7 +174,8 @@ class Cartel:
         """La tabla de resultados del cartel.
 
         Returns:
-            Una fila por cada altura considerada.
+            Una fila por cada caso de la Figura 4.4-1 y, para el Caso C, una
+            fila por región.
         """
         return resultados.Tabla(self.presiones.filas)
 
@@ -168,7 +184,7 @@ class CubiertaAislada:
     """CubiertaAislada.
 
     Calcula las presiones sobre una cubierta aislada y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
@@ -177,14 +193,13 @@ class CubiertaAislada:
         longitud: float,
         altura_alero: float,
         altura_cumbrera: float,
-        altura_bloqueo: float,
-        posicion_bloqueo: PosicionBloqueoCubierta,
+        bloqueo: float,
         tipo_cubierta: TipoCubierta,
         coeficiente_friccion: float,
         velocidad: float,
-        categoria: CategoriaEstructura,
         categoria_exp: CategoriaExposicion,
         considerar_topografia: bool,
+        factor_g_simplificado: bool = True,
         frecuencia: float = 1,
         beta: float = 0.02,
         flexibilidad: Flexibilidad = Flexibilidad.RIGIDA,
@@ -193,6 +208,10 @@ class CubiertaAislada:
         distancia_cresta: float = 50,
         distancia_barlovento_sotavento: float = 50,
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
+        categoria: CategoriaEstructura = CategoriaEstructura.II,
+        componentes: dict[str, float] | None = None,
     ) -> None:
         """
 
@@ -201,15 +220,17 @@ class CubiertaAislada:
             longitud: La longitud de la cubierta.
             altura_alero: La altura de alero de la cubierta, medida desde el nivel de suelo.
             altura_cumbrera: La altura de cumbrera de la cubierta, medida desde el nivel de suelo.
-            altura_bloqueo: La altura de bloqueo. Se utiliza en el caso de cubiertas aisladas. Se necesita cuando se usa
-                la cubierta para calcular los coeficientes de presión de cubiertas aisladas.
-            posicion_bloqueo: La posicion de bloqueo. Se utiliza en el caso de cubiertas aisladas a un agua.
+            bloqueo: El porcentaje de bloqueo del flujo de viento bajo la cubierta. Un bloqueo mayor al 50 %
+                corresponde a la situación con bloqueo de las Figuras 2.4-4 a 2.4-7.
             tipo_cubierta: El tipo de cubierta.
-            coeficiente_friccion: El coeficiente de friccion de la superficie de cubierta.
+            coeficiente_friccion: El coeficiente de empuje por fricción de la superficie, según la Tabla 2.4-1.
             velocidad: La velocidad del viento en m/s.
-            categoria: La categoría de la estructura.
+            categoria: La categoría de la estructura. Quedó sólo como dato del
+                modelo: el CIRSOC 102-2025 ya no la usa para calcular.
             categoria_exp: La categoría de exposición al viento de la estructura.
             considerar_topografia: indica si se tiene que calcular la topografia.
+            factor_g_simplificado: Si se usa el factor de ráfaga simplificado G = 0,85 (artículo 1.9.4) o si se
+                calcula Gf para estructuras flexibles (artículo 1.9.5).
             frecuencia: La frecuencia natural de la estructura en hz.
             beta: La relación de amortiguamiento crítico.
             flexibilidad: La flexibilidad de la estructura.
@@ -218,19 +239,25 @@ class CubiertaAislada:
             distancia_cresta: La distancia en la dirección de barlovento, medida desde la cresta de la colina o escarpa.
             distancia_barlovento_sotavento: Distancia tomada desde la cima, en la dirección de barlovento o de sotavento.
             direccion: La direccion para la el parámetro `distancia_barlovento_sotavento`.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            factor_altitud: Factor de altitud Ke explícito. Si es None, se calcula a partir de altitud.
+            componentes: Los componentes de la cubierta para calcular los
+                valores de C_N de componentes y revestimientos, donde la
+                clave es el nombre del componente y el valor es su área
+                efectiva de viento en m².
         """
         self.ancho = ancho
         self.longitud = longitud
         self.altura_alero = altura_alero
         self.altura_cumbrera = altura_cumbrera
-        self.altura_bloqueo = altura_bloqueo
-        self.posicion_bloqueo = posicion_bloqueo
+        self.bloqueo = bloqueo
         self.tipo_cubierta = tipo_cubierta
         self.coeficiente_friccion = coeficiente_friccion
         self.velocidad = velocidad
         self.categoria = categoria
         self.categoria_exp = categoria_exp
         self.considerar_topografia = considerar_topografia
+        self.factor_g_simplificado = factor_g_simplificado
         self.frecuencia = frecuencia
         self.beta = beta
         self.flexibilidad = flexibilidad
@@ -239,14 +266,20 @@ class CubiertaAislada:
         self.distancia_cresta = distancia_cresta
         self.distancia_barlovento_sotavento = distancia_barlovento_sotavento
         self.direccion = direccion
+        self.componentes = componentes
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
         self.geometria = geometria.Cubierta(
             ancho,
             longitud,
             altura_alero,
             altura_cumbrera,
             tipo_cubierta,
-            altura_bloqueo=altura_bloqueo,
-            posicion_bloqueo=posicion_bloqueo,
+            bloqueo=bloqueo,
         )
         self.cpn = cp.CubiertaAislada.desde_cubierta(self.geometria)
         self.rafaga = Rafaga(
@@ -258,7 +291,7 @@ class CubiertaAislada:
             frecuencia,
             beta,
             flexibilidad,
-            True,
+            factor_g_simplificado,
             categoria_exp,
         )
         self.topografia = Topografia(
@@ -273,13 +306,25 @@ class CubiertaAislada:
         )
         self.presiones = presiones.CubiertaAislada.desde_cubierta(
             self.geometria,
-            categoria,
             velocidad,
             self.rafaga,
             self.topografia.factor,
             self.cpn,
             categoria_exp,
             coeficiente_friccion,
+            factor_altitud=self.factor_altitud,
+        )
+        self.cpn_componentes = cp.ComponentesCubiertaAislada.desde_cubierta(
+            self.geometria, componentes
+        )
+        self.presiones_componentes = presiones.ComponentesCubiertaAislada(
+            self.geometria.altura_media,
+            velocidad,
+            self.rafaga,
+            self.topografia.factor,
+            self.cpn_componentes,
+            categoria_exp,
+            factor_altitud=self.factor_altitud,
         )
 
     @cached_property
@@ -287,16 +332,35 @@ class CubiertaAislada:
         """La tabla de resultados de la cubierta aislada.
 
         Returns:
-            Una fila por cada combinación de tipo de presión, zona y extremo.
+            Una fila por cada combinación de dirección de viento, caso de
+            carga y zona.
         """
         return resultados.Tabla(self.presiones.filas)
+
+    @cached_property
+    def resultados_componentes(self) -> Tabla[FilaComponentesCubiertaAislada]:
+        """La tabla de resultados de componentes y revestimientos.
+
+        Se calcula por separado de las presiones normales porque el
+        Reglamento puede no proveer lineamientos para la geometría de la
+        cubierta, y en ese caso las presiones normales siguen siendo válidas.
+
+        Returns:
+            Una fila por cada combinación de componente, zona y signo del
+            coeficiente. Vacía si no se cargaron componentes.
+
+        Raises:
+            ErrorLineamientos: Cuando la geometría excede el alcance del
+                Reglamento para componentes y revestimientos.
+        """
+        return resultados.Tabla(self.presiones_componentes.filas)
 
 
 class Edificio:
     """Edificio.
 
     Calcula las presiones sobre un edificio y todos sus respectivos parámetros de acuerdo a los lineamiento del
-    Reglamento CIRSOC 102 - 2005.
+    Reglamento CIRSOC 102-2025.
     """
 
     def __init__(
@@ -308,7 +372,6 @@ class Edificio:
         altura_cumbrera: float,
         tipo_cubierta: TipoCubierta,
         cerramiento: Cerramiento,
-        categoria: CategoriaEstructura,
         velocidad: float,
         factor_g_simplificado: bool,
         categoria_exp: CategoriaExposicion,
@@ -330,6 +393,9 @@ class Edificio:
         direccion: DireccionTopografia = DireccionTopografia.BARLOVENTO,
         componentes_paredes: dict[str, float] | None = None,
         componentes_cubierta: dict[str, float] | None = None,
+        altitud: float = 0,
+        factor_altitud: float | None = None,
+        area_parapeto: float | None = None,
     ) -> None:
         self.ancho = ancho
         self.longitud = longitud
@@ -340,7 +406,6 @@ class Edificio:
             altura_cumbrera = altura_alero
         self.tipo_cubierta = tipo_cubierta
         self.cerramiento = cerramiento
-        self.categoria = categoria
         self.velocidad = velocidad
         self.factor_g_simplificado = factor_g_simplificado
         self.categoria_exp = categoria_exp
@@ -362,6 +427,13 @@ class Edificio:
         self.direccion = direccion
         self.componentes_paredes = componentes_paredes
         self.componentes_cubierta = componentes_cubierta
+        self.area_parapeto = area_parapeto
+        self.altitud = altitud
+        self.factor_altitud = (
+            factores.factor_altitud(altitud)
+            if factor_altitud is None
+            else factor_altitud
+        )
 
         self.geometria = geometria.Edificio(
             ancho,
@@ -381,6 +453,7 @@ class Edificio:
             metodo_sprfv,
             componentes_paredes=componentes_paredes,
             componentes_cubierta=componentes_cubierta,
+            area_parapeto=area_parapeto,
         )
         self.rafaga = Rafaga.desde_edificio_metodo_direccional(
             self.geometria,
@@ -404,7 +477,6 @@ class Edificio:
         self.presiones = presiones.Edificio.desde_edificio(
             self.geometria,
             self.cp,
-            categoria,
             velocidad,
             self.rafaga,
             self.topografia.factor,
@@ -412,6 +484,11 @@ class Edificio:
             categoria_exp,
             reducir_gcpi,
             metodo_sprfv,
+            factor_altitud=self.factor_altitud,
+            altura_parapeto=self.geometria.altura_parapeto,
+            factor_topografico_parapeto=self.topografia.factor_en(
+                self.geometria.altura_parapeto
+            ),
         )
 
     @cached_property
@@ -419,7 +496,7 @@ class Edificio:
         """La tabla de resultados del SPRFV.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
         """
         return resultados.Tabla(self.presiones.filas_sprfv)
 
@@ -432,7 +509,7 @@ class Edificio:
         resultados del SPRFV siguen siendo válidos.
 
         Returns:
-            Las filas de paredes, cubierta y alero.
+            Las filas de paredes, cubierta, alero y parapeto.
 
         Raises:
             ErrorLineamientos: Cuando la geometría excede el alcance del

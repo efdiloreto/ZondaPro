@@ -78,30 +78,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         return 1;
     }
 
-    // 2. Inyectar tools/pandoc al PATH si existe
-    wchar_t pandoc_dir[MAX_PATH];
-    swprintf(pandoc_dir, MAX_PATH, L"%s\\tools\\pandoc", base_dir);
-    if (directorio_existe(pandoc_dir)) {
-        DWORD current_path_len = GetEnvironmentVariableW(L"PATH", NULL, 0);
-        if (current_path_len > 0) {
-            wchar_t *current_path = (wchar_t *)malloc(current_path_len * sizeof(wchar_t));
-            if (current_path) {
-                GetEnvironmentVariableW(L"PATH", current_path, current_path_len);
-                size_t new_path_len = wcslen(pandoc_dir) + 1 + current_path_len + 1;
-                wchar_t *new_path = (wchar_t *)malloc(new_path_len * sizeof(wchar_t));
-                if (new_path) {
-                    swprintf(new_path, new_path_len, L"%s;%s", pandoc_dir, current_path);
-                    SetEnvironmentVariableW(L"PATH", new_path);
-                    free(new_path);
-                }
-                free(current_path);
-            }
-        } else {
-            SetEnvironmentVariableW(L"PATH", pandoc_dir);
-        }
-    }
-
-    // 3. Configurar directorio de trabajo si existe la carpeta app/ o python/
+    // 2. Configurar directorio de trabajo si existe la carpeta app/ o python/
     wchar_t app_dir[MAX_PATH];
     swprintf(app_dir, MAX_PATH, L"%s\\app", base_dir);
     if (!directorio_existe(app_dir)) {
@@ -111,7 +88,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         swprintf(app_dir, MAX_PATH, L"%s", base_dir);
     }
 
-    // 4. Armar la linea de comandos
+    // 3. Armar la linea de comandos
     // Formato: "pythonw.exe" -m zonda.main [argumentos]
     size_t cmdline_len = wcslen(python_exe) + wcslen(pCmdLine) + 64;
     wchar_t *cmdline = (wchar_t *)malloc(cmdline_len * sizeof(wchar_t));
@@ -236,24 +213,7 @@ int main(int argc, char *argv[]) {
         strncpy(python_exe, "python3", sizeof(python_exe));
     }
 
-    // 2. Inyectar tools/pandoc al PATH si existe
-    char pandoc_dir[PATH_MAX];
-    snprintf(pandoc_dir, sizeof(pandoc_dir), "%s/tools/pandoc", base_dir);
-    if (!directorio_existe_posix(pandoc_dir)) {
-        snprintf(pandoc_dir, sizeof(pandoc_dir), "%s/../Resources/tools/pandoc", base_dir);
-    }
-    if (directorio_existe_posix(pandoc_dir)) {
-        char *current_path = getenv("PATH");
-        char new_path[PATH_MAX * 2];
-        if (current_path) {
-            snprintf(new_path, sizeof(new_path), "%s:%s", pandoc_dir, current_path);
-        } else {
-            snprintf(new_path, sizeof(new_path), "%s", pandoc_dir);
-        }
-        setenv("PATH", new_path, 1);
-    }
-
-    // 3. Inyectar PYTHONPATH para encontrar el paquete 'zonda'
+    // 2. Inyectar PYTHONPATH para encontrar el paquete 'zonda'
     char app_dir[PATH_MAX];
     snprintf(app_dir, sizeof(app_dir), "%s/app", base_dir);
     if (!directorio_existe_posix(app_dir)) {
@@ -276,7 +236,7 @@ int main(int argc, char *argv[]) {
         setenv("PYTHONPATH", new_pypath, 1);
     }
 
-    // 4. Armar argumentos para execv
+    // 3. Armar argumentos para execv
     // argv nuevo: [python_exe, "-m", "zonda.main", argv[1], argv[2], ..., NULL]
     int new_argc = argc + 2;
     char **new_argv = (char **)malloc((new_argc + 1) * sizeof(char *));

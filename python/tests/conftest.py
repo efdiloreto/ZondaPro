@@ -44,13 +44,7 @@ if "QT_QPA_PLATFORM" not in os.environ and not _hay_display():
 SIN_OPENGL = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
 
 import pytest
-from PyQt6 import QtCore, QtWidgets
-
-# QtWebEngine exige contextos OpenGL compartidos y el atributo debe fijarse
-# antes de que exista una QApplication, incluida la que crea pytest-qt.
-QtWidgets.QApplication.setAttribute(
-    QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts
-)
+from PyQt6 import QtCore
 
 from zonda import enums
 from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
@@ -98,12 +92,111 @@ def edificio() -> Edificio:
         altura_cumbrera=8,
         tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
         cerramiento=enums.Cerramiento.CERRADO,
-        categoria=enums.CategoriaEstructura.II,
         velocidad=45,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,
         componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
+def edificio_angulo_pequeno() -> Edificio:
+    """Edificio con ángulo de cubierta menor que 10° y alero.
+
+    Altura de alero 6 m y cumbrera a 7 m sobre un ancho de 20 m: el ángulo es
+    de unos 5.7°, así el viento normal a la cumbrera genera los casos de
+    presión de las cubiertas de pequeña pendiente del nuevo Reglamento.
+    """
+    return Edificio(
+        ancho=20,
+        longitud=30,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=7,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        alero=1,
+    )
+
+
+@pytest.fixture(scope="session")
+def edificio_con_parapeto() -> Edificio:
+    """Edificio de la Tabla C 5.3-2 con parapeto de 1 m alrededor.
+
+    Con ese parapeto se activa la Nota 5 de la Figura 5.3-2A: la Zona 3
+    negativa iguala a la Zona 2 y las Zonas 2 y 3 reciben el valor positivo de
+    las Zonas de pared 4 y 5.
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=9,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
+def edificio_plana_con_parapeto() -> Edificio:
+    """Edificio de cubierta plana con parapeto de 1 m.
+
+    30 x 40 con alero y cumbrera a 10 m, así que la coronación del parapeto
+    queda a 11 m. Además de las notas de las figuras de cubierta, activa el
+    cálculo de las presiones sobre el parapeto del Art. 2.4.5 (SPRFV) y del
+    Art. 5.6 (C&R), con q_p en la coronación y área efectiva de 2 m².
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=10,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.PLANA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        parapeto=1,
+        area_parapeto=2,
+        componentes_paredes={"Viga": 10.0},
+        componentes_cubierta={"Correa": 5.0},
+    )
+
+
+@pytest.fixture(scope="session")
+def edificio_tabla_c_5_3_3() -> Edificio:
+    """Edificio de la Tabla C 5.3-3 (Figura 5.3-2B).
+
+    Cubierta a dos aguas de 30 x 40 con altura de alero 8 m y cumbrera a 10 m:
+    el ángulo es de unos 7.6°, dentro del rango 7° < θ ≤ 20° de la tabla.
+    """
+    return Edificio(
+        ancho=30,
+        longitud=40,
+        elevacion=0,
+        altura_alero=8,
+        altura_cumbrera=10,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
         componentes_cubierta={"Correa": 5.0},
     )
 
@@ -116,7 +209,6 @@ def cartel() -> Cartel:
         altura_inferior=5,
         altura_superior=10,
         velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,
@@ -137,7 +229,6 @@ def cartel_con_topografia() -> Cartel:
         altura_inferior=5,
         altura_superior=10,
         velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
         factor_g_simplificado=True,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=True,
@@ -156,12 +247,27 @@ def cubierta_aislada() -> CubiertaAislada:
         longitud=20,
         altura_alero=5,
         altura_cumbrera=6,
-        altura_bloqueo=0,
-        posicion_bloqueo=enums.PosicionBloqueoCubierta.ALERO_BAJO,
+        bloqueo=0,
         tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
         coeficiente_friccion=0.02,
         velocidad=45,
-        categoria=enums.CategoriaEstructura.II,
         categoria_exp=enums.CategoriaExposicion.B,
         considerar_topografia=False,
+    )
+
+
+@pytest.fixture(scope="session")
+def cubierta_aislada_con_componentes() -> CubiertaAislada:
+    return CubiertaAislada(
+        ancho=10,
+        longitud=20,
+        altura_alero=5,
+        altura_cumbrera=6,
+        bloqueo=0,
+        tipo_cubierta=enums.TipoCubierta.DOS_AGUAS,
+        coeficiente_friccion=0.02,
+        velocidad=45,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+        componentes={"Chapa": 0.5, "Correa": 2.0},
     )

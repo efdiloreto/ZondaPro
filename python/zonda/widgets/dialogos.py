@@ -19,14 +19,18 @@
 
 from PyQt6 import QtCore, QtWidgets
 
-from zonda import recursos
+from zonda import recursos, telemetria
+from zonda.cirsoc import factores
 from zonda.enums import (
+    CategoriaEstructura,
     CategoriaExposicion,
     DireccionTopografia,
     Flexibilidad,
     TipoTerrenoTopografia,
 )
-from zonda.excepciones import ErrorComponentes, ErrorViento
+from zonda.excepciones import ErrorComponentes, ErrorConfiguracionMCP, ErrorViento
+from zonda.mcp import instalacion
+from zonda.mcp.instalacion import EstadoCliente
 from zonda.widgets import utils_qt
 from zonda.widgets.entrada import WidgetComponentes
 
@@ -48,6 +52,184 @@ class DialogoBase(QtWidgets.QDialog):
         self._botones.rejected.connect(self.reject)
 
 
+CIUDADES_VELOCIDAD: dict[str, dict[CategoriaEstructura, float]] = {
+    "Bahía Blanca": {
+        CategoriaEstructura.I: 62.8,
+        CategoriaEstructura.II: 67.4,
+        CategoriaEstructura.III: 72.2,
+        CategoriaEstructura.IV: 72.2,
+    },
+    "Bariloche": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "Buenos Aires": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Catamarca": {
+        CategoriaEstructura.I: 49.1,
+        CategoriaEstructura.II: 52.7,
+        CategoriaEstructura.III: 56.5,
+        CategoriaEstructura.IV: 56.5,
+    },
+    "Comodoro Rivadavia": {
+        CategoriaEstructura.I: 77.1,
+        CategoriaEstructura.II: 82.7,
+        CategoriaEstructura.III: 88.7,
+        CategoriaEstructura.IV: 88.7,
+    },
+    "Córdoba": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Corrientes": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "Formosa": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "La Plata": {
+        CategoriaEstructura.I: 52.5,
+        CategoriaEstructura.II: 56.3,
+        CategoriaEstructura.III: 60.4,
+        CategoriaEstructura.IV: 60.4,
+    },
+    "La Rioja": {
+        CategoriaEstructura.I: 50.3,
+        CategoriaEstructura.II: 53.9,
+        CategoriaEstructura.III: 57.8,
+        CategoriaEstructura.IV: 57.8,
+    },
+    "Mar del Plata": {
+        CategoriaEstructura.I: 58.3,
+        CategoriaEstructura.II: 62.5,
+        CategoriaEstructura.III: 67.0,
+        CategoriaEstructura.IV: 67.0,
+    },
+    "Mendoza": {
+        CategoriaEstructura.I: 44.6,
+        CategoriaEstructura.II: 47.8,
+        CategoriaEstructura.III: 51.2,
+        CategoriaEstructura.IV: 51.2,
+    },
+    "Neuquén": {
+        CategoriaEstructura.I: 54.8,
+        CategoriaEstructura.II: 58.8,
+        CategoriaEstructura.III: 63.0,
+        CategoriaEstructura.IV: 63.0,
+    },
+    "Paraná": {
+        CategoriaEstructura.I: 59.4,
+        CategoriaEstructura.II: 63.7,
+        CategoriaEstructura.III: 68.3,
+        CategoriaEstructura.IV: 68.3,
+    },
+    "Posadas": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Rawson": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Resistencia": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "Río Gallegos": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Rosario": {
+        CategoriaEstructura.I: 57.1,
+        CategoriaEstructura.II: 61.2,
+        CategoriaEstructura.III: 65.7,
+        CategoriaEstructura.IV: 65.7,
+    },
+    "Salta": {
+        CategoriaEstructura.I: 40.0,
+        CategoriaEstructura.II: 42.9,
+        CategoriaEstructura.III: 46.0,
+        CategoriaEstructura.IV: 46.0,
+    },
+    "San Juan": {
+        CategoriaEstructura.I: 45.7,
+        CategoriaEstructura.II: 49.0,
+        CategoriaEstructura.III: 52.5,
+        CategoriaEstructura.IV: 52.5,
+    },
+    "San Luis": {
+        CategoriaEstructura.I: 51.4,
+        CategoriaEstructura.II: 55.1,
+        CategoriaEstructura.III: 59.1,
+        CategoriaEstructura.IV: 59.1,
+    },
+    "San Miguel de Tucumán": {
+        CategoriaEstructura.I: 45.7,
+        CategoriaEstructura.II: 49.0,
+        CategoriaEstructura.III: 52.5,
+        CategoriaEstructura.IV: 52.5,
+    },
+    "San Salvador de Jujuy": {
+        CategoriaEstructura.I: 38.8,
+        CategoriaEstructura.II: 41.6,
+        CategoriaEstructura.III: 44.7,
+        CategoriaEstructura.IV: 44.7,
+    },
+    "Santa Fe": {
+        CategoriaEstructura.I: 58.3,
+        CategoriaEstructura.II: 62.5,
+        CategoriaEstructura.III: 67.0,
+        CategoriaEstructura.IV: 67.0,
+    },
+    "Santa Rosa": {
+        CategoriaEstructura.I: 57.1,
+        CategoriaEstructura.II: 61.2,
+        CategoriaEstructura.III: 65.7,
+        CategoriaEstructura.IV: 65.7,
+    },
+    "Santiago del Estero": {
+        CategoriaEstructura.I: 49.1,
+        CategoriaEstructura.II: 52.7,
+        CategoriaEstructura.III: 56.5,
+        CategoriaEstructura.IV: 56.5,
+    },
+    "Ushuaia": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+    "Viedma": {
+        CategoriaEstructura.I: 68.5,
+        CategoriaEstructura.II: 73.5,
+        CategoriaEstructura.III: 78.8,
+        CategoriaEstructura.IV: 78.8,
+    },
+}
+
+
 class DialogoViento(DialogoBase):
     """DialogoViento.
 
@@ -64,6 +246,8 @@ class DialogoViento(DialogoBase):
         ciudad: str,
         factor_g_simplificado: bool,
         editar_velocidad: bool,
+        altitud: float = 0.0,
+        categoria_riesgo_viento: CategoriaEstructura = CategoriaEstructura.II,
     ) -> None:
         """
 
@@ -76,19 +260,39 @@ class DialogoViento(DialogoBase):
             ciudad: La ciudad donde se está calculando el viento.
             factor_g_simplificado: Indica si se debe usar 0.85 como valor del factor de ráfaga.
             editar_velocidad: Indica si el widget velocidad es editable.
+            altitud: Altitud del terreno sobre el nivel del mar en metros.
+            categoria_riesgo_viento: La categoría de riesgo para la selección del mapa.
         """
         super().__init__()
 
         self._parametros = None
 
+        self._combobox_mapa = QtWidgets.QComboBox()
+        self._combobox_mapa.addItem("Cat. II (Figura 1.5-1A)", CategoriaEstructura.II)
+        self._combobox_mapa.addItem(
+            "Cat. III y IV (Figura 1.5-1B)", CategoriaEstructura.III
+        )
+        self._combobox_mapa.addItem("Cat. I (Figura 1.5-1C)", CategoriaEstructura.I)
+        _idx = self._combobox_mapa.findData(categoria_riesgo_viento)
+        if _idx >= 0:
+            self._combobox_mapa.setCurrentIndex(_idx)
+
         self._combobox_exposicion = QtWidgets.QComboBox()
-        for enum in CategoriaExposicion:
-            self._combobox_exposicion.addItem(enum.value, enum)
+        for exp in CategoriaExposicion:
+            self._combobox_exposicion.addItem(exp.value, exp)
         self._combobox_exposicion.setMinimumWidth(50)
         self._combobox_exposicion.setCurrentText(categoria_exp.value)
 
         datos_spinboxs = (
             ("velocidad", 20, 100, " m/s", 2, "Velocidad básica del viento."),
+            (
+                "altitud",
+                0,
+                5000,
+                " m",
+                0,
+                "Altitud del terreno sobre el nivel del mar.",
+            ),
             ("frecuencia", 0.1, 100, " Hz", 2, "Frecuencia natural de la estructura."),
             (
                 "beta",
@@ -110,56 +314,28 @@ class DialogoViento(DialogoBase):
             self._spinboxs[nombre] = spinbox
 
         self._spinboxs["velocidad"].setValue(velocidad)
+        self._spinboxs["altitud"].setValue(altitud)
         self._spinboxs["frecuencia"].setValue(frecuencia)
         self._spinboxs["beta"].setValue(beta)
 
-        self._editar_velocidad = QtWidgets.QCheckBox("Velocidad")
+        self._editar_velocidad = QtWidgets.QCheckBox("Editar velocidad")
         self._editar_velocidad.setChecked(editar_velocidad)
         self._editar_velocidad.stateChanged.connect(
             self._habilitar_deshabilitar_velocidad
         )
 
-        ciudades_velocidad = (
-            ("Bahía Blanca", 55),
-            ("Bariloche", 46),
-            ("Buenos Aires", 45),
-            ("Catamarca", 43),
-            ("Comodoro Rivadavia", 67.5),
-            ("Córdoba", 45),
-            ("Corrientes", 46),
-            ("Formosa", 45),
-            ("La Plata", 46),
-            ("La Rioja", 44),
-            ("Mar del Plata", 51),
-            ("Mendoza", 39),
-            ("Neuquén", 48),
-            ("Paraná", 52),
-            ("Posada", 45),
-            ("Rawson", 60),
-            ("Resistencia", 45),
-            ("Río Gallegos", 60),
-            ("Rosario", 50),
-            ("Salta", 35),
-            ("Santa Fé", 51),
-            ("San Juan", 40),
-            ("San Luis", 45),
-            ("San Miguel de Tucumán", 40),
-            ("San Salvador de Jujuy", 34),
-            ("Santa Rosa", 50),
-            ("Santiago del Estero", 43),
-            ("Ushuaia", 60),
-            ("Viedma", 60),
-        )
-
         self._combobox_ciudades = QtWidgets.QComboBox()
-        for opcion, valor in ciudades_velocidad:
-            self._combobox_ciudades.addItem(opcion, valor)
-        self._combobox_ciudades.setCurrentText(ciudad)
+        for opcion in CIUDADES_VELOCIDAD:
+            self._combobox_ciudades.addItem(opcion)
+        if ciudad in CIUDADES_VELOCIDAD:
+            self._combobox_ciudades.setCurrentText(ciudad)
+        else:
+            self._combobox_ciudades.setCurrentText("Buenos Aires")
+
         self._combobox_ciudades.currentIndexChanged.connect(
-            lambda: self._spinboxs["velocidad"].setValue(
-                self._combobox_ciudades.currentData()
-            )
+            self._actualizar_velocidad_ciudad
         )
+        self._combobox_mapa.currentIndexChanged.connect(self._actualizar_mapa)
 
         self._factor_g_simplificado = QtWidgets.QCheckBox(
             "Considerar Factor de Ráfaga igual a 0.85"
@@ -171,15 +347,16 @@ class DialogoViento(DialogoBase):
         )
 
         self._combobox_flex = QtWidgets.QComboBox()
-        for enum in Flexibilidad:
-            self._combobox_flex.addItem(enum.value.capitalize(), enum)
+        for flex in Flexibilidad:
+            self._combobox_flex.addItem(flex.value.capitalize(), flex)
         self._combobox_flex.setCurrentIndex(self._combobox_flex.findData(flexibilidad))
 
-        imagen = QtWidgets.QLabel()
-        imagen.setToolTip("Figura 1A - CIRSOC 102 2005")
-        imagen.setFrameStyle(QtWidgets.QFrame.Shape.StyledPanel)
-        pixmap = recursos.pixmap("imagenes/mapa-viento.png")
-        imagen.setPixmap(pixmap)
+        self._imagen = QtWidgets.QLabel()
+        self._imagen.setFrameStyle(QtWidgets.QFrame.Shape.StyledPanel)
+
+        self._label_ke = QtWidgets.QLabel()
+        self._spinboxs["altitud"].valueChanged.connect(self._actualizar_ke)
+        self._actualizar_ke()
 
         textos_rafaga = (
             "Flexibilidad",
@@ -189,17 +366,28 @@ class DialogoViento(DialogoBase):
 
         self._grid_layout_viento = QtWidgets.QGridLayout()
         self._grid_layout_viento.addWidget(
-            QtWidgets.QLabel("Ciudad"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
+            QtWidgets.QLabel("Mapa de Viento"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
         )
-        self._grid_layout_viento.addWidget(self._combobox_ciudades, 0, 1)
+        self._grid_layout_viento.addWidget(self._combobox_mapa, 0, 1)
         self._grid_layout_viento.addWidget(
-            self._editar_velocidad, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
+            QtWidgets.QLabel("Ciudad"), 1, 0, QtCore.Qt.AlignmentFlag.AlignRight
         )
-        self._grid_layout_viento.addWidget(self._spinboxs["velocidad"], 1, 1)
+        self._grid_layout_viento.addWidget(self._combobox_ciudades, 1, 1)
+        self._grid_layout_viento.addWidget(
+            self._editar_velocidad, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        self._grid_layout_viento.addWidget(self._spinboxs["velocidad"], 2, 1)
         self._grid_layout_viento.setColumnStretch(2, 1)
 
-        grid_layout_exposicion = QtWidgets.QGridLayout()
+        grid_layout_altitud = QtWidgets.QGridLayout()
+        grid_layout_altitud.addWidget(
+            QtWidgets.QLabel("Altitud (zg)"), 0, 0, QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        grid_layout_altitud.addWidget(self._spinboxs["altitud"], 0, 1)
+        grid_layout_altitud.addWidget(self._label_ke, 0, 2)
+        grid_layout_altitud.setColumnStretch(3, 1)
 
+        grid_layout_exposicion = QtWidgets.QGridLayout()
         grid_layout_exposicion.addWidget(
             QtWidgets.QLabel("Categoría de Exposición"),
             0,
@@ -218,29 +406,33 @@ class DialogoViento(DialogoBase):
         self._grid_layout_rafaga.addWidget(self._combobox_flex, 1, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["frecuencia"], 2, 1)
         self._grid_layout_rafaga.addWidget(self._spinboxs["beta"], 3, 1)
-
         self._grid_layout_rafaga.setColumnStretch(2, 1)
 
         # Tiene que instanciarse el atributo del layout de ragafa
         self._factor_g_simplificado.setChecked(factor_g_simplificado)
 
-        box_viento = QtWidgets.QGroupBox("Velocidad básica del viento")
+        box_viento = QtWidgets.QGroupBox("Velocidad básica del viento (Art. 1.5)")
         box_viento.setLayout(self._grid_layout_viento)
 
-        box_exposicion = QtWidgets.QGroupBox("Exposición")
+        box_altitud = QtWidgets.QGroupBox("Factor de altitud Ke (Art. 1.12)")
+        box_altitud.setLayout(grid_layout_altitud)
+
+        box_exposicion = QtWidgets.QGroupBox("Exposición (Art. 1.7)")
         box_exposicion.setLayout(grid_layout_exposicion)
 
-        box_rafaga = QtWidgets.QGroupBox("Factor de Ráfaga")
+        box_rafaga = QtWidgets.QGroupBox("Factor de Ráfaga (Art. 1.9)")
         box_rafaga.setLayout(self._grid_layout_rafaga)
 
-        layout_viento = QtWidgets.QGridLayout()
-        layout_viento.addWidget(box_viento, 0, 0)
-        layout_viento.addWidget(box_exposicion, 1, 0)
-        layout_viento.addWidget(box_rafaga, 2, 0)
-        layout_viento.addWidget(imagen, 0, 1, 4, 1)
-        layout_viento.setRowStretch(3, 1)
-        layout_viento.setRowStretch(4, 2)
-        layout_viento.setColumnStretch(1, 1)
+        layout_izquierda = QtWidgets.QVBoxLayout()
+        layout_izquierda.addWidget(box_viento)
+        layout_izquierda.addWidget(box_altitud)
+        layout_izquierda.addWidget(box_exposicion)
+        layout_izquierda.addWidget(box_rafaga)
+        layout_izquierda.addStretch()
+
+        layout_viento = QtWidgets.QHBoxLayout()
+        layout_viento.addLayout(layout_izquierda)
+        layout_viento.addWidget(self._imagen)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_viento)
@@ -248,11 +440,45 @@ class DialogoViento(DialogoBase):
 
         self.setLayout(layout_principal)
 
+        self._actualizar_mapa()
         self._habilitar_deshabilitar_velocidad()
 
         self.setWindowTitle("Parámetros de Viento")
-
         self.setFixedSize(self.sizeHint())
+
+    def _actualizar_ke(self) -> None:
+        """Actualiza la etiqueta con el valor de Ke correspondiente a la altitud."""
+        altitud = self._spinboxs["altitud"].value()
+        ke = factores.factor_altitud(altitud)
+        self._label_ke.setText(f"<i>K<sub>e</sub></i> = {ke:.3f}")
+
+    def _actualizar_mapa(self) -> None:
+        """Actualiza la imagen del mapa según la categoría de riesgo seleccionada."""
+        cat = self._combobox_mapa.currentData()
+        if cat == CategoriaEstructura.I:
+            clave = "imagenes/figura-1-5-1c.png"
+            tooltip = "Figura 1.5-1C — CIRSOC 102 (Cat. de Riesgo I)"
+        elif cat in (CategoriaEstructura.III, CategoriaEstructura.IV):
+            clave = "imagenes/figura-1-5-1b.png"
+            tooltip = "Figura 1.5-1B — CIRSOC 102 (Cat. de Riesgo III y IV)"
+        else:
+            clave = "imagenes/figura-1-5-1a.png"
+            tooltip = "Figura 1.5-1A — CIRSOC 102 (Cat. de Riesgo II)"
+        pixmap = recursos.pixmap(clave).scaledToHeight(
+            540, QtCore.Qt.TransformationMode.SmoothTransformation
+        )
+        self._imagen.setPixmap(pixmap)
+        self._imagen.setToolTip(tooltip)
+        self._actualizar_velocidad_ciudad()
+
+    def _actualizar_velocidad_ciudad(self) -> None:
+        """Actualiza la velocidad con el valor de la ciudad seleccionada si no está en modo edición."""
+        if not self._editar_velocidad.isChecked():
+            ciudad = self._combobox_ciudades.currentText()
+            cat = self._combobox_mapa.currentData()
+            if ciudad in CIUDADES_VELOCIDAD:
+                velocidad = CIUDADES_VELOCIDAD[ciudad].get(cat, 55.1)
+                self._spinboxs["velocidad"].setValue(velocidad)
 
     def _habilitar_deshabilitar_widgets_rafaga(self, estado: bool) -> None:
         """Habilita o deshabilita los widgets de frecuencia, beta y flexibilidad en base al estado del widget de
@@ -272,12 +498,14 @@ class DialogoViento(DialogoBase):
         """Habilita o deshabilita el widget encargado de setear la velocidad del viendo y su label."""
         estado = self._editar_velocidad.isChecked()
         self._spinboxs["velocidad"].setEnabled(estado)
-        for fila in range(0, 1):
+        for fila in range(1, 2):
             for columna in range(2):
                 widget = utils_qt.widget_de_celda(
                     self._grid_layout_viento, fila, columna
                 )
                 widget.setEnabled(not estado)
+        if not estado:
+            self._actualizar_velocidad_ciudad()
 
     def _validar(self) -> None:
         """Valida los datos ingresados."""
@@ -297,7 +525,18 @@ class DialogoViento(DialogoBase):
 
     def parametros(
         self,
-    ) -> dict[str, float | Flexibilidad | CategoriaExposicion | str] | None:
+    ) -> (
+        dict[
+            str,
+            float
+            | Flexibilidad
+            | CategoriaExposicion
+            | CategoriaEstructura
+            | str
+            | bool,
+        ]
+        | None
+    ):
         """Determina los parámetros de viento.
 
         Returns:
@@ -317,6 +556,7 @@ class DialogoViento(DialogoBase):
                 "flexibilidad": self._combobox_flex.currentData(),
                 "ciudad": self._combobox_ciudades.currentText(),
                 "editar_velocidad": self._editar_velocidad.isChecked(),
+                "categoria_riesgo_viento": self._combobox_mapa.currentData(),
                 **resultados_spinboxs,
             }
             super().accept()
@@ -494,22 +734,39 @@ class DialogoTopografia(DialogoBase):
 class DialogoComponentes(DialogoBase):
     """DialogoComponentes.
 
-    Permite configurar los componentes y revestimientos para paredes y cubierta.
+    Permite configurar los componentes y revestimientos para paredes y
+    cubierta. En el modo "solo cubierta" -el de las cubiertas aisladas- se
+    piden únicamente los componentes de la cubierta, cuya área efectiva de
+    viento elige el rango de los coeficientes C_N de las Figuras 5.5-1 a
+    5.5-3: hasta a², hasta 4a², o mayor.
+
+    Para un edificio de cubierta plana con parapeto también pide el área
+    efectiva de viento del parapeto, que el Art. 5.6 usa para los
+    coeficientes de sus dos caras.
     """
 
-    def __init__(self, componentes: dict[str, dict[str, float] | None]) -> None:
+    def __init__(
+        self,
+        componentes: dict[str, dict[str, float] | None],
+        solo_cubierta: bool = False,
+        con_parapeto: bool = False,
+    ) -> None:
         """
 
         Args:
-            componentes: Los componentes de paredes y cubierta.
+            componentes: Los componentes de paredes y cubierta, y el área
+                efectiva de viento del parapeto.
+            solo_cubierta: Indica si sólo se cargan los componentes de la
+                cubierta, para estructuras sin paredes.
+            con_parapeto: Indica si hay que pedir el área efectiva de viento
+                del parapeto.
         """
         super().__init__()
 
         self._componentes = componentes
+        self._solo_cubierta = solo_cubierta
+        self._con_parapeto = con_parapeto
 
-        self._componentes_paredes = WidgetComponentes(
-            componentes["componentes_paredes"]
-        )
         self._componentes_cubierta = WidgetComponentes(
             componentes["componentes_cubierta"]
         )
@@ -522,19 +779,54 @@ class DialogoComponentes(DialogoBase):
 
         layout_componentes = QtWidgets.QGridLayout()
         layout_componentes.addWidget(
-            QtWidgets.QLabel("PAREDES"), 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter
+            QtWidgets.QLabel("CUBIERTA"), 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter
         )
-        layout_componentes.addWidget(
-            QtWidgets.QLabel("CUBIERTA"), 0, 2, QtCore.Qt.AlignmentFlag.AlignCenter
-        )
-        layout_componentes.addWidget(self._componentes_paredes, 2, 0)
-        layout_componentes.addWidget(self._componentes_cubierta, 2, 2)
+        layout_componentes.addWidget(self._componentes_cubierta, 2, 0)
         layout_componentes.setVerticalSpacing(2)
-        layout_componentes.setColumnMinimumWidth(1, 20)
+
+        if solo_cubierta:
+            label_aviso_rangos = QtWidgets.QLabel(
+                "* El área de influencia del componente define su área efectiva de viento: el reglamento distingue"
+                " los coeficientes para áreas de hasta a², de más de a² y hasta 4a², y de más de 4a², con a la"
+                " distancia de la notación de las figuras."
+            )
+            label_aviso_rangos.setWordWrap(True)
+        else:
+            self._componentes_paredes = WidgetComponentes(
+                componentes["componentes_paredes"]
+            )
+            layout_componentes.addWidget(
+                QtWidgets.QLabel("PAREDES"),
+                0,
+                2,
+                QtCore.Qt.AlignmentFlag.AlignCenter,
+            )
+            layout_componentes.addWidget(self._componentes_paredes, 2, 2)
+            layout_componentes.setColumnMinimumWidth(1, 20)
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addLayout(layout_componentes)
+
+        if con_parapeto:
+            self._area_parapeto = QtWidgets.QDoubleSpinBox()
+            self._area_parapeto.setRange(0.1, 1000.0)
+            self._area_parapeto.setSingleStep(0.5)
+            self._area_parapeto.setSuffix(" m²")
+            area_guardada = componentes.get("area_parapeto")
+            self._area_parapeto.setValue(
+                area_guardada if isinstance(area_guardada, float) else 1.0
+            )
+            layout_parapeto = QtWidgets.QHBoxLayout()
+            layout_parapeto.addWidget(
+                QtWidgets.QLabel("Parapeto - Área efectiva de viento (Art. 5.6):")
+            )
+            layout_parapeto.addWidget(self._area_parapeto)
+            layout_parapeto.addStretch()
+            layout_principal.addLayout(layout_parapeto)
+
         layout_principal.addWidget(label_aviso_geometria)
+        if solo_cubierta:
+            layout_principal.addWidget(label_aviso_rangos)
 
         layout_principal.addWidget(self._botones)
 
@@ -550,8 +842,17 @@ class DialogoComponentes(DialogoBase):
     def accept(self):
         try:
             self._componentes = {
-                "componentes_paredes": self._componentes_paredes(),
+                "componentes_paredes": (
+                    None if self._solo_cubierta else self._componentes_paredes()
+                ),
                 "componentes_cubierta": self._componentes_cubierta(),
+                # Sin el campo, el área guardada no se toca: no aplica al
+                # módulo o el parapeto dejó de corresponder por ahora.
+                "area_parapeto": (
+                    self._area_parapeto.value()
+                    if self._con_parapeto
+                    else self._componentes.get("area_parapeto")
+                ),
             }
             super().accept()
         except ErrorComponentes as error:
@@ -567,7 +868,6 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         fuerza = settings.value("fuerza", "N")
         presion = settings.value("presion", "N")
         settings.endGroup()
-
         fuerzas = (
             ("N", "N"),
             ("kN", "kN"),
@@ -603,6 +903,32 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         groupbox_unidades = QtWidgets.QGroupBox("Unidades")
         groupbox_unidades.setLayout(layout_unidades)
 
+        # La telemetría sólo se ofrece si hay un receptor desplegado; si
+        # __telemetria__ está vacía el módulo entero está inerte y una casilla
+        # muerta en la configuración sólo haría preguntas sin respuesta.
+        self._checkbox_telemetria: QtWidgets.QCheckBox | None = None
+        groupbox_telemetria: QtWidgets.QGroupBox | None = None
+        if telemetria.url_ping():
+            self._checkbox_telemetria = QtWidgets.QCheckBox(
+                "Participar de la telemetría anónima"
+            )
+            self._checkbox_telemetria.setChecked(telemetria.participa())
+            self._checkbox_telemetria.toggled.connect(self._cambiar_participacion)
+
+            explicacion = QtWidgets.QLabel(
+                "Un pedido por arranque con la versión de Zonda y el sistema"
+                " operativo. Sin datos personales ni del contenido de los"
+                " proyectos; la IP no se guarda."
+            )
+            explicacion.setWordWrap(True)
+
+            layout_telemetria = QtWidgets.QVBoxLayout()
+            layout_telemetria.addWidget(self._checkbox_telemetria)
+            layout_telemetria.addWidget(explicacion)
+
+            groupbox_telemetria = QtWidgets.QGroupBox("Telemetría")
+            groupbox_telemetria.setLayout(layout_telemetria)
+
         botones = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
@@ -612,6 +938,8 @@ class DialogoConfiguracion(QtWidgets.QDialog):
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addWidget(groupbox_unidades)
+        if groupbox_telemetria is not None:
+            layout_principal.addWidget(groupbox_telemetria)
         layout_principal.addWidget(botones)
 
         self.setLayout(layout_principal)
@@ -622,12 +950,208 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         self.setFixedSize(self.sizeHint())
         self.show()
 
+    def _cambiar_participacion(self, activa: bool) -> None:
+        """Pide confirmación al desmarcar la casilla de telemetría.
+
+        Los números anónimos son lo que permite saber cuánta gente usa Zonda
+        y decidir con evidencia el futuro del proyecto, así que la baja se
+        confirma una vez. Marcar la casilla no dice nada: no hay nada que
+        defender.
+
+        Args:
+            activa: Si la casilla quedó marcada.
+        """
+        if activa or self._checkbox_telemetria is None:
+            return
+        respuesta = QtWidgets.QMessageBox.question(
+            self,
+            "Telemetría",
+            "La telemetría nos ayuda a mejorar Zonda para el futuro. Mandamos"
+            " datos anónimos de uso que nos permiten decidir dónde poner el"
+            " esfuerzo. ¿Está seguro de querer desactivarla?",
+        )
+        if respuesta != QtWidgets.QMessageBox.StandardButton.Yes:
+            # Se arrepintió: la casilla vuelve a quedar marcada. El
+            # toggled(True) que dispara el setChecked() entra de nuevo acá
+            # y no hace nada.
+            self._checkbox_telemetria.setChecked(True)
+
     def accept(self):
         settings = QtCore.QSettings()
         settings.beginGroup("unidades")
         settings.setValue("fuerza", self._combobox_fuerzas.currentData())
         settings.setValue("presion", self._combobox_presiones.currentData())
         settings.endGroup()
+
+        if self._checkbox_telemetria is not None:
+            telemetria.setear_participa(self._checkbox_telemetria.isChecked())
+
         settings.sync()
 
         super().accept()
+
+
+class DialogoInstalarMCP(QtWidgets.QDialog):
+    """DialogoInstalarMCP.
+
+    Instala, actualiza o desinstala el servidor MCP de Zonda en los clientes
+    LLM locales, y muestra la configuración para los clientes que no están
+    en la lista.
+    """
+
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self._etiquetas_estado: dict[str, QtWidgets.QLabel] = {}
+        self._botones_instalar: dict[str, QtWidgets.QPushButton] = {}
+        self._botones_desinstalar: dict[str, QtWidgets.QPushButton] = {}
+
+        layout_clientes = QtWidgets.QGridLayout()
+        layout_clientes.setColumnStretch(0, 1)
+        for fila, cliente in enumerate(instalacion.CLIENTES):
+            etiqueta_nombre = QtWidgets.QLabel(cliente.nombre)
+            fuente = etiqueta_nombre.font()
+            fuente.setBold(True)
+            etiqueta_nombre.setFont(fuente)
+            etiqueta_estado = QtWidgets.QLabel()
+            boton_instalar = QtWidgets.QPushButton()
+            boton_instalar.clicked.connect(lambda _=False, c=cliente: self._instalar(c))
+            boton_desinstalar = QtWidgets.QPushButton("Desinstalar")
+            boton_desinstalar.clicked.connect(
+                lambda _=False, c=cliente: self._desinstalar(c)
+            )
+            layout_clientes.addWidget(etiqueta_nombre, fila, 0)
+            layout_clientes.addWidget(etiqueta_estado, fila, 1)
+            layout_clientes.addWidget(boton_instalar, fila, 2)
+            layout_clientes.addWidget(boton_desinstalar, fila, 3)
+            self._etiquetas_estado[cliente.nombre] = etiqueta_estado
+            self._botones_instalar[cliente.nombre] = boton_instalar
+            self._botones_desinstalar[cliente.nombre] = boton_desinstalar
+        nota = QtWidgets.QLabel(
+            "Después de instalar, reiniciá el cliente para que cargue el"
+            " servidor. La instalación apunta al intérprete con el que corre"
+            " Zonda; si movés el proyecto, volvé a instalar."
+        )
+        nota.setWordWrap(True)
+        layout_clientes.addWidget(nota, len(instalacion.CLIENTES), 0, 1, 4)
+        groupbox_clientes = QtWidgets.QGroupBox("Clientes locales")
+        groupbox_clientes.setLayout(layout_clientes)
+
+        texto_chatgpt = QtWidgets.QLabel(instalacion.CHATGPT_NO_LOCAL)
+        texto_chatgpt.setWordWrap(True)
+        groupbox_chatgpt = QtWidgets.QGroupBox("ChatGPT")
+        layout_chatgpt = QtWidgets.QVBoxLayout()
+        layout_chatgpt.addWidget(texto_chatgpt)
+        groupbox_chatgpt.setLayout(layout_chatgpt)
+
+        self._texto_prompt = QtWidgets.QPlainTextEdit(instalacion.prompt_instalacion())
+        self._texto_prompt.setReadOnly(True)
+        boton_copiar = QtWidgets.QPushButton("Copiar prompt")
+        boton_copiar.clicked.connect(self._copiar_prompt)
+        texto_otros = QtWidgets.QLabel(
+            "Para otro cliente, pegale este prompt a un agente (OpenCode,"
+            " Claude Code, Antigravity, ...): se instala el servidor solo y"
+            " verifica la instalación con una llamada de prueba."
+        )
+        texto_otros.setWordWrap(True)
+        groupbox_otros = QtWidgets.QGroupBox("Instalar con un agente")
+        layout_otros = QtWidgets.QVBoxLayout()
+        layout_otros.addWidget(texto_otros)
+        layout_otros.addWidget(self._texto_prompt)
+        layout_otros.addWidget(boton_copiar, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        groupbox_otros.setLayout(layout_otros)
+
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Close
+        )
+        botones.rejected.connect(self.reject)
+
+        layout_principal = QtWidgets.QVBoxLayout()
+        layout_principal.addWidget(groupbox_clientes)
+        layout_principal.addWidget(groupbox_chatgpt)
+        layout_principal.addWidget(groupbox_otros)
+        layout_principal.addWidget(botones)
+
+        self.setLayout(layout_principal)
+        self.setWindowTitle("Instalar servidor MCP")
+        self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+
+        self._recargar()
+        self.setFixedSize(self.sizeHint())
+        self.show()
+
+    def _recargar(self) -> None:
+        """Refresca el estado y los botones de cada cliente."""
+        textos = {
+            EstadoCliente.INSTALADO: "instalado",
+            EstadoCliente.DESACTUALIZADO: "desactualizado",
+            EstadoCliente.NO_INSTALADO: "no instalado",
+            EstadoCliente.NO_DETECTADO: "no detectado",
+            EstadoCliente.NO_DISPONIBLE: "no disponible",
+            EstadoCliente.ILEGIBLE: "ilegible: usá el prompt de un agente",
+        }
+        for cliente in instalacion.CLIENTES:
+            estado = instalacion.estado(cliente)
+            self._etiquetas_estado[cliente.nombre].setText(textos[estado])
+            boton_instalar = self._botones_instalar[cliente.nombre]
+            boton_desinstalar = self._botones_desinstalar[cliente.nombre]
+            boton_desinstalar.setEnabled(
+                estado in (EstadoCliente.INSTALADO, EstadoCliente.DESACTUALIZADO)
+            )
+            if estado in (EstadoCliente.NO_DISPONIBLE, EstadoCliente.ILEGIBLE):
+                boton_instalar.setEnabled(False)
+                boton_instalar.setText("Instalar")
+            elif estado == EstadoCliente.DESACTUALIZADO:
+                boton_instalar.setEnabled(True)
+                boton_instalar.setText("Actualizar")
+            else:
+                boton_instalar.setEnabled(True)
+                boton_instalar.setText("Instalar")
+
+    def _instalar(self, cliente: instalacion.Cliente) -> None:
+        """Instala o actualiza el servidor MCP en un cliente.
+
+        Args:
+            cliente: El cliente en el que instalar.
+        """
+        try:
+            instalacion.instalar(cliente)
+        except ErrorConfiguracionMCP as error:
+            QtWidgets.QMessageBox.warning(self, cliente.nombre, str(error))
+            return
+        self._recargar()
+        QtWidgets.QMessageBox.information(
+            self,
+            cliente.nombre,
+            "Instalado. Reiniciá el cliente para que cargue el servidor de Zonda.",
+        )
+
+    def _desinstalar(self, cliente: instalacion.Cliente) -> None:
+        """Desinstala el servidor MCP de un cliente, con confirmación.
+
+        Args:
+            cliente: El cliente del que desinstalar.
+        """
+        respuesta = QtWidgets.QMessageBox.question(
+            self,
+            cliente.nombre,
+            f"¿Quitá el servidor MCP de Zonda de {cliente.nombre}?",
+        )
+        if respuesta != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        try:
+            instalacion.desinstalar(cliente)
+        except ErrorConfiguracionMCP as error:
+            QtWidgets.QMessageBox.warning(self, cliente.nombre, str(error))
+            return
+        self._recargar()
+
+    def _copiar_prompt(self) -> None:
+        """Copia el prompt de instalación al portapapeles."""
+        portapapeles = QtWidgets.QApplication.clipboard()
+        assert portapapeles is not None
+        portapapeles.setText(self._texto_prompt.toPlainText())
+        QtWidgets.QMessageBox.information(
+            self, "Prompt de instalación", "Prompt copiado al portapapeles."
+        )

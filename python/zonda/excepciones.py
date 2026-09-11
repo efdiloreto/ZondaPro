@@ -34,3 +34,7 @@ class ErrorLineamientos(Exception):
 
 class ErrorArchivo(Exception):
     pass
+
+
+class ErrorConfiguracionMCP(Exception):
+    """La configuración MCP de un cliente no se puede leer ni escribir."""
