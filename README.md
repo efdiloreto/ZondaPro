@@ -1,4 +1,4 @@
-![Zonda](https://imgur.com/WJDyN6A.png)
+![Zonda](web/src/assets/logo.png)
 
 Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2025**.
 
@@ -23,9 +23,9 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
   - Mapeo de presiones con escala de colores en tiempo real.
   - Vectores y etiquetas de presión direccionales con control de oclusión.
   - Vistas ortogonales fijas, perspectiva cónica/ortográfica y herramienta de medición de distancias entre vértices.
-- **Memorias de cálculo técnicas:**
-  - Generación de informes completos y detallados basados en plantillas Jinja2.
-  - Exportación directa a PDF, Word (DOCX), LibreOffice (ODT) y Markdown.
+- **Reporte de resultados:**
+  - Reporte en pantalla con índice, resumen y detalle de cálculo por zona.
+  - Exportación directa a PDF con el motor de texto nativo de Qt.
 - **Gestión de proyectos:**
   - Guardado y apertura del estado de trabajo en formato de archivo nativo `.zda`.
 
@@ -33,17 +33,17 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 ## Capturas de pantalla
 
-| Selección de módulo | Módulo Edificios |
+| Bienvenida | Edificio: datos de entrada |
 | :---: | :---: |
-| ![Inicio](https://imgur.com/NQbA9GB.png) | ![Edificio](https://imgur.com/dlz7Sib.png) |
+| ![Bienvenida](web/src/assets/capturas/bienvenida.png) | ![Edificio, datos de entrada](web/src/assets/capturas/edificio-entrada.png) |
 
-| Módulo Carteles | Módulo Cubiertas Aisladas |
+| Edificio: 3D SPRFV | Edificio: 3D C&R |
 | :---: | :---: |
-| ![Cartel](https://imgur.com/IG4UE8j.png) | ![Cubierta Aislada](https://imgur.com/55xAq0k.png) |
+| ![Edificio, vista 3D del SPRFV](web/src/assets/capturas/edificio-sprfv.png) | ![Edificio, vista 3D de componentes](web/src/assets/capturas/edificio-cyr.png) |
 
-| Visor y exportación de reportes |
-| :---: |
-| ![Reportes](https://imgur.com/DOw0StA.png) |
+| Cartel: 3D | Reporte de resultados |
+| :---: | :---: |
+| ![Cartel, vista 3D](web/src/assets/capturas/cartel-3d.png) | ![Reporte de resultados](web/src/assets/capturas/edificio-reporte.png) |
 
 ---
 
