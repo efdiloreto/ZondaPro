@@ -70,23 +70,19 @@
     <screenshots>
         <screenshot type="default">
             <caption>Selección de módulo</caption>
-            <image>https://imgur.com/NQbA9GB.png</image>
+            <image>https://raw.githubusercontent.com/efdiloreto/ZondaPro/master/web/src/assets/capturas/bienvenida.png</image>
         </screenshot>
         <screenshot>
-            <caption>Módulo Edificios</caption>
-            <image>https://imgur.com/dlz7Sib.png</image>
+            <caption>Módulo Edificios, vista 3D del SPRFV</caption>
+            <image>https://raw.githubusercontent.com/efdiloreto/ZondaPro/master/web/src/assets/capturas/edificio-sprfv.png</image>
         </screenshot>
         <screenshot>
-            <caption>Módulo Carteles</caption>
-            <image>https://imgur.com/IG4UE8j.png</image>
+            <caption>Módulo Carteles, vista 3D</caption>
+            <image>https://raw.githubusercontent.com/efdiloreto/ZondaPro/master/web/src/assets/capturas/cartel-3d.png</image>
         </screenshot>
         <screenshot>
-            <caption>Módulo Cubiertas Aisladas</caption>
-            <image>https://imgur.com/55xAq0k.png</image>
-        </screenshot>
-        <screenshot>
-            <caption>Visor y exportación de reportes</caption>
-            <image>https://imgur.com/DOw0StA.png</image>
+            <caption>Reporte de resultados</caption>
+            <image>https://raw.githubusercontent.com/efdiloreto/ZondaPro/master/web/src/assets/capturas/edificio-reporte.png</image>
         </screenshot>
     </screenshots>
 
