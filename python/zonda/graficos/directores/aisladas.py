@@ -187,6 +187,7 @@ class Presiones(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         cubierta_aislada: CubiertaAislada,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -194,6 +195,8 @@ class Presiones(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             cubierta_aislada: Una instancia de CubiertaAislada.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         super().__init__(
             escena,
@@ -209,7 +212,8 @@ class Presiones(Geometria):
         self.altura_media = cubierta_aislada.geometria.altura_media
         self.direccion: DireccionVientoCubiertaAislada | None = None
 
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
     def obtener_actores(self):
         return self.actores_cubierta[self.direccion]
@@ -375,6 +379,7 @@ class Componentes(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         cubierta_aislada: CubiertaAislada,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -382,6 +387,8 @@ class Componentes(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             cubierta_aislada: Una instancia de CubiertaAislada.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         super().__init__(
             escena,
@@ -395,7 +402,8 @@ class Componentes(Geometria):
         # Los rectángulos de cada zona en planta los define el cálculo: la
         # vista no recalcula nada del Reglamento.
         self._rectangulos_zonas = cubierta_aislada.cpn_componentes.distancias_zonas
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
     def obtener_actores(self):
         """Los actores de las zonas, indexados por zona.
