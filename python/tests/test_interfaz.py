@@ -506,10 +506,11 @@ def test_el_menu_trae_las_acciones_con_atajo(modulo):
 
     assert list(acciones) == [
         "Nuevo",
-        "Abrir...",
+        "Abrir",
         "Guardar",
-        "Guardar Como...",
-        "Configuración...",
+        "Guardar Como",
+        "Configuración",
+        "Instalar servidor MCP",
         "Cerrar Módulo",
         "Ayuda de Zonda",
         "Acerca de Zonda",
@@ -519,9 +520,9 @@ def test_el_menu_trae_las_acciones_con_atajo(modulo):
     ]
     # QKeySequence.StandardKey.Preferences solo resuelve a un atajo en macOS
     # (Cmd+,); en Windows y Linux no existe la convencion y queda vacio.
-    esperado = ["Acerca de Zonda"]
+    esperado = ["Instalar servidor MCP", "Acerca de Zonda"]
     if sys.platform != "darwin":
-        esperado.insert(0, "Configuración...")
+        esperado.insert(0, "Configuración")
     assert sin_atajo == esperado
 
 

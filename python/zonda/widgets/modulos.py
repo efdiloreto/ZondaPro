@@ -56,7 +56,7 @@ from zonda.cirsoc import Cartel, CubiertaAislada, Edificio
 from zonda.enums import Estructura
 from zonda.excepciones import ErrorArchivo, ErrorEstructura, ErrorLineamientos
 from zonda.widgets.custom import WidgetAcercaDe, WidgetPanelEntrada
-from zonda.widgets.dialogos import DialogoConfiguracion
+from zonda.widgets.dialogos import DialogoConfiguracion, DialogoInstalarMCP
 from zonda.widgets.entrada import (
     WidgetEstructuraCartel,
     WidgetEstructuraCubiertaAislada,
@@ -156,7 +156,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             atajos.New,
         )
         self._accion_abrir = self._crear_accion(
-            "Abrir...",
+            "Abrir",
             self.pedir_abrir,
             _icono_estandar("document-open", estandar.SP_DirOpenIcon),
             atajos.Open,
@@ -168,7 +168,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             atajos.Save,
         )
         self._accion_guardar_como = self._crear_accion(
-            "Guardar Como...",
+            "Guardar Como",
             self._guardar_como,
             _icono_estandar("document-save-as", estandar.SP_DialogSaveButton),
             atajos.SaveAs,
@@ -178,11 +178,15 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         )
 
         self._accion_configuracion = self._crear_accion(
-            "Configuración...",
+            "Configuración",
             self._dialogo_configuracion,
             recursos.icono("iconos/configuracion.png"),
             atajos.Preferences,
             rol=roles.PreferencesRole,
+        )
+        self._accion_instalar_mcp = self._crear_accion(
+            "Instalar servidor MCP",
+            self._dialogo_instalar_mcp,
         )
         self._accion_ayuda = self._crear_accion(
             "Ayuda de Zonda",
@@ -230,6 +234,7 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
         menu_archivo.addAction(self._accion_guardar_como)
         menu_archivo.addSeparator()
         menu_archivo.addAction(self._accion_configuracion)
+        menu_archivo.addAction(self._accion_instalar_mcp)
         menu_archivo.addSeparator()
         menu_archivo.addAction(self._accion_cerrar)
 
@@ -246,6 +251,9 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
 
     def _dialogo_configuracion(self):
         DialogoConfiguracion(self)
+
+    def _dialogo_instalar_mcp(self):
+        DialogoInstalarMCP(self)
 
     # --- El archivo de proyecto -------------------------------------------
 
