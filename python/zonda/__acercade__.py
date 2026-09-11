@@ -19,6 +19,9 @@ __version__ = "2.0.0"
 __compania__ = "Eduardo Di Loreto"
 __web_compania__ = "https://github.com/efdiloreto"
 __web__ = "https://github.com/efdiloreto/ZondaPro"
+# El sitio web en GitHub Pages, desplegado desde web/. Si cambia la base de
+# astro.config.mjs, cambiar acá también.
+__sitio__ = "https://efdiloreto.github.io/ZondaPro"
 __ayuda__ = "https://github.com/efdiloreto/ZondaPro/issues"
 __contacto__ = "mailto:efdiloreto@gmail.com"
 __nombre__ = "Zonda"

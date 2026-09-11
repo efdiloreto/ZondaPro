@@ -417,6 +417,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
         layout.addStretch()
 
         enlaces = (
+            ("Página web", lambda: abrir_enlace(__acercade__.__sitio__)),
             ("Ayuda", lambda: abrir_enlace(__acercade__.__ayuda__)),
             ("Reportar un problema", lambda: abrir_enlace(URL_REPORTAR)),
             ("Configuración...", lambda: DialogoConfiguracion(self)),
