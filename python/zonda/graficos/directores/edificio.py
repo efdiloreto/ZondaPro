@@ -593,6 +593,7 @@ class PresionesSprfvMetodoDireccional(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         edificio: Edificio,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -600,6 +601,8 @@ class PresionesSprfvMetodoDireccional(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             edificio: Una instancia de edificio.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         self.actores_paredes = None
         self.actores_cubierta = None
@@ -639,7 +642,8 @@ class PresionesSprfvMetodoDireccional(Geometria):
 
         self.normal_como_paralelo = edificio.cp.cubierta.sprfv.normal_como_paralelo
 
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
     def obtener_paredes(
         self,
@@ -981,6 +985,7 @@ class PresionesComponentes(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         edificio: Edificio,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -988,6 +993,8 @@ class PresionesComponentes(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             edificio: Una instancia de Edificio.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         altura_alero = edificio.altura_alero
         altura_cumbrera = edificio.altura_cumbrera
@@ -1023,71 +1030,106 @@ class PresionesComponentes(Geometria):
                 parapeto_cp.componentes.distancias_esquina
             )
         self.actores_parapeto = {}
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
-    def alero(self):
-        if self._referencia_cubierta is None:
-            self.actores_alero = defaultdict(list)
-            return
-        coords = self._seleccionar_cubierta_por_faldon()
-        dict_poligonos = aplicar_func_recursivamente(coords, crear_poligono)
-        normal_origen = {
-            "faldon izq": ((-1, 0, 0), (0, 0, 0)),
-            "faldon der": ((1, 0, 0), (self.ancho, 0, 0)),
-        }
-        self.actores_alero = defaultdict(list)
+    def _crear_actor(self, poligono: Poligono) -> ActorPresion:
+        """Crea un actor de presión para un polígono de zona.
+
+        Args:
+            poligono: El polígono de la zona.
+
+        Returns:
+            El actor creado.
+        """
+        return ActorPresion(
+            self.escena,
+            poligono=poligono,
+            tabla_colores=self.tabla_colores,
+            presion=True,
+            mostrar=True,
+        )
+
+    def _recortar_zonas_faldon(
+        self, dict_poligonos: dict, normal_origen: dict
+    ) -> defaultdict:
+        """Recorta las zonas de cada faldón contra el plano de la pared.
+
+        Args:
+            dict_poligonos: Los polígonos de cada zona, agrupados por faldón.
+            normal_origen: La normal y el origen del plano de recorte de cada faldón.
+
+        Returns:
+            Los polígonos recortados, indexados por zona.
+        """
+        recortados = defaultdict(list)
         for faldon, zonas in dict_poligonos.items():
             normal, origen = normal_origen[faldon]
             for zona, poligonos in zonas.items():
                 for poligono in poligonos:
                     clip = recortar_poligono(poligono, origen, normal)
                     if clip is not None:
-                        self.actores_alero[zona].append(
-                            ActorPresion(
-                                self.escena,
-                                poligono=clip,
-                                tabla_colores=self.tabla_colores,
-                                presion=True,
-                                mostrar=True,
-                            )
-                        )
+                        recortados[zona].append(clip)
+        return recortados
+
+    def _coords_alero(self) -> defaultdict:
+        """Los polígonos del alero, recortados contra el plano de la pared e indexados por zona.
+
+        Returns:
+            Los polígonos recortados por zona. Vacío si el Reglamento no da lineamientos para la cubierta.
+        """
+        if self._referencia_cubierta is None:
+            return defaultdict(list)
+        coords = self._seleccionar_cubierta_por_faldon()
+        dict_poligonos = aplicar_func_recursivamente(coords, crear_poligono)
+        return self._recortar_zonas_faldon(
+            dict_poligonos,
+            {
+                "faldon izq": ((-1, 0, 0), (0, 0, 0)),
+                "faldon der": ((1, 0, 0), (self.ancho, 0, 0)),
+            },
+        )
+
+    def alero(self):
+        """Genera los actores del alero, indexados por zona."""
+        self.actores_alero = defaultdict(list)
+        for zona, poligonos in self._coords_alero().items():
+            for poligono in poligonos:
+                self.actores_alero[zona].append(self._crear_actor(poligono))
+
+    def _coords_cubierta(self) -> defaultdict | dict:
+        """Los polígonos de las zonas de la cubierta, recortados contra el plano de la pared e indexados por zona.
+
+        Returns:
+            Los polígonos recortados por zona. Sin recortar ni indexar por zona si el Reglamento no da lineamientos
+            para los componentes de cubierta.
+        """
+        dict_poligonos = aplicar_func_recursivamente(
+            self._seleccionar_cubierta(), crear_poligono
+        )
+        if self._referencia_cubierta is None:
+            return dict_poligonos
+        return self._recortar_zonas_faldon(
+            dict_poligonos,
+            {
+                "faldon izq": ((1, 0, 0), (0, 0, 0)),
+                "faldon der": ((-1, 0, 0), (self.ancho, 0, 0)),
+            },
+        )
 
     # TODO - CORREGIR (No me gusta como quedó este método.)
     def cubierta(self):
-        coords = self._seleccionar_cubierta()
-        dict_poligonos = aplicar_func_recursivamente(coords, crear_poligono)
+        """Genera los actores de la cubierta, indexados por zona."""
+        coords = self._coords_cubierta()
         if self._referencia_cubierta is None:
             self.actores_cubierta = aplicar_func_recursivamente(
-                dict_poligonos,
-                lambda x: ActorPresion(
-                    self.escena,
-                    poligono=x,
-                    tabla_colores=self.tabla_colores,
-                    presion=True,
-                    mostrar=True,
-                ),
+                coords, self._crear_actor
             )
         else:
-            normal_origen = {
-                "faldon izq": ((1, 0, 0), (0, 0, 0)),
-                "faldon der": ((-1, 0, 0), (self.ancho, 0, 0)),
-            }
             self.actores_cubierta = defaultdict(list)
-            for faldon, zonas in dict_poligonos.items():
-                normal, origen = normal_origen[faldon]
-                for zona, poligonos in zonas.items():
-                    for poligono in poligonos:
-                        clip = recortar_poligono(poligono, origen, normal)
-                        if clip is not None:
-                            self.actores_cubierta[zona].append(
-                                ActorPresion(
-                                    self.escena,
-                                    poligono=clip,
-                                    tabla_colores=self.tabla_colores,
-                                    presion=True,
-                                    mostrar=True,
-                                )
-                            )
+            for zona, poligonos in coords.items():
+                for poligono in poligonos:
+                    self.actores_cubierta[zona].append(self._crear_actor(poligono))
 
     @actores_poligonos(crear_atributo=True, presion=True, mostrar=True)
     def paredes(self):
@@ -1152,17 +1194,17 @@ class PresionesComponentes(Geometria):
             (ZonaParapeto.ESQUINA, self.ancho - esquina, self.ancho),
         )
 
-    def parapeto(self):
-        """Genera los actores del parapeto.
+    def _coords_parapeto(self) -> dict:
+        """Los polígonos del parapeto, indexados por pared y por zona del parapeto.
 
-        El Caso de carga A (parapeto a barlovento) va sobre la pared frontal
-        y el Caso B (parapeto a sotavento) sobre la trasera; en cada una la
-        cara posterior ve la zona de borde en el tramo central y la de
-        esquina en los extremos.
+        Returns:
+            Un diccionario con la banda del Caso de carga A (parapeto a
+            barlovento, pared frontal) y la del Caso B (parapeto a sotavento,
+            pared trasera), cada una partida en sus tramos de borde y de
+            esquina. Vacío si el edificio no tiene parapeto.
         """
-        self.actores_parapeto = {}
         if self._distancias_esquina_parapeto is None:
-            return
+            return {}
         casos = (
             (
                 ParedEdificioSprfv.BARLOVENTO,
@@ -1177,21 +1219,30 @@ class PresionesComponentes(Geometria):
                 False,
             ),
         )
+        coords = {}
         for pared, z0, esquina, invertir_sentido in casos:
             zonas = defaultdict(list)
             for zona_parapeto, x0, x1 in self._segmentos_parapeto(esquina):
                 zonas[zona_parapeto].append(
-                    ActorPresion(
-                        self.escena,
-                        poligono=Poligono(
-                            self._banda_parapeto(x0, x1, z0, invertir_sentido)
-                        ),
-                        tabla_colores=self.tabla_colores,
-                        presion=True,
-                        mostrar=True,
-                    )
+                    Poligono(self._banda_parapeto(x0, x1, z0, invertir_sentido))
                 )
-            self.actores_parapeto[pared] = dict(zonas)
+            coords[pared] = dict(zonas)
+        return coords
+
+    def parapeto(self):
+        """Genera los actores del parapeto.
+
+        El Caso de carga A (parapeto a barlovento) va sobre la pared frontal
+        y el Caso B (parapeto a sotavento) sobre la trasera; en cada una la
+        cara posterior ve la zona de borde en el tramo central y la de
+        esquina en los extremos.
+        """
+        self.actores_parapeto = {}
+        for pared, zonas in self._coords_parapeto().items():
+            self.actores_parapeto[pared] = {
+                zona: [self._crear_actor(poligono) for poligono in poligonos]
+                for zona, poligonos in zonas.items()
+            }
 
     def _pared_frente(self, z0, invertir_sentido=False):
         """Determina las coordenadas de una pared de frente (o contrafrente).

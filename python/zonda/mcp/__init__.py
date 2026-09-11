@@ -15,26 +15,4 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-
-class ErrorEstructura(Exception):
-    pass
-
-
-class ErrorViento(Exception):
-    pass
-
-
-class ErrorComponentes(Exception):
-    pass
-
-
-class ErrorLineamientos(Exception):
-    pass
-
-
-class ErrorArchivo(Exception):
-    pass
-
-
-class ErrorConfiguracionMCP(Exception):
-    """La configuración MCP de un cliente no se puede leer ni escribir."""
+"""El servidor MCP de Zonda: el cálculo del CIRSOC 102-2025 como herramientas para un cliente LLM."""

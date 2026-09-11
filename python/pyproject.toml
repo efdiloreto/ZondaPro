@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "fastmcp>=4.0.3",
     "numpy>=2.5.2",
     "packaging>=25.0",
     "pyqt6>=6.11.0",
@@ -32,6 +33,11 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/efdiloreto/ZondaPro"
 Issues = "https://github.com/efdiloreto/ZondaPro/issues"
+
+[project.scripts]
+# El servidor MCP corre por stdio: un script de consola garantiza que stdin y
+# stdout quedan conectados a los pipes del cliente.
+zonda-mcp = "zonda.mcp.servidor:principal"
 
 [project.gui-scripts]
 zonda = "zonda.main:main"

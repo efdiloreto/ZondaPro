@@ -15,26 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Punto de entrada por consola del servidor MCP de Zonda."""
 
-class ErrorEstructura(Exception):
-    pass
+from zonda.mcp.servidor import principal
 
-
-class ErrorViento(Exception):
-    pass
-
-
-class ErrorComponentes(Exception):
-    pass
-
-
-class ErrorLineamientos(Exception):
-    pass
-
-
-class ErrorArchivo(Exception):
-    pass
-
-
-class ErrorConfiguracionMCP(Exception):
-    """La configuración MCP de un cliente no se puede leer ni escribir."""
+if __name__ == "__main__":
+    principal()

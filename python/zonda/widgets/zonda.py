@@ -55,7 +55,7 @@ from zonda.widgets.custom import (
     enlaces_de_autores,
     fuente_de_rotulo,
 )
-from zonda.widgets.dialogos import DialogoConfiguracion
+from zonda.widgets.dialogos import DialogoConfiguracion, DialogoInstalarMCP
 from zonda.widgets.modulos import (
     WidgetModuloCartel,
     WidgetModuloCubiertaAislada,
@@ -90,7 +90,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
     ANCHO_CARPETA = 190
     """Hasta dónde se muestra la carpeta de un proyecto reciente, en píxeles."""
 
-    TAMANIO_INICIAL = QtCore.QSize(930, 660)
+    TAMANIO_INICIAL = QtCore.QSize(990, 660)
     """Con qué tamaño abre la primera vez, antes de que haya nada recordado.
 
     Tiene que ser mayor que el mínimo, y el mínimo lo fija el contenido: los
@@ -276,7 +276,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
 
         Returns: El bloque, sin la parte de recientes si no hay ninguno.
         """
-        boton_abrir = QtWidgets.QPushButton("Abrir proyecto...")
+        boton_abrir = QtWidgets.QPushButton("Abrir proyecto")
         boton_abrir.setIcon(recursos.icono("iconos/carpeta.png"))
         boton_abrir.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         boton_abrir.clicked.connect(self._pedir_abrir_proyecto)
@@ -420,7 +420,8 @@ class WidgetBienvenida(QtWidgets.QWidget):
             ("Página web", lambda: abrir_enlace(__acercade__.__sitio__)),
             ("Ayuda", lambda: abrir_enlace(__acercade__.__ayuda__)),
             ("Reportar un problema", lambda: abrir_enlace(URL_REPORTAR)),
-            ("Configuración...", lambda: DialogoConfiguracion(self)),
+            ("Configuración", lambda: DialogoConfiguracion(self)),
+            ("Instalar servidor MCP", lambda: DialogoInstalarMCP(self)),
             ("Acerca de", lambda: WidgetAcercaDe(self)),
         )
         for texto, accion in enlaces:
@@ -462,7 +463,7 @@ class WidgetBienvenida(QtWidgets.QWidget):
         """Abre un archivo de proyecto en el módulo que le corresponde.
 
         Vive acá y no en ``zonda.main`` porque la bienvenida es la que abre los
-        módulos, y porque el botón "Abrir proyecto..." de esta misma pantalla la
+        módulos, y porque el botón "Abrir proyecto" de esta misma pantalla la
         necesita: ``main`` importa este módulo, así que no puede ser al revés.
 
         Args:

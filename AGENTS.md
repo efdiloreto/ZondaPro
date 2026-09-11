@@ -62,8 +62,20 @@ El flujo de dependencias es estrictamente unidireccional:
     - `pdf.py`: El exportador de PDF, con el motor de texto nativo de Qt.
    - `recursos/`: Carga de assets (`recursos.ruta()`, `recursos.pixmap()`, `recursos.icono()`) mediante `importlib.resources`.
    - `recientes.py`: Los últimos proyectos abiertos o guardados, en `QSettings`.
-     Los que ya no están en disco se saltean al listar pero no se borran: pueden
-     estar en un disco desconectado.
+      Los que ya no están en disco se saltean al listar pero no se borran: pueden
+      estar en un disco desconectado.
+   - `mcp/`: **Servidor MCP** (FastMCP, por stdio) que expone el cálculo a
+     clientes LLM. Depende de `cirsoc` y de `graficos/directores` (headless,
+     sin QApplication), pero no de `widgets`. `servidor.py` registra las tools;
+     `herramientas.py` es la capa testeable que convierte los parámetros
+     JSON-friendly en enums y llama a `cirsoc`; `geometria.py` saca las
+     coordenadas de las zonas de los directores con `crear_actores=False` y los
+     métodos crudos (`__wrapped__`); `serializacion.py` vuelca filas a JSON
+     (enums por `.name`, igual que el formato `.zda`). `instalacion.py` escribe
+     la entrada en la configuración de cada cliente, con respaldo y escritura
+     atómica, y genera el prompt para que un agente se instale solo;
+     `DialogoInstalarMCP` (en `widgets/dialogos.py`) lo consume. Entry point
+     `zonda-mcp`; ver la sección *Servidor MCP* del README de `python/`.
 
 ---
 

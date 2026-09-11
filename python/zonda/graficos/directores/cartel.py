@@ -190,6 +190,7 @@ class Presiones(Geometria):
         escena: Escena3D,
         tabla_colores: TablaColores,
         cartel: Cartel,
+        crear_actores: bool = True,
     ) -> None:
         """
 
@@ -197,6 +198,8 @@ class Presiones(Geometria):
             escena: La escena que junta los actores.
             tabla_colores: La tabla de escalas de colores de la escena general.
             cartel: Una instancia de Cartel.
+            crear_actores: Indica si se crean los actores al inicializar. Se
+                puede desactivar para leer las coordenadas sin armar actores.
         """
         super().__init__(
             escena,
@@ -208,7 +211,8 @@ class Presiones(Geometria):
         self.cartel = cartel
         self.tabla_colores = tabla_colores
 
-        self.inicializar_actores()
+        if crear_actores:
+            self.inicializar_actores()
 
     def obtener_actores(self):
         # Se genera al inicializar la función cara_barlovento
