@@ -19,7 +19,7 @@
 
 from PyQt6 import QtCore, QtWidgets
 
-from zonda import recursos
+from zonda import recursos, telemetria
 from zonda.cirsoc import factores
 from zonda.enums import (
     CategoriaEstructura,
@@ -866,7 +866,6 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         fuerza = settings.value("fuerza", "N")
         presion = settings.value("presion", "N")
         settings.endGroup()
-
         fuerzas = (
             ("N", "N"),
             ("kN", "kN"),
@@ -902,6 +901,32 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         groupbox_unidades = QtWidgets.QGroupBox("Unidades")
         groupbox_unidades.setLayout(layout_unidades)
 
+        # La telemetría sólo se ofrece si hay un receptor desplegado; si
+        # __telemetria__ está vacía el módulo entero está inerte y una casilla
+        # muerta en la configuración sólo haría preguntas sin respuesta.
+        self._checkbox_telemetria: QtWidgets.QCheckBox | None = None
+        groupbox_telemetria: QtWidgets.QGroupBox | None = None
+        if telemetria.url_ping():
+            self._checkbox_telemetria = QtWidgets.QCheckBox(
+                "Participar de la telemetría anónima"
+            )
+            self._checkbox_telemetria.setChecked(telemetria.participa())
+            self._checkbox_telemetria.toggled.connect(self._cambiar_participacion)
+
+            explicacion = QtWidgets.QLabel(
+                "Un pedido por arranque con la versión de Zonda y el sistema"
+                " operativo. Sin datos personales ni del contenido de los"
+                " proyectos; la IP no se guarda."
+            )
+            explicacion.setWordWrap(True)
+
+            layout_telemetria = QtWidgets.QVBoxLayout()
+            layout_telemetria.addWidget(self._checkbox_telemetria)
+            layout_telemetria.addWidget(explicacion)
+
+            groupbox_telemetria = QtWidgets.QGroupBox("Telemetría")
+            groupbox_telemetria.setLayout(layout_telemetria)
+
         botones = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
@@ -911,6 +936,8 @@ class DialogoConfiguracion(QtWidgets.QDialog):
 
         layout_principal = QtWidgets.QVBoxLayout()
         layout_principal.addWidget(groupbox_unidades)
+        if groupbox_telemetria is not None:
+            layout_principal.addWidget(groupbox_telemetria)
         layout_principal.addWidget(botones)
 
         self.setLayout(layout_principal)
@@ -921,12 +948,42 @@ class DialogoConfiguracion(QtWidgets.QDialog):
         self.setFixedSize(self.sizeHint())
         self.show()
 
+    def _cambiar_participacion(self, activa: bool) -> None:
+        """Pide confirmación al desmarcar la casilla de telemetría.
+
+        Los números anónimos son lo que permite saber cuánta gente usa Zonda
+        y decidir con evidencia el futuro del proyecto, así que la baja se
+        confirma una vez. Marcar la casilla no dice nada: no hay nada que
+        defender.
+
+        Args:
+            activa: Si la casilla quedó marcada.
+        """
+        if activa or self._checkbox_telemetria is None:
+            return
+        respuesta = QtWidgets.QMessageBox.question(
+            self,
+            "Telemetría",
+            "La telemetría nos ayuda a mejorar Zonda para el futuro. Mandamos"
+            " datos anónimos de uso que nos permiten decidir dónde poner el"
+            " esfuerzo. ¿Está seguro de querer desactivarla?",
+        )
+        if respuesta != QtWidgets.QMessageBox.StandardButton.Yes:
+            # Se arrepintió: la casilla vuelve a quedar marcada. El
+            # toggled(True) que dispara el setChecked() entra de nuevo acá
+            # y no hace nada.
+            self._checkbox_telemetria.setChecked(True)
+
     def accept(self):
         settings = QtCore.QSettings()
         settings.beginGroup("unidades")
         settings.setValue("fuerza", self._combobox_fuerzas.currentData())
         settings.setValue("presion", self._combobox_presiones.currentData())
         settings.endGroup()
+
+        if self._checkbox_telemetria is not None:
+            telemetria.setear_participa(self._checkbox_telemetria.isChecked())
+
         settings.sync()
 
         super().accept()

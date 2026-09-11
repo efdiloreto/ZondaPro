@@ -41,7 +41,7 @@ import sys
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QFontDatabase
 
-from zonda import __acercade__, actualizaciones, proyecto, recursos
+from zonda import __acercade__, actualizaciones, proyecto, recursos, telemetria
 from zonda.widgets.zonda import WidgetBienvenida
 
 _UTF8 = 0x08000100
@@ -240,6 +240,12 @@ def main():
     # ventana apenas termina esta función.
     bienvenida = WidgetBienvenida(buscador)
     app.archivoPedido.connect(bienvenida.abrir_proyecto)
+
+    # El ping del arranque. Sin receptor desplegado o si el usuario la
+    # desactivó en Configuración, registrar_sesion() no hace nada. La
+    # referencia vive toda la sesión: sostiene el pedido asincrónico.
+    _rastreador = telemetria.Telemetria(bienvenida)
+    _rastreador.registrar_sesion()
 
     ruta = app.tomar_pendiente() or _archivo_de_los_argumentos(app.arguments())
     if ruta is None or not bienvenida.abrir_proyecto(ruta):

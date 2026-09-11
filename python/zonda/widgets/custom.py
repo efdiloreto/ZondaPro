@@ -20,7 +20,7 @@ from collections.abc import Callable
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from zonda import __acercade__, recursos
+from zonda import __acercade__, recursos, telemetria
 from zonda.enums import (
     CategoriaEstructura,
     CategoriaExposicion,
@@ -456,6 +456,20 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         label_copyright.setWordWrap(True)
         label_copyright.setFixedWidth(430)
 
+        # El disclosure de la telemetría, que no se pregunta en ningún
+        # diálogo: acá es donde un usuario curioso puede enterarse de que
+        # existe y de cómo se apaga.
+        label_telemetria: QtWidgets.QLabel | None = None
+        if telemetria.url_ping():
+            label_telemetria = QtWidgets.QLabel(
+                "Zonda envía estadísticas anónimas de uso: la versión, el"
+                " sistema operativo y el país. Sin datos personales ni del"
+                " contenido de los proyectos. Se pueden desactivar en"
+                " Configuración → Telemetría."
+            )
+            label_telemetria.setWordWrap(True)
+            label_telemetria.setFixedWidth(430)
+
         label_logo_gnu = QtWidgets.QLabel()
         label_logo_gnu.setPixmap(recursos.pixmap("imagenes/gplv3.png"))
 
@@ -500,6 +514,9 @@ class WidgetAcercaDe(QtWidgets.QDialog):
         layout_principal.addSpacing(10)
         layout_principal.addWidget(label_copyright)
         layout_principal.addSpacing(10)
+        if label_telemetria is not None:
+            layout_principal.addWidget(label_telemetria)
+            layout_principal.addSpacing(10)
         layout_principal.addWidget(_linea_horizontal())
         layout_principal.addLayout(layout_info)
         layout_principal.addWidget(_linea_horizontal())
