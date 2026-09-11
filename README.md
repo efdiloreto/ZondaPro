@@ -98,6 +98,20 @@ Para más detalles sobre la arquitectura interna, el motor de cálculo y la capa
 
 ---
 
+## Privacidad
+
+Zonda envía estadísticas anónimas de uso **activadas por defecto** (modelo [Homebrew](https://docs.brew.sh/Analytics)). Cada vez que se abre el programa sale **un único pedido** con:
+
+- la versión de Zonda y el sistema operativo,
+- un número aleatorio generado en tu máquina que identifica la instalación, sin ningún vínculo con tu persona,
+- el país aproximado, que el servidor deduce de la IP. La IP **no se guarda**.
+
+Nunca se envían datos personales ni del contenido de tus proyectos, ni siquiera los nombres de los archivos. Los números agregados sirven para saber cuánta gente usa Zonda y decidir con evidencia dónde poner el esfuerzo en el futuro del proyecto.
+
+Si preferís no participar, desactivá la casilla en **Configuración → Telemetría**. También se puede arrancar sin telemetría con la variable de entorno `ZONDA_SIN_TELEMETRIA=1`.
+
+---
+
 ## Contribuir
 
 Toda ayuda es bienvenida: reportar un error, discutir una figura del Reglamento, mejorar la interfaz o sumar código.

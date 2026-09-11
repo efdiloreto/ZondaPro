@@ -24,6 +24,11 @@ __contacto__ = "mailto:efdiloreto@gmail.com"
 __nombre__ = "Zonda"
 __anio_inicio__ = "2018"
 
+# La URL del receptor de telemetría (ver telemetria/ en la raíz del
+# repositorio), o cadena vacía si no hay ninguno desplegado. Mientras esté
+# vacía la telemetría queda desactivada: no sale ningún ping.
+__telemetria__ = "https://zonda-telemetria.efdiloreto.workers.dev"
+
 
 def anios_copyright() -> str:
     """El período que cubre el copyright, hasta el año en curso.
