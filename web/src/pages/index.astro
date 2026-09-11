@@ -52,6 +52,11 @@ const frecuentes = [
 		respuesta:
 			'Edificios, tanto el sistema principal resistente a la fuerza del viento (SPRFV) como componentes y revestimientos; cubiertas aisladas; y carteles y muros. En todos los casos calcula el factor de ráfaga, el factor topográfico, la clasificación de cerramiento y las presiones por zona, con el reporte detallado de cada valor.',
 	},
+	{
+		pregunta: '¿Puedo usar Zonda desde mi asistente de IA?',
+		respuesta:
+			'Sí. Zonda trae un servidor MCP que expone el cálculo del Reglamento a clientes como Claude, Antigravity u OpenCode: el asistente calcula las presiones, lee cada zona con sus coordenadas y sus referencias, y puede armar reportes a tu medida o llevar los resultados a otros servidores MCP de software de cálculo estructural.',
+	},
 ];
 
 // Las capturas del carousel, en el orden en que se muestran.
@@ -191,8 +196,12 @@ const esquemas = [
 					titulo="Multiplataforma"
 					texto="Windows, macOS y Linux."
 				/>
-			</div>
+				<TarjetaCaracteristica
+					titulo="Servidor MCP"
+					texto="Calculá con Zonda desde tu asistente de IA: generá tus propios reportes y combiná sus resultados con otros servidores MCP de software de cálculo estructural."
+				/>
 		</div>
+	</div>
 	</section>
 
 	<section class="capturas">
