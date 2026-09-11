@@ -1,4 +1,4 @@
-![Zonda](web/src/assets/og.png)
+![Zonda](web/src/assets/logo.png)
 
 Software libre de escritorio para el cálculo de cargas y presiones de viento en estructuras según el reglamento argentino **CIRSOC 102-2025**.
 
