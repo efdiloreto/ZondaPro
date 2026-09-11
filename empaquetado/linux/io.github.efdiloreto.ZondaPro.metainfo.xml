@@ -91,7 +91,7 @@
     <releases>
         <release version="2.0.1" date="2026-09-11">
             <description>
-                <p>Actualización de las capturas de pantalla y de la documentación a la versión 2.0.0, y salto de la dependencia de imgur: las imágenes ahora viven en el repositorio.</p>
+                <p>Actualización de las capturas de pantalla y de la documentación a la versión 2.0.0, y salto de la dependencia de imgur: las imágenes ahora viven en el repositorio. La web deja de enlazar tres artículos desde el pie.</p>
             </description>
         </release>
         <release version="2.0.0" date="2026-09-10"/>
