@@ -89,6 +89,11 @@
     <content_rating type="oars-1.1"/>
 
     <releases>
+        <release version="2.0.2" date="2026-09-15">
+            <description>
+                <p>Corrección de un cierre inesperado al calcular edificios con cubierta a un agua de poca pendiente, cuando la longitud del edificio caía entre el doble de la altura media y el ancho: las zonas de cubierta quedaban divididas de más y el cálculo se interrumpía sin ningún aviso.</p>
+            </description>
+        </release>
         <release version="2.0.1" date="2026-09-11">
             <description>
                 <p>Actualización de las capturas de pantalla y de la documentación a la versión 2.0.0, y salto de la dependencia de imgur: las imágenes ahora viven en el repositorio. La web deja de enlazar tres artículos desde el pie.</p>
