@@ -649,7 +649,7 @@ class CubiertaSprfvMetodoDireccional:
         """
         paralelo = self._zonas_cubierta(self.longitud)
         if self.normal_como_paralelo:
-            args = (self.ancho, self.longitud)
+            args: tuple[float, ...] = (self.ancho,)
             if self.tipo_cubierta == TipoCubierta.DOS_AGUAS:
                 args += (self.ancho / 2,)
             normal = self._zonas_cubierta(*args)
