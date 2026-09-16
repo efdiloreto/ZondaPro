@@ -482,8 +482,8 @@ class WidgetModuloEdificio(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "Error Lineamientos", str(e))
         except ErrorEstructura as e:
             QtWidgets.QMessageBox.critical(self, "Error datos de Entrada", str(e))
-        # except ValueError as e:
-        #     QtWidgets.QMessageBox.critical(self, "Error parámetros de entrada", str(e))
+        except ValueError as e:
+            QtWidgets.QMessageBox.critical(self, "Error parámetros de entrada", str(e))
 
     def _generar_widget_resultados(self):
         parametros_viento = {

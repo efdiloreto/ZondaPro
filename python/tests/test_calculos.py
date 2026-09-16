@@ -684,6 +684,70 @@ def test_cubierta_barlovento_angulo_menor_diez_alero():
     assert sotavento.cp == pytest.approx(-0.18)
 
 
+def test_cubierta_angulo_menor_diez_la_longitud_no_divide_zonas():
+    """Regresión del issue #36: la longitud no agrega zonas con viento normal.
+
+    Con cubierta de pequeña pendiente, las zonas de cubierta con viento
+    normal a la cumbrera son las de la Figura 2.4-1 (cont.): de 0 a h/2, de
+    h/2 a h, de h a 2h y de 2h al ancho. Si la longitud del edificio cae
+    entre 2h y el ancho, dividía la última zona en dos y el cálculo fallaba
+    por tener más zonas que coeficientes.
+    """
+    edificio = Edificio(
+        ancho=22,
+        longitud=17,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=7,
+        tipo_cubierta=enums.TipoCubierta.UN_AGUA,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    cubierta_normal = edificio.resultados_sprfv.filtrar(
+        zona=enums.ZonaEdificio.CUBIERTA,
+        direccion=enums.DireccionVientoMetodoDireccionalSprfv.NORMAL,
+        caso=None,
+    )
+    assert tuple(fila.rango for fila in cubierta_normal) == (
+        (0, 3),
+        (3, 6),
+        (6, 12),
+        (12, 22),
+    )
+    assert tuple(fila.cp for fila in cubierta_normal) == pytest.approx(
+        (-0.9, -0.9, -0.5, -0.3)
+    )
+
+
+@pytest.mark.parametrize("longitud", (11, 12, 13, 14, 17, 20, 22, 25, 30))
+@pytest.mark.parametrize(
+    "tipo_cubierta", (enums.TipoCubierta.UN_AGUA, enums.TipoCubierta.DOS_AGUAS)
+)
+def test_cubierta_angulo_menor_diez_calcula_con_toda_longitud(tipo_cubierta, longitud):
+    """Regresión del issue #36: el edificio calcula para toda longitud.
+
+    Con cubierta de pequeña pendiente y longitudes cercanas a 2h o al ancho
+    -o entre ambos-, el cálculo terminaba con más zonas que coeficientes.
+    """
+    edificio = Edificio(
+        ancho=22,
+        longitud=longitud,
+        elevacion=0,
+        altura_alero=6,
+        altura_cumbrera=7,
+        tipo_cubierta=tipo_cubierta,
+        cerramiento=enums.Cerramiento.CERRADO,
+        velocidad=45,
+        factor_g_simplificado=True,
+        categoria_exp=enums.CategoriaExposicion.B,
+        considerar_topografia=False,
+    )
+    assert edificio.resultados_sprfv.filas
+
+
 def test_alero_referencia_articulo_2_4_4():
     """El alero a barlovento cita el Art. 2.4.4 y el resto sólo la figura.
 
