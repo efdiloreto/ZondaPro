@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Zonda.  If not, see <https://www.gnu.org/licenses/>.
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 __compania__ = "Eduardo Di Loreto"
 __web_compania__ = "https://github.com/efdiloreto"
 __web__ = "https://github.com/efdiloreto/ZondaPro"
