@@ -89,6 +89,11 @@
     <content_rating type="oars-1.1"/>
 
     <releases>
+        <release version="2.0.3" date="2026-09-20">
+            <description>
+                <p>Correcciones en la documentación del repositorio: la tabla de versiones soportadas de la política de seguridad ahora refleja la serie 2.x, y el badge de plataformas del README dejó de enlazar a una página vacía.</p>
+            </description>
+        </release>
         <release version="2.0.2" date="2026-09-15">
             <description>
                 <p>Corrección de un cierre inesperado al calcular edificios con cubierta a un agua de poca pendiente, cuando la longitud del edificio caía entre el doble de la altura media y el ancho: las zonas de cubierta quedaban divididas de más y el cálculo se interrumpía sin ningún aviso.</p>
