@@ -7,10 +7,10 @@ es una aplicación de escritorio y no se mantienen ramas de versiones anteriores
 la vía de corrección es siempre actualizar a la última
 [release](https://github.com/efdiloreto/ZondaPro/releases/latest).
 
-| Versión | Soportada          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| Versión                | Soportada          |
+| ---------------------- | ------------------ |
+| 2.x (última publicada) | :white_check_mark: |
+| Anteriores             | :x:                |
 
 ## Reportar una vulnerabilidad
 
