@@ -4,7 +4,7 @@ Software libre de escritorio para el cálculo de cargas y presiones de viento en
 
 [![Licencia: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python: >=3.13](https://img.shields.io/badge/Python->=3.13-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Plataformas](https://img.shields.io/badge/Plataforma-Windows%20|%20macOS%20|%20Linux-lightgrey.svg)]()
+![Plataformas](https://img.shields.io/badge/Plataforma-Windows%20|%20macOS%20|%20Linux-lightgrey.svg)
 
 ---
 
